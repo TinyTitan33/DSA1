@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Traffic Light</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Figtree:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eaf4f8;--panel:#fff;--ink:#1c2b36;--mute:#51657a;--line:#c6d8e4;--grass:#bfe3b4;--sky:#cde9f6;--road:#46545f;--pole:#5b6b78;--box:#263540;--red:#e0443e;--amb:#f2b632;--grn:#2daa6b;
+--head:"Bricolage Grotesque","Trebuchet MS",sans-serif;--body:Figtree,"Segoe UI",system-ui,sans-serif;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10181f;--panel:#182430;--ink:#e8f1f6;--mute:#9bb0bf;--line:#2b3c4a;--grass:#25402b;--sky:#1e3a4d;--road:#2a333a;--pole:#6f808c;--box:#0b1217}}
+:root[data-theme="dark"]{--bg:#10181f;--panel:#182430;--ink:#e8f1f6;--mute:#9bb0bf;--line:#2b3c4a;--grass:#25402b;--sky:#1e3a4d;--road:#2a333a;--pole:#6f808c;--box:#0b1217}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.5 var(--body)}
+.wrap{max-width:720px;margin:0 auto;padding:20px 16px 96px}
+h1{font:800 clamp(28px,6vw,40px)/1.05 var(--head);margin:0 0 14px;letter-spacing:-.02em}
+h2{font:800 clamp(24px,5vw,32px)/1.1 var(--head);margin:18px 0 6px;letter-spacing:-.01em}
+h3{font:700 20px/1.2 var(--head);margin:26px 0 8px}
+p{margin:0 0 12px;max-width:62ch}
+.prog{display:flex;gap:6px;flex-wrap:wrap}
+.prog button{flex:1 1 0;min-width:84px;padding:7px 8px;border:2px solid var(--line);border-radius:999px;background:transparent;color:var(--mute);font:600 14px var(--body);cursor:pointer}
+.prog .seen{border-color:var(--grn);color:var(--ink)}
+.prog .on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.prog button:disabled{opacity:.5;cursor:default}
+.stage{background:var(--panel);border:2px solid var(--line);border-radius:18px;overflow:hidden;margin:12px 0}
+.stage svg{display:block;width:100%;height:auto}
+.small svg{max-height:190px}
+.status{font-weight:600;min-height:3em}
+.status.bad{color:var(--red)}.status.good{color:var(--grn)}
+button{font-family:var(--body)}
+.btn{padding:10px 18px;border-radius:12px;border:2px solid var(--ink);background:var(--ink);color:var(--bg);font:700 16px var(--body);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn:disabled{opacity:.4;cursor:default}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--amb);outline-offset:2px}
+.seg,.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.seg button,.tabs button{padding:8px 14px;border-radius:10px;border:2px solid var(--line);background:var(--panel);color:var(--ink);font:600 15px var(--body);cursor:pointer}
+.seg .on,.tabs .on{border-color:var(--ink);box-shadow:inset 0 -4px 0 var(--amb)}
+.bar{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:2px solid var(--line)}
+.bar span{color:var(--mute);font-size:14px;text-align:center;flex:1}
+.sky{fill:var(--sky)}.zebra{stroke:#fff;stroke-width:16;stroke-dasharray:4 5;fill:none;opacity:.85}.grass{fill:var(--grass)}.stop{stroke:#fff;stroke-width:3;fill:none}.road{fill:var(--road)}.dash{stroke:#fff8;stroke-width:3;stroke-dasharray:14 12;fill:none}
+.pole{fill:var(--pole)}.box,.tbox{fill:var(--box)}
+.lamp,.lampb{fill:var(--c);opacity:.22;transition:opacity .15s}
+.lamp.r,.lampb.r{--c:var(--red)}.lamp.y,.lampb.y{--c:var(--amb)}.lamp.g,.lampb.g{--c:var(--grn)}
+.lamp.on,.lampb.on{opacity:1;filter:drop-shadow(0 0 6px var(--c))}
+.tnum{fill:#9dffb8;font:800 16px var(--body)}
+.cloud{fill:#b9c7d2}.rain{stroke:#5c8fb5;stroke-width:2;stroke-linecap:round}.bird{fill:#8a8f99}.beak{fill:var(--amb)}
+.car{fill:#8b5cc9}.wheel{fill:#111}.truck{fill:#e8764a}.awning{fill:#f4ede0}.bush{fill:#3f9b57}
+.diag{color:var(--ink)}.edge{stroke:var(--ink);fill:none;stroke-width:2}
+.node{opacity:.4;transition:opacity .15s}.node.on{opacity:1}
+.node circle{stroke:var(--ink);stroke-width:3}
+.node.r circle{fill:var(--red)}.node.y circle{fill:var(--amb)}.node.g circle{fill:var(--grn)}
+.node text{font:700 12px var(--body);fill:#111;text-anchor:middle}
+.wait{font:700 15px var(--body);fill:var(--ink);text-anchor:middle}
+.code{padding:22px 18px;font:15px/1.5 ui-monospace,Menlo,Consolas,monospace}
+.code p{margin:0 0 8px;padding:8px 12px;border-radius:8px;border:2px solid transparent;max-width:none}
+.code .cl{display:inline-block; border-radius:6px; padding:2px 8px; transition:all 0.2s;}
+.code .ptr{opacity:0; transition:opacity 0.15s;}
+.code .cl.on .ptr{opacity:1;}
+.code .cl.on{background:var(--amb);color:#000;font-weight:bold;transform:scale(1.03);box-shadow:0 0 12px rgba(242, 182, 50, 0.6);}
+.code .live{margin-top:14px;color:var(--mute)}
+.code .ln { display: inline-block; border-radius: 4px; padding: 1px 6px; transition: all 0.15s; margin-left: -6px; }
+.code .ln.on { background: var(--amb); color: #000; font-weight: bold; transform: scale(1.03); box-shadow: 0 0 8px rgba(242, 182, 50, 0.5); }
+#ln-time { color: var(--mute); margin-left: 10px; font-style: italic; }
+.edit{display:grid;gap:8px;margin:12px 0}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:8px 12px}
+input,select,textarea{font:600 16px var(--body);color:var(--ink);background:var(--bg);border:2px solid var(--line);border-radius:8px;padding:4px 8px}
+input[type=number]{width:4.2em}
+textarea{width:100%;min-height:96px;padding:10px;font-weight:400}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;margin:12px 0}
+.card{border:3px solid var(--line);border-radius:16px;padding:14px 8px;text-align:center;background:var(--panel);opacity:.5;transition:opacity .15s,transform .15s}
+.card span{display:block;font-size:34px}.card b{display:block}.card small{color:var(--mute)}
+.card.on{opacity:1;transform:translateY(-4px);border-color:var(--c)}
+.card.r{--c:var(--red)}.card.y{--c:var(--amb)}.card.g{--c:var(--grn)}
+.rules p{margin:0 0 4px;color:var(--mute);font-size:15px}
+.end{padding:14px 16px;border-left:6px solid var(--grn);background:var(--panel);border-radius:8px;margin-top:14px}
+input[type=range]{width:100%;padding:0;accent-color:var(--amb)}.labels{display:flex;justify-content:space-between;font-weight:600;font-size:14px;color:var(--mute);margin-bottom:12px}input[type=checkbox]{width:20px;height:20px;padding:0;accent-color:var(--ink)}label.row{cursor:pointer}.ro{margin:0;text-align:center;white-space:pre}
+.box.tex{fill:url(#hg)}.sch{fill:none;stroke:var(--ink);stroke-width:2}.dot{fill:var(--ink)}pre.code{margin:0;overflow-x:auto;white-space:pre}.cap{font-weight:600;min-height:3em}
+
+/* Sliding hand animation */
+.slider-wrap { position: relative; width: 100%; }
+.hand-hint { position: absolute; top: 50%; left: 0; font-size: 26px; animation: point-right 1.5s ease-in-out infinite; pointer-events: none; transition: opacity 0.3s ease; text-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 10; }
+@keyframes point-right { 0%, 100% { transform: translate(-35px, -50%); } 50% { transform: translate(-15px, -50%); } }
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Traffic Light</h1>
+
+<section id="s0">
+<p>Slide the detail down and watch the light.</p>
+<div class="stage"></div>
+<div class="slider-wrap">
+  <div class="hand-hint" id="hand-hint">👉</div>
+  <input type="range" min="0" max="3" step="1" value="0" aria-label="Level of detail">
+</div>
+<div class="labels"><span>Non-Abstract</span><span>More Abstract</span><span>Even more Abstract!</span><span>The most Abstract!!!</span></div>
+<p class="cap" id="cap"></p>
+</section>
+
+</div>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)],clone=o=>JSON.parse(JSON.stringify(o));
+const GOOD={eg:{secs:4,next:"ey"},ey:{secs:2,next:"ng"},ng:{secs:4,next:"ny"},ny:{secs:2,next:"eg"}},SC={red:"r",yellow:"y",green:"g"},LBL={eg:"East-West green",ey:"East-West yellow",ng:"North-South green",ny:"North-South yellow"},DOT={eg:"g",ey:"y",ng:"g",ny:"y"},AC=s=>s==="eg"?"g":s==="ey"?"y":"r",BC=s=>s==="ng"?"g":s==="ny"?"y":"r";
+class Light{constructor(m,s){this.m=m;this.s=s;this.t=0;this.frozen=false}
+tick(d){const m=this.m;this.t+=d;for(let g=0;g<6;g++){const r=m[this.s];if(!r||this.t<r.secs)break;this.t-=r.secs;if(!m[r.next])break;this.s=r.next}}
+left(){const r=this.m[this.s];return r?Math.max(0,Math.ceil(r.secs-this.t)):0}
+reset(s){this.s=s;this.t=0}}
+const live=[];let DT=0,cur=0,max=0,last=performance.now();
+const reg=(lv,L,draw)=>live.push({lv,L,draw});
+function loop(n){const dt=Math.min(.1,(n-last)/1000);last=n;DT=dt;for(const o of live)if(o.lv===cur){if(!o.L.frozen)o.L.tick(dt);o.draw()}requestAnimationFrame(loop)}
+
+const lamps=(el,s)=>{$$(".lamp",el).forEach(l=>l.classList.toggle("on",l.classList.contains(AC(s))));$$(".lampb",el).forEach(l=>l.classList.toggle("on",l.classList.contains(BC(s))))};
+const DIRS=[[1,0,140,-12,118,"A",432],[-1,0,110,-432,-244,"A",12],[0,1,195,-12,92,"B",262],[0,-1,225,-262,-158,"B",12]],COL=["#8b5cc9","#e8764a","#3f9bd6","#d94f7a","#e0a93a"];
+function cars(el,L){const cA=AC(L.s),cB=BC(L.s);const g=$(".cars",el);if(!g)return;const c=el._c=el._c||{cs:[],sp:[0,.7,1.3,.3]};
+DIRS.forEach((d,i)=>{const go=(d[5]==="A"?cA:cB)==="g",mine=c.cs.filter(v=>v.i===i).sort((a,b)=>b.s-a.s);let ahead=1e9;
+mine.forEach(v=>{let n=v.s+60*DT;if(!go&&v.s+10<=d[4]&&n+10>d[4])n=d[4]-10;if(n>ahead-26)n=Math.max(v.s,ahead-26);v.s=n;ahead=n});
+c.sp[i]-=DT;if(c.sp[i]<=0&&(!mine.length||mine[mine.length-1].s>d[3]+30)){c.cs.push({i,s:d[3],c:COL[Math.floor(Math.random()*5)]});c.sp[i]=1.2+Math.random()*1.8}
+c.cs=c.cs.filter(v=>v.i!==i||v.s<d[6])});
+const P=c.pd=c.pd||{w:[],sp:0},walk=cB==="g"&&L.left()>=3,pg=$(".peds",el);P.sp-=DT;if(P.sp<=0&&P.w.length<5){P.sp=1.5+Math.random()*2;const t=Math.random()<.5;P.w.push({y:t?88:162,d:t?1:-1,x:126+Math.random()*12,go:0})}
+P.w.forEach(q=>{if(walk)q.go=1;if(q.go)q.y+=q.d*24*DT});P.w=P.w.filter(q=>q.d>0?q.y<162:q.y>88);
+if(pg)pg.innerHTML=P.w.map(q=>`<circle cx="${q.x}" cy="${q.y}" r="3.5" fill="#fff" stroke="#333"/>`).join("");
+g.innerHTML=c.cs.map(v=>{const d=DIRS[v.i],h=d[0]!==0,x=h?v.s*d[0]:d[2],y=h?d[2]:v.s*d[1];return `<rect x="${x-(h?10:5.5)}" y="${y-(h?5.5:10)}" width="${h?20:11}" height="${h?11:20}" rx="3" fill="${v.c}"/>`}).join("")}
+function paint(el,L){lamps(el,L.s);cars(el,L);$$("[data-s]",el).forEach(n=>{if(n.classList.contains("node")||n.classList.contains("cl"))n.classList.toggle("on",n.dataset.s===L.s)});const tn=$(".tnum",el);if(tn&&!L.frozen)tn.textContent=L.left();const sv=$(".sv",el);if(sv)sv.textContent=LBL[L.s]||L.s}
+
+const clutter=`<g class="junk"><text x="44" y="68" font-size="36" text-anchor="middle">🌳</text></g>
+<g class="junk"><text x="366" y="62" font-size="36" text-anchor="middle">🌳</text></g>
+<g class="junk"><text x="360" y="228" font-size="34" text-anchor="middle">⛲</text></g>
+<g class="junk"><text x="62" y="214" font-size="36" text-anchor="middle">🚚</text></g>
+<g class="junk"><rect x="120" y="84" width="24" height="82" fill="transparent"/><g class="peds"></g></g>
+<g class="junk"><text x="330" y="30" font-size="30" text-anchor="middle">🌧️</text><path d="M305 42l-3 9M320 46l-3 9M335 42l-3 9M350 46l-3 9" class="rain"/></g>
+<g class="junk"><text x="161" y="32" font-size="15" text-anchor="middle">🐦</text></g>`;
+
+const scene=()=>`<svg viewBox="0 0 420 250" role="img" aria-label="A street intersection with traffic lights and cars"><defs><pattern id="as" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".8" fill="#fff" opacity=".18"/><circle cx="4" cy="4" r=".8" fill="#000" opacity=".25"/></pattern><linearGradient id="hg" x1="0" x2="1"><stop offset="0" stop-color="#3d4f5d"/><stop offset=".5" stop-color="#1a242c"/><stop offset="1" stop-color="#3d4f5d"/></linearGradient></defs><rect width="420" height="250" class="grass"/><rect y="95" width="420" height="60" class="road"/><rect x="180" width="60" height="250" class="road"/><rect y="95" width="420" height="60" fill="url(#as)"/><rect x="180" width="60" height="250" fill="url(#as)"/><path d="M0 125H180M240 125H420M210 0V95M210 155V250" class="dash"/><path d="M118 127V153M244 97V123M182 92H208M212 158H238" class="stop"/><path d="M132 95V155" class="zebra"/><g class="cars"></g>
+<rect x="116" y="66" width="56" height="22" rx="6" class="box tex"/>
+<circle class="lamp r" cx="129" cy="77" r="7"/>
+<circle class="lamp y" cx="144" cy="77" r="7"/>
+<circle class="lamp g" cx="159" cy="77" r="7"/>
+<rect x="252" y="160" width="22" height="56" rx="6" class="box tex"/>
+<circle class="lampb r" cx="263" cy="173" r="7"/>
+<circle class="lampb y" cx="263" cy="188" r="7"/>
+<circle class="lampb g" cx="263" cy="203" r="7"/>
+<g><rect x="121" y="36" width="46" height="26" rx="6" class="tbox"/><text class="tnum" x="144" y="55" text-anchor="middle">4</text></g>${clutter}</svg>`;
+
+const diagram=()=>`<svg class="diag" viewBox="0 0 420 250" role="img" aria-label="State diagram: four phases in a loop"><defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+<path class="edge" marker-end="url(#ah)" d="M142 60H278"/><path class="edge" marker-end="url(#ah)" d="M320 102V148"/><path class="edge" marker-end="url(#ah)" d="M278 190H142"/><path class="edge" marker-end="url(#ah)" d="M100 148V102"/>
+<text class="wait" x="210" y="48">${GOOD.eg.secs} s</text><text class="wait" x="356" y="129">${GOOD.ey.secs} s</text><text class="wait" x="210" y="216">${GOOD.ng.secs} s</text><text class="wait" x="64" y="129">${GOOD.ny.secs} s</text>
+<g class="node g" data-s="eg"><circle cx="100" cy="60" r="42"/><text x="100" y="56" font-size="11">East-West</text><text x="100" y="70" font-size="11">green</text></g><g class="node y" data-s="ey"><circle cx="320" cy="60" r="42"/><text x="320" y="56" font-size="11">East-West</text><text x="320" y="70" font-size="11">yellow</text></g><g class="node g" data-s="ng"><circle cx="320" cy="190" r="42"/><text x="320" y="186" font-size="11">North-South</text><text x="320" y="200" font-size="11">green</text></g><g class="node y" data-s="ny"><circle cx="100" cy="190" r="42"/><text x="100" y="186" font-size="11">North-South</text><text x="100" y="200" font-size="11">yellow</text></g></svg>`;
+
+const SN={eg:"EW_GREEN",ey:"EW_YELLOW",ng:"NS_GREEN",ny:"NS_YELLOW"};
+const code=()=>{const k=Object.keys(GOOD);return `<pre class="code">states = [
+  ${k.map(s=>`<span class="cl" data-s="${s}"><span class="ptr">👉 </span>${SN[s]}</span>`).join(",\n  ")}
+]
+wait   = [${k.map(s=>GOOD[s].secs).join(", ")}]
+state  = 0
+
+while True:
+    <span class="ln" id="ln-show">show(state)</span>
+    <span class="ln" id="ln-sleep">sleep(wait[state])</span><span id="ln-time"></span>
+    <span class="ln" id="ln-next">state = (state + 1) % ${k.length}</span>
+
+now running: <span class="sv"></span></pre>`};
+
+const schem=()=>`<svg viewBox="0 0 420 250" role="img" aria-label="Schematic intersection: boxes, circles, and a moving dot"><path d="M0 95H180V0H240V95H420V155H240V250H180V155H0Z" class="sch"/>
+<rect x="116" y="66" width="56" height="22" class="sch"/>
+<circle class="lamp r" cx="129" cy="77" r="7"/>
+<circle class="lamp y" cx="144" cy="77" r="7"/>
+<circle class="lamp g" cx="159" cy="77" r="7"/>
+<rect x="252" y="160" width="22" height="56" class="sch"/>
+<circle class="lampb r" cx="263" cy="173" r="7"/>
+<circle class="lampb y" cx="263" cy="188" r="7"/>
+<circle class="lampb g" cx="263" cy="203" r="7"/>
+<circle class="dot" cx="-10" cy="140" r="6"/>
+<circle class="dot2 dot" cx="195" cy="-10" r="6"/></svg>`;
+
+function dot(el,L){
+  const d=$(".dot",el);
+  const d2=$(".dot2",el);
+  if(!d)return;
+  const c=el._d=el._d||{x:-10, y:-10};
+  
+  let x=c.x+60*DT;
+  if(AC(L.s)!=="g"&&c.x<=112&&x>112)x=112; 
+  if(x>430)x=-10;
+  c.x=x;
+  d.setAttribute("cx",x);
+  
+  if(d2){
+    let y=c.y+60*DT;
+    if(BC(L.s)!=="g"&&c.y<=80&&y>80)y=80;
+    if(y>260)y=-10;
+    c.y=y;
+    d2.setAttribute("cy",y);
+  }
+}
+
+function L1(){
+  const el=$("#s0 .stage"), sl=$("#s0 input"), cap=$("#cap"), L=new Light(clone(GOOD),"eg");
+  let v=0;
+  const CAP=[
+    "Realistic: everything is here, including things that don't matter.",
+    "Schematic: boxes, circles, and two dots. The dots stop when their light isn't green.",
+    "State model: only the states, their order, and the waits, as data.",
+    "Code: the whole behavior is one loop."
+  ];
+  const V=[scene,schem,()=>diagram()+'<p class="ro code"></p>',code];
+  
+  const draw=()=>{
+    el.innerHTML=V[v]();
+    cap.textContent=CAP[v];
+  };
+  
+  sl.oninput=()=>{
+    v=+sl.value;
+    draw();
+  };
+  
+  reg(0,L,()=>{
+    paint(el,L);
+    dot(el,L);
+    const r=$(".ro",el);
+    if(r)r.textContent=`state: ${Object.keys(GOOD).indexOf(L.s)}   (${L.s})\ntimer: ${(L.m[L.s].secs-L.t).toFixed(1)} s`
+    
+    // Line-stepping code movement
+    const lnShow = $("#ln-show", el);
+    if (lnShow) {
+      const t = L.t;
+      const left = L.m[L.s].secs - t;
+      
+      // Step 1: show(state) for the first 0.3s
+      lnShow.classList.toggle("on", t < 0.3);
+      
+      // Step 2: sleep(...) for the middle duration
+      const isSleeping = t >= 0.3 && left >= 0.3;
+      $("#ln-sleep", el).classList.toggle("on", isSleeping);
+      $("#ln-time", el).textContent = isSleeping ? `# ${left.toFixed(1)}s remaining` : "";
+      
+      // Step 3: state = ... for the last 0.3s
+      $("#ln-next", el).classList.toggle("on", left < 0.3);
+    }
+  });
+  
+  draw();
+}
+
+L1();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
