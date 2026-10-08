@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peanut Butter Sandwich Maker</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+        canvas {
+            background-color: rgb(244, 246, 250);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 4px;
+            cursor: default;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="gameCanvas" width="1400" height="750"></canvas>
+
+<script>
+// --- Constants & Config ---
+const WIDTH = 1400;
+const HEIGHT = 750;
+const QUEUE_PAUSE_FRAMES = 35;
+
+const CMD_LABELS = {
+    "spread": "Spread PB", "open jar": "Open Jar", "close jar": "Close Jar",
+    "pick up knife": "Pick Up Knife", "take slice": "Take Slice", "put down knife": "Put Down Knife",
+    "close bag": "Close Bag", "dip knife": "Dip Knife", "open bag": "Open Bag",
+    "assemble": "Assemble", "vague_action": "[Vague Concept]", "tear bag": "Tear Bag Open",
+    "slice bread": "Slice Bread", "scoop finger": "Scoop with Finger", "lick knife": "Lick Knife",
+    "shake jar": "Shake Jar", "wipe counter": "Wipe Counter", "wash hands": "Wash Hands",
+    "clean knife": "Clean Knife", "flip bread": "Flip Bread", "eat sandwich": "Eat Sandwich"
+};
+
+const DRAWER_ACTIONS = [
+    ["Wash Hands", "wash hands"], ["Open Bag", "open bag"], ["Tear Bag Open", "tear bag"],
+    ["Take Slice", "take slice"], ["Slice Bread", "slice bread"], ["Flip Bread", "flip bread"],
+    ["Close Bag", "close bag"], ["Open Jar", "open jar"], ["Shake Jar", "shake jar"],
+    ["Pick Up Knife", "pick up knife"], ["Scoop with Finger", "scoop finger"], ["Dip Knife", "dip knife"],
+    ["Lick Knife", "lick knife"], ["Spread PB", "spread"], ["Clean Knife", "clean knife"],
+    ["Wipe Counter", "wipe counter"], ["Put Down Knife", "put down knife"], ["Close Jar", "close jar"],
+    ["Assemble", "assemble"], ["Eat Sandwich", "eat sandwich"]
+];
+
+// Theme Palette
+const BG_COLOR = [244, 246, 250];
+const PANEL_BG = [228, 232, 240];
+const TEXT_DARK = [30, 35, 45];
+const ACCENT_BLUE = [45, 115, 240];
+const ALERT_RED = [225, 50, 50];
+const SUCCESS_GREEN = [38, 160, 68];
+
+const BREAD_CRUST = [165, 98, 42];
+const BREAD_BODY = [246, 224, 182];
+const PB_BROWN = [195, 115, 30];
+const PB_DARK = [155, 85, 20];
+const JAR_GLASS = [242, 228, 200];
+const LID_COLOR = [195, 42, 42];
+const KNIFE_STEEL = [200, 205, 215];
+const KNIFE_HANDLE = [40, 42, 48];
+const PLATE_WHITE = [235, 240, 245];
+const PLATE_SHADOW = [180, 188, 200];
+
+function toRgb(c) { return `rgb(${c[0]}, ${c[1]}, ${c[2]})`; }
+function toRgba(c, a) { return `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`; }
+function randUniform(min, max) { return Math.random() * (max - min) + min; }
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+// --- Audio Synthesis Engine ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function synthesizeWav(generatorFunc, duration = 0.15, volume = 0.28) {
+    const sampleRate = audioCtx.sampleRate;
+    const nSamples = Math.floor(sampleRate * duration);
+    const buffer = audioCtx.createBuffer(1, nSamples, sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < nSamples; i++) {
+        const t = i / sampleRate;
+        let sample = generatorFunc(t, duration);
+        sample = Math.max(-1.0, Math.min(1.0, sample));
+        data[i] = sample * volume;
+    }
+    return {
+        play: () => {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioCtx.destination);
+            source.start();
+        }
+    };
+}
+
+const SND_ACTION = synthesizeWav((t, d) => Math.sin(2 * Math.PI * (350 + 200 * (1 - t / d)) * t), 0.08, 0.25);
+const SND_SERVO = synthesizeWav((t, d) => Math.sin(2 * Math.PI * (800 + 400 * Math.sin(t * 70)) * t) * (1 - t / d), 0.12, 0.18);
+const SND_CLINK = synthesizeWav((t, d) => (Math.sin(2 * Math.PI * 1450 * t) + 0.4 * Math.sin(2 * Math.PI * 2800 * t)) * Math.exp(-t * 30), 0.14, 0.35);
+const SND_THUD = synthesizeWav((t, d) => Math.sin(2 * Math.PI * (75 - 25 * (t / d)) * t) * Math.exp(-t * 18), 0.16, 0.4);
+const SND_SPREAD = synthesizeWav((t, d) => (randUniform(-0.5, 0.5) + 0.5 * Math.sin(2 * Math.PI * 180 * t)) * (1 - t / d), 0.22, 0.28);
+const SND_SNAP = synthesizeWav((t, d) => (t < 0.03 ? randUniform(-1, 1) : Math.sin(2 * Math.PI * 900 * t) * Math.exp(-t * 40)), 0.09, 0.3);
+const SND_ERROR = synthesizeWav((t, d) => ((Math.floor(t * 120) % 2 === 0) ? 1.0 : -1.0) * (1 - t / d), 0.22, 0.25);
+const SND_VICTORY = synthesizeWav((t, d) => Math.sin(2 * Math.PI * (t < 0.1 ? 523 : (t < 0.2 ? 659 : (t < 0.3 ? 784 : 1046))) * t), 0.45, 0.32);
+
+// --- Visual Effects ---
+class Particle {
+    constructor(x, y, vx, vy, color, size, life, gravity = 0.2) {
+        this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+        this.color = color; this.size = size;
+        this.life = life; this.max_life = life; this.gravity = gravity;
+    }
+    update() {
+        this.x += this.vx; this.y += this.vy; this.vy += this.gravity; this.life--;
+    }
+    draw(ctx) {
+        if (this.life > 0) {
+            const alpha = Math.max(0, Math.min(1, this.life / this.max_life));
+            ctx.fillStyle = toRgba(this.color, alpha);
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+}
+
+class FloatingText {
+    constructor(x, y, text, color) {
+        this.x = x; this.y = y; this.text = text;
+        this.color = color; this.life = 50; this.max_life = 50;
+    }
+    update() { this.y -= 1.1; this.life--; }
+    draw(ctx) {
+        if (this.life > 0) {
+            const alpha = Math.max(0, Math.min(1, this.life / this.max_life));
+            ctx.font = "bold 16px Arial";
+            ctx.fillStyle = toRgba(this.color, alpha);
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(this.text, this.x, this.y);
+        }
+    }
+}
+
+class FlyingSlice {
+    constructor(start_pos, target_pos, callback_done) {
+        this.start = start_pos; this.target = target_pos;
+        this.t = 0.0; this.speed = 0.04;
+        this.callback_done = callback_done; this.completed = false;
+    }
+    update() {
+        this.t = Math.min(1.0, this.t + this.speed);
+        if (this.t >= 1.0 && !this.completed) {
+            this.completed = true;
+            this.callback_done();
+        }
+    }
+    get_pos() {
+        const x = (1 - this.t) * this.start[0] + this.t * this.target[0];
+        const y_linear = (1 - this.t) * this.start[1] + this.t * this.target[1];
+        return [x, y_linear - (80 * Math.sin(Math.PI * this.t))];
+    }
+}
+
+// Stage Coordinates
+const BAG_POS = [40.0, 210.0];
+const PLATE_POS = [290.0, 250.0];
+const JAR_POS = [650.0, 190.0];
+const LID_CLOSED = [665.0, 178.0];
+const LID_OPEN = [740.0, 310.0];
+const KNIFE_IDLE = [200.0, 390.0];
+const KNIFE_HOME = [460.0, 130.0];
+const UNKNOWN_INFO = {};
+
+class SandwichBot {
+    constructor() {
+        this.particles = [];
+        this.floating_texts = [];
+        this.flying_slices = [];
+        this.program_queue = [];
+        this.reset_state();
+    }
+
+    reset_state() {
+        this.bag_open = false;
+        this.slices_on_plate = 0;
+        this.jar_open = false;
+        this.knife_held = false;
+        this.knife_has_butter = false;
+        this.butter_on_bread = false;
+        this.sandwich_assembled = false;
+        this.knife_touched_bread = false;
+        this.jar_contaminated = false;
+
+        this.run_index = 0;
+        this.queue_running = false;
+        this.queue_delay_timer = 0;
+        this.queue_had_error = false;
+
+        this.message = "waiting for your sandwich recipe!";
+        this.msg_color = TEXT_DARK;
+        this.sub_message = "";
+
+        this.knife_pos = [...KNIFE_IDLE];
+        this.target_knife_pos = [...KNIFE_IDLE];
+        this.knife_angle = 0.0;
+        this.target_knife_angle = 0.0;
+
+        this.lid_pos = [...LID_CLOSED];
+        this.target_lid_pos = [...LID_CLOSED];
+        this.bag_open_progress = 0.0;
+        this.target_bag_progress = 0.0;
+
+        this.anim_sequence = [];
+        this.shake_timer = 0;
+        this.shake_target = null;
+
+        this.particles = [];
+        this.floating_texts = [];
+        this.flying_slices = [];
+    }
+
+    is_busy() { return this.anim_sequence.length > 0 || this.flying_slices.length > 0; }
+
+    start_program() {
+        if (this.program_queue.length > 0 && !this.queue_running && !this.is_busy()) {
+            this.reset_state();
+            this.queue_running = true;
+            this.run_index = 0;
+            this.queue_delay_timer = QUEUE_PAUSE_FRAMES;
+            this.message = "Executing Batch...";
+            audioCtx.resume(); 
+        }
+    }
+
+    anim_with_recoil(action_steps, recoil_pos = null, recoil_angle = 0.0, recoil_frames = 14) {
+        if (!recoil_pos) recoil_pos = [...KNIFE_HOME];
+        return [...action_steps, [recoil_pos, recoil_angle, recoil_frames, null]];
+    }
+
+    spawn_sparks(x, y, count = 10) {
+        for (let i = 0; i < count; i++) {
+            const angle = randUniform(-Math.PI * 0.8, -Math.PI * 0.2);
+            const speed = randUniform(3, 7);
+            this.particles.push(new Particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, [255, 230, 100], randUniform(2, 4), randInt(15, 25), 0.25));
+        }
+    }
+
+    trigger_error(message, float_tag = null, impact_pos = null, shake_target = null, lesson = "") {
+        this.message = message;
+        this.msg_color = ALERT_RED;
+        this.sub_message = lesson;
+        this.queue_had_error = true;
+        this.queue_running = false;
+        this.shake_timer = 18;
+        this.shake_target = shake_target;
+        SND_ERROR.play();
+        if (impact_pos && float_tag) {
+            this.floating_texts.push(new FloatingText(impact_pos[0], impact_pos[1] - 15, float_tag, ALERT_RED));
+        }
+    }
+
+    run_command(cmd) {
+        this.sub_message = "";
+        
+        if (cmd === "vague_action") {
+            this.trigger_error("huh? What tool? Which object? How?", "VAGUE", [PLATE_POS[0] + 100, PLATE_POS[1] - 50], null, "What is your intent? Break your goal into exact small steps.");
+            return;
+        } else if (cmd.startsWith("unknown:")) {
+            const txt = cmd.split(":")[1];
+            const info = UNKNOWN_INFO[cmd] || [`SyntaxError: Unknown command '${txt}'`, "The robot's instruction set does not recognize this action."];
+            this.trigger_error(info[0], "?", [PLATE_POS[0] + 100, PLATE_POS[1] - 50], null, info[1]);
+            return;
+        }
+
+        if (cmd === "wash hands") {
+            this.message = ">> Hands washed. Good hygiene!";
+            this.msg_color = TEXT_DARK;
+            SND_ACTION.play();
+        } else if (cmd === "open bag") {
+            if (this.bag_open) {
+                this.message = ">> Bag is already open."; this.msg_color = TEXT_DARK;
+            } else {
+                this.bag_open = true; this.target_bag_progress = 1.0;
+                this.message = ">> Bag opened."; this.msg_color = TEXT_DARK;
+                SND_SNAP.play();
+            }
+        } else if (cmd === "tear bag") {
+            this.trigger_error("You ripped the bag! The bread is ruined and stale now.", "RUINED", [BAG_POS[0]+60, BAG_POS[1]], "bag", "Destructive actions break the system. Untie the bag first!");
+        } else if (cmd === "close bag") {
+            if (!this.bag_open) {
+                this.message = ">> Bag is already closed."; this.msg_color = TEXT_DARK;
+            } else {
+                this.bag_open = false; this.target_bag_progress = 0.0;
+                this.message = ">> Bag is tied closed."; this.msg_color = TEXT_DARK;
+                SND_SNAP.play();
+            }
+        } else if (cmd === "take slice") {
+            if (!this.bag_open) {
+                this.trigger_error("Hitting a sealed plastic bag!", "PLASTIC WALL", [BAG_POS[0]+60, BAG_POS[1]-20], "bag", "hmm... Don't you think 'Open Bag' must come before 'Take Slice'?");
+            } else if (this.slices_on_plate >= 2) {
+                this.message = "Plate full."; this.msg_color = TEXT_DARK;
+            } else {
+                const start = [BAG_POS[0]+60, BAG_POS[1]+40];
+                const dest = [PLATE_POS[0]+90, PLATE_POS[1]+15 - (this.slices_on_plate === 0 ? 0 : 30)];
+                const self = this;
+                this.flying_slices.push(new FlyingSlice(start, dest, function() {
+                    self.slices_on_plate += 1;
+                    SND_THUD.play();
+                    self.shake_timer = 6;
+                    self.shake_target = "plate";
+                }));
+                this.message = `>> Transporting slice ${this.slices_on_plate + 1} to plate...`;
+                this.msg_color = TEXT_DARK;
+                SND_SERVO.play();
+            }
+        } else if (cmd === "slice bread") {
+            this.trigger_error("The bread is already pre-sliced!", "UNNECESSARY", [BAG_POS[0]+60, BAG_POS[1]], "bag", "Do not execute irrelevant actions.");
+        } else if (cmd === "flip bread") {
+            if (this.slices_on_plate === 0) {
+                this.trigger_error("No bread on the plate to flip!", "EMPTY PLATE", [PLATE_POS[0]+130, PLATE_POS[1]], "plate", "You must take a slice before interacting with it, right? :)");
+            } else {
+                this.message = ">> Bread flipped."; this.msg_color = TEXT_DARK;
+                this.shake_timer = 5; this.shake_target = "plate";
+                SND_ACTION.play();
+            }
+        } else if (cmd === "open jar") {
+            if (this.jar_open) {
+                this.message = ">> Jar is already open."; this.msg_color = TEXT_DARK;
+            } else {
+                this.jar_open = true; this.target_lid_pos = [...LID_OPEN];
+                this.message = ">> Lid unscrewed and set on counter."; this.msg_color = TEXT_DARK;
+                SND_ACTION.play();
+            }
+        } else if (cmd === "close jar") {
+            if (!this.jar_open) {
+                this.message = ">> Jar is already closed."; this.msg_color = TEXT_DARK;
+            } else {
+                this.jar_open = false; this.target_lid_pos = [...LID_CLOSED];
+                this.message = ">> Lid screwed back onto the jar."; this.msg_color = TEXT_DARK;
+                SND_ACTION.play();
+            }
+        } else if (cmd === "shake jar") {
+            this.message = ">> Jar shaken. Did nothing useful."; this.msg_color = TEXT_DARK;
+            this.shake_timer = 10; this.shake_target = "jar";
+            SND_ACTION.play();
+        } else if (cmd === "pick up knife") {
+            if (this.knife_held) {
+                this.message = ">> Already holding knife."; this.msg_color = TEXT_DARK;
+            } else {
+                this.knife_held = true; this.target_knife_pos = [...KNIFE_HOME]; this.target_knife_angle = 10.0;
+                this.message = ">> Knife picked up."; this.msg_color = TEXT_DARK;
+                SND_SERVO.play();
+            }
+        } else if (cmd === "put down knife") {
+            if (!this.knife_held) {
+                this.message = ">> Not holding a knife."; this.msg_color = TEXT_DARK;
+            } else {
+                this.knife_held = false; this.target_knife_pos = [...KNIFE_IDLE]; this.target_knife_angle = 0.0;
+                this.message = ">> Placed knife back on counter."; this.msg_color = TEXT_DARK;
+                SND_ACTION.play();
+            }
+        } else if (cmd === "clean knife") {
+            if (!this.knife_held) {
+                this.trigger_error("You need to pick up the knife to clean it.", "NO KNIFE", [KNIFE_IDLE[0], KNIFE_IDLE[1]-20], null, "umm... what are you cleaning? the air?");
+            } else {
+                this.knife_has_butter = false; this.knife_touched_bread = false;
+                this.message = ">> Knife wiped clean."; this.msg_color = TEXT_DARK;
+                SND_ACTION.play();
+            }
+        } else if (cmd === "scoop finger") {
+            this.trigger_error("Hygiene Error: Scooping with bare fingers!", "GROSS", [JAR_POS[0]-15, JAR_POS[1]-15], "jar", "You need to set up and use the correct tools.");
+        } else if (cmd === "lick knife") {
+            if (!this.knife_held) {
+                this.trigger_error("You licked the air.", "?", [KNIFE_IDLE[0], KNIFE_IDLE[1]]);
+            } else {
+                this.trigger_error("Contamination! You licked the knife.", "CONTAMINATED", [KNIFE_HOME[0], KNIFE_HOME[1]-20], null, "Why? just why? Do you really need it in the sandwich making workflow?");
+                this.jar_contaminated = true;
+            }
+        } else if (cmd === "dip knife") {
+            if (!this.knife_held) {
+                this.trigger_error("Are you dipping your bare hand in the jar?", "BARE HAND", KNIFE_HOME, null, "A missing step isn't obvious to a machine. Pick up the knife first.");
+            } else if (!this.jar_open) {
+                const impact = [LID_CLOSED[0]-15, LID_CLOSED[1]-4];
+                const self = this;
+                this.anim_sequence = this.anim_with_recoil([[impact, 22.0, 9, () => {
+                    SND_CLINK.play();
+                    self.spawn_sparks(impact[0] + 50, impact[1] + 6, 14);
+                    self.shake_timer = 15; self.shake_target = "jar";
+                    self.floating_texts.push(new FloatingText(impact[0] + 50, impact[1] - 10, "CUTTING LID", ALERT_RED));
+                }]], [...KNIFE_HOME], 0, 15);
+                this.trigger_error("Clink! Hitting the lid!", null, null, null, "The order you do the tasks matters: 'Dip Knife' requires 'Open Jar' to happen first.");
+            } else if (this.jar_contaminated) {
+                this.trigger_error("That jar is contaminated — a dirty knife went in it!", "CONTAMINATED", [JAR_POS[0]-15, JAR_POS[1]-15], null, "Order changes outcomes. Sequence your steps to avoid cross-contamination.");
+            } else {
+                const dip_pos = [JAR_POS[0]+10, JAR_POS[1]+15];
+                const contaminating = this.knife_touched_bread;
+                const self = this;
+                this.anim_sequence = this.anim_with_recoil([[dip_pos, 42.0, 12, () => {
+                    self.knife_has_butter = true;
+                    if (contaminating) {
+                        self.jar_contaminated = true;
+                        SND_ERROR.play();
+                        self.floating_texts.push(new FloatingText(dip_pos[0] + 20, dip_pos[1] - 10, "CONTAMINATED!", ALERT_RED));
+                    } else { SND_SPREAD.play(); }
+                }]], [...KNIFE_HOME], 10.0, 14);
+                if (contaminating) {
+                    this.trigger_error("That knife touched bread — the jar is contaminated!", null, null, null, "A step that seemed fine caused a downstream side-effect.");
+                } else {
+                    this.message = ">> Knife loaded with peanut butter."; this.msg_color = TEXT_DARK;
+                }
+            }
+        } else if (cmd === "spread") {
+            if (!this.knife_held) {
+                this.trigger_error("Spreading with bare fingers?", "BARE FINGERS", [PLATE_POS[0]+130, PLATE_POS[1]], null, "Each step depends on a tool being ready.");
+            } else if (this.slices_on_plate < 1) {
+                const down = [PLATE_POS[0]+100, PLATE_POS[1]+15], drag = [PLATE_POS[0]+40, PLATE_POS[1]+18];
+                const self = this;
+                this.anim_sequence = this.anim_with_recoil([[down, -15.0, 8, () => {
+                    SND_CLINK.play(); self.spawn_sparks(down[0] + 30, down[1] + 10, 8);
+                    self.floating_texts.push(new FloatingText(down[0], down[1]-20, "BUTTERING PLATE", ALERT_RED));
+                }], [drag, -25.0, 12, null]]);
+                this.trigger_error("Are you buttering the plate?", null, null, "plate", "The robot needs the right objects in place before executing the step.");
+            } else if (!this.knife_has_butter) {
+                const down = [PLATE_POS[0]+100, PLATE_POS[1]-15], drag = [PLATE_POS[0]+50, PLATE_POS[1]-15];
+                const self = this;
+                this.anim_sequence = this.anim_with_recoil([[down, -12.0, 7, () => {
+                    SND_ACTION.play();
+                    self.floating_texts.push(new FloatingText(down[0], down[1]-20, "DRY METAL", ALERT_RED));
+                }], [drag, -18.0, 11, null]]);
+                this.trigger_error("Scratching bread with dry metal!", null, null, "plate", "A missing upstream step ('Dip Knife') causes downstream failures.");
+            } else {
+                const pL = [PLATE_POS[0]+65, PLATE_POS[1]-18], pR = [PLATE_POS[0]+125, PLATE_POS[1]-18], pC = [PLATE_POS[0]+95, PLATE_POS[1]-18];
+                const self = this;
+                this.anim_sequence = this.anim_with_recoil([
+                    [pR, -12.0, 8, () => { SND_SPREAD.play(); self.butter_on_bread = true; self.knife_has_butter = false; self.knife_touched_bread = true; }],
+                    [pL, 15.0, 9, null], [pC, -5.0, 8, null]
+                ]);
+                this.message = ">> Peanut butter spread evenly."; this.msg_color = TEXT_DARK;
+            }
+        } else if (cmd === "wipe counter") {
+            this.message = ">> Counter wiped."; this.msg_color = TEXT_DARK;
+            SND_ACTION.play();
+        } else if (cmd === "assemble") {
+            if (this.slices_on_plate < 2) {
+                this.trigger_error("Need 2 slices to assemble!", "NOT ENOUGH BREAD", [PLATE_POS[0]+130, PLATE_POS[1]+20], "plate", "Ensure requirements are met before completing tasks.");
+            } else if (!this.butter_on_bread) {
+                this.sandwich_assembled = true;
+                this.trigger_error("You made a bread-flavored sandwich.", "DRY", [PLATE_POS[0]+130, PLATE_POS[1]+20], null, "You forgot to add the ingredients!");
+            } else {
+                this.sandwich_assembled = true;
+                this.message = "Successfully Assembled! 🎉"; this.msg_color = SUCCESS_GREEN;
+                SND_THUD.play(); SND_VICTORY.play();
+                for (let i = 0; i < 50; i++) {
+                    const col = choice([[235, 65, 50], [50, 150, 255], [40, 200, 80], [255, 215, 0]]);
+                    this.particles.push(new Particle(randInt(PLATE_POS[0]+20, PLATE_POS[0]+240), randInt(PLATE_POS[1]-100, PLATE_POS[1]), randUniform(-4,4), randUniform(-6,-1), col, randUniform(3,5), randInt(45,75), 0.18));
+                }
+            }
+        } else if (cmd === "eat sandwich") {
+            if (!this.sandwich_assembled) {
+                this.trigger_error("There is no completed sandwich to eat!", "NOT DONE", [PLATE_POS[0]+130, PLATE_POS[1]], "plate", "You must assemble the sandwich first before eating it. I mean it sounds obvious, but the robot needs to be told explicitly.");
+            } else {
+                this.sandwich_assembled = false; this.slices_on_plate = 0; this.butter_on_bread = false;
+                this.message = ">> Sandwich eaten. Yum!"; this.msg_color = SUCCESS_GREEN;
+                SND_VICTORY.play();
+            }
+        }
+    }
+
+    update() {
+        if (this.queue_running && !this.is_busy()) {
+            if (this.queue_had_error) {
+                this.queue_running = false;
+            } else if (this.queue_delay_timer > 0) {
+                this.queue_delay_timer -= 1;
+            } else if (this.run_index < this.program_queue.length) {
+                const cmd = this.program_queue[this.run_index];
+                this.run_command(cmd);
+                if (!this.queue_had_error) {
+                    this.run_index += 1;
+                    this.queue_delay_timer = QUEUE_PAUSE_FRAMES;
+                }
+            } else {
+                this.queue_running = false;
+            }
+        }
+
+        if (this.anim_sequence.length > 0) {
+            let [target_pos, target_ang, frames_left, callback] = this.anim_sequence[0];
+            this.target_knife_pos = target_pos;
+            this.target_knife_angle = target_ang;
+            if (callback) callback();
+            frames_left -= 1;
+            if (frames_left <= 0) {
+                this.anim_sequence.shift();
+            } else {
+                this.anim_sequence[0] = [target_pos, target_ang, frames_left, null];
+            }
+        }
+
+        const lerp_speed = this.anim_sequence.length > 0 ? 0.28 : 0.16;
+        this.knife_pos[0] += (this.target_knife_pos[0] - this.knife_pos[0]) * lerp_speed;
+        this.knife_pos[1] += (this.target_knife_pos[1] - this.knife_pos[1]) * lerp_speed;
+        this.knife_angle += (this.target_knife_angle - this.knife_angle) * 0.2;
+        this.lid_pos[0] += (this.target_lid_pos[0] - this.lid_pos[0]) * 0.14;
+        this.lid_pos[1] += (this.target_lid_pos[1] - this.lid_pos[1]) * 0.14;
+        this.bag_open_progress += (this.target_bag_progress - this.bag_open_progress) * 0.12;
+
+        for (let i = this.flying_slices.length - 1; i >= 0; i--) {
+            this.flying_slices[i].update();
+            if (this.flying_slices[i].completed) this.flying_slices.splice(i, 1);
+        }
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            this.particles[i].update();
+            if (this.particles[i].life <= 0) this.particles.splice(i, 1);
+        }
+        for (let i = this.floating_texts.length - 1; i >= 0; i--) {
+            this.floating_texts[i].update();
+            if (this.floating_texts[i].life <= 0) this.floating_texts.splice(i, 1);
+        }
+
+        if (this.shake_timer > 0) {
+            this.shake_timer -= 1;
+        } else {
+            this.shake_target = null;
+        }
+    }
+}
+
+// --- Natural-Language Parser ---
+const STOPWORDS = new Set(["the","a","an","my","your","our","some","that","this","these","those","please","just","now","it","them","of","to","on","in","into","onto","from","with","off","at","for","using","over","out","back","up","again","by","and","then","also","is","are","be","can","could","you","robot","i","me","we","should","will","would","need","want","go","ahead","away","what","there","next","first"]);
+const PRONOUNS = new Set(["it","them","that","this","these","those","there"]);
+const NEGATIONS = new Set(["dont","don't","not","never","no","stop","avoid","skip","without","cannot","can't","shouldn't","won't"]);
+
+const VERB_WORDS = {
+    "open": "OPEN", "unscrew": "OPEN", "untie": "OPEN", "unwrap": "OPEN", "unseal": "OPEN", "uncap": "OPEN",
+    "close": "CLOSE", "shut": "CLOSE", "seal": "CLOSE", "screw": "CLOSE", "tie": "CLOSE", "fasten": "CLOSE",
+    "tear": "TEAR", "rip": "TEAR", "shred": "TEAR",
+    "cut": "SLICE", "chop": "SLICE",
+    "take": "TAKE", "grab": "TAKE", "get": "TAKE", "pull": "TAKE", "fetch": "TAKE",
+    "remove": "TAKE", "pick": "TAKE", "hold": "TAKE", "lift": "TAKE", "use": "TAKE",
+    "putdown": "PUTDOWN", "drop": "PUTDOWN",
+    "put": "PUT", "place": "PUT", "set": "PUT", "lay": "PUT",
+    "dip": "DIP", "scoop": "DIP", "load": "DIP", "dunk": "DIP", "stick": "DIP", "insert": "DIP",
+    "spread": "SPREAD", "smear": "SPREAD", "apply": "SPREAD", "coat": "SPREAD", "rub": "SPREAD",
+    "clean": "CLEAN", "wipe": "CLEAN", "wash": "CLEAN", "rinse": "CLEAN", "scrub": "CLEAN",
+    "shake": "SHAKE", "lick": "LICK", "taste": "LICK", "flip": "FLIP", "turn": "FLIP",
+    "assemble": "ASSEMBLE", "combine": "ASSEMBLE", "stack": "ASSEMBLE",
+    "eat": "EAT", "devour": "EAT", "consume": "EAT",
+    "make": "VAGUE", "prepare": "VAGUE", "cook": "VAGUE", "fix": "VAGUE", "build": "VAGUE", "finish": "VAGUE", "complete": "VAGUE", "do": "VAGUE", "know": "VAGUE"
+};
+const AMBIGUOUS_WORDS = {"slice": ["SLICE", "bread"], "butter": ["BUTTER", "pb"]};
+const VAGUE_WORDS = new Set(["lunch","food","meal","snack","rest","everything","whatever","usual","normal"]);
+const OBJECT_WORDS = {
+    "knife": "knife", "blade": "knife", "utensil": "knife", "cutlery": "knife", "spreader": "knife",
+    "bag": "bag", "package": "bag", "packaging": "bag", "plastic": "bag", "wrapper": "bag", "loaf": "bag",
+    "bread": "bread", "slices": "bread", "piece": "bread", "pieces": "bread", "toast": "bread",
+    "jar": "jar", "container": "jar", "lid": "lid", "cap": "lid", "cover": "lid",
+    "pb": "pb", "peanut": "pb", "peanuts": "pb", "peanutbutter": "pb",
+    "hands": "hands", "hand": "hands", "finger": "hands", "fingers": "hands",
+    "counter": "counter", "countertop": "counter", "table": "counter", "surface": "counter",
+    "sandwich": "sandwich", "sandwiches": "sandwich", "plate": "plate", "dish": "plate"
+};
+const OBJ_NAME = {
+    "knife": "knife", "bag": "bread bag", "bread": "bread", "jar": "jar", "lid": "jar lid",
+    "pb": "peanut butter", "hands": "hands", "counter": "counter", "sandwich": "sandwich", "plate": "plate"
+};
+const VERB_DISPLAY = {"putdown": "put down"};
+const ACTIONS = {
+    "OPEN":    {"bag": "open bag", "bread": "open bag", "jar": "open jar", "lid": "open jar", "pb": "open jar"},
+    "CLOSE":   {"bag": "close bag", "bread": "close bag", "jar": "close jar", "lid": "close jar", "pb": "close jar", "sandwich": "assemble"},
+    "TEAR":    {"bag": "tear bag", "bread": "tear bag"},
+    "SLICE":   {"bread": "slice bread", "bag": "slice bread"},
+    "TAKE":    {"bread": "take slice", "knife": "pick up knife", "pb": "dip knife"},
+    "PUTDOWN": {"knife": "put down knife"},
+    "DIP":     {"knife": "dip knife", "jar": "dip knife", "pb": "dip knife", "hands": "scoop finger"},
+    "SPREAD":  {"bread": "spread", "pb": "spread", "knife": "spread", "hands": "spread"},
+    "CLEAN":   {"knife": "clean knife", "counter": "wipe counter", "hands": "wash hands"},
+    "SHAKE":   {"jar": "shake jar", "pb": "shake jar"},
+    "LICK":    {"knife": "lick knife"},
+    "FLIP":    {"bread": "flip bread"},
+    "ASSEMBLE": {"sandwich": "assemble", "bread": "assemble", "plate": "assemble"},
+    "EAT":     {"sandwich": "eat sandwich"}
+};
+const NO_OBJECT_OK = {"ASSEMBLE": "assemble", "EAT": "eat sandwich"};
+const HIDDEN_SUGGESTIONS = [["DIP", "hands"], ["SPREAD", "hands"]];
+
+function normalizeText(text) {
+    let t = text.toLowerCase();
+    t = t.replace(/peanut[\s\-]*butter/g, " pb ");
+    t = t.replace(/\b(put|stack|combine)\b(.*?)\btogether\b/g, " assemble $2 ");
+    t = t.replace(/\b(put|set|lay|place)\b(.*?)\bdown\b/g, " putdown $2 ");
+    return t;
+}
+
+function isKnown(w) { return (w in VERB_WORDS) || (w in OBJECT_WORDS) || (w in AMBIGUOUS_WORDS) || VAGUE_WORDS.has(w); }
+function canonWord(w) {
+    if (isKnown(w)) return w;
+    if (w.endsWith("es") && isKnown(w.slice(0, -2))) return w.slice(0, -2);
+    if (w.endsWith("s") && isKnown(w.slice(0, -1))) return w.slice(0, -1);
+    return w;
+}
+function dedupe(seq) { return [...new Set(seq)]; }
+function joinNames(items) {
+    items = Array.from(items);
+    if (items.length <= 1) return items.join("");
+    return items.slice(0, -1).join(", ") + " and " + items[items.length - 1];
+}
+function supportedNames(action) {
+    let names = [], seen = new Set();
+    const actMap = ACTIONS[action] || {};
+    for (let obj in actMap) {
+        let cmd = actMap[obj];
+        let hidden = HIDDEN_SUGGESTIONS.some(h => h[0] === action && h[1] === obj);
+        if (seen.has(cmd) || hidden) continue;
+        seen.add(cmd);
+        names.push(OBJ_NAME[obj]);
+    }
+    return names;
+}
+function resolvePut(objs) {
+    const s = new Set(objs);
+    if (s.has("knife") && (s.has("jar") || s.has("pb"))) return "dip knife";
+    if (s.has("lid")) return "close jar";
+    if (s.has("pb") && s.has("bread")) return "vague_action";
+    if (s.has("pb")) return "dip knife";
+    if (s.has("bread")) return "take slice";
+    return null;
+}
+
+function interpretText(text) {
+    let matches = normalizeText(text).match(/[a-z']+/g) || [];
+    if (matches.some(w => NEGATIONS.has(w))) return [null, ["SyntaxError: Negative instruction", "The robot can only do things, not avoid them. Say what to DO, one exact action at a time."]];
+    
+    let pronouns = matches.filter(w => PRONOUNS.has(w));
+    let tokens = matches.filter(w => !STOPWORDS.has(w));
+    
+    let verbs = [], objects = [], soft = [];
+    let vague_hit = false;
+    
+    for (let raw of tokens) {
+        let w = canonWord(raw);
+        if (w in AMBIGUOUS_WORDS) soft.push(w);
+        else if (w in VERB_WORDS) {
+            if (VERB_WORDS[w] === "VAGUE") vague_hit = true;
+            else verbs.push([VERB_WORDS[w], raw]);
+        }
+        else if (w in OBJECT_WORDS) objects.push(OBJECT_WORDS[w]);
+        else if (VAGUE_WORDS.has(w)) vague_hit = true;
+    }
+
+    if (soft.length > 0) {
+        let rest = soft;
+        if (verbs.length === 0) {
+            verbs.push([AMBIGUOUS_WORDS[soft[0]][0], soft[0]]);
+            rest = soft.slice(1);
+        }
+        for (let w of rest) objects.push(AMBIGUOUS_WORDS[w][1]);
+    }
+
+    objects = dedupe(objects);
+    let spoken = {};
+    for (let [v, s] of verbs) if (!spoken[v]) spoken[v] = s;
+    let actions = Object.keys(spoken);
+    
+    if (actions.length === 2 && actions.includes("TEAR") && actions.includes("OPEN")) actions = ["TEAR"];
+    
+    if (actions.length >= 2) {
+        let shown = joinNames(actions.map(a => `'${VERB_DISPLAY[spoken[a]] || spoken[a]}'`));
+        return [null, ["SyntaxError: Too many actions in one step", `That line asks for ${actions.length} different actions (${shown}). The robot runs one atomic action per line - split it into separate steps.`]];
+    }
+
+    if (actions.length === 0) {
+        if (vague_hit) return ["vague_action", null];
+        if (objects.length > 0) {
+            let name = OBJ_NAME[objects[0]];
+            return [null, [`SyntaxError: I see the ${name}, but no action`, `What should the robot DO with the ${name}? Start the step with an action word, like 'open', 'take', 'dip' or 'spread'.`]];
+        }
+        if (pronouns.length > 0) return [null, ["SyntaxError: Unresolved reference", `The robot can't tell what '${pronouns[0]}' refers to. Name the action and the object every time.`]];
+        return [null, [`SyntaxError: Unknown command '${text.substring(0,40)}'`, "The robot doesn't recognize any action or object here. Try an action word (open, close, take, dip, spread...) plus an object (bag, jar, knife, bread)."]];
+    }
+
+    let action = actions[0];
+    let label = VERB_DISPLAY[spoken[action]] || spoken[action];
+
+    if (action === "DIP" && objects.includes("hands")) return ["scoop finger", null];
+    if (action === "BUTTER" && objects.every(o => o === "bread") && objects.includes("bread")) return ["vague_action", null];
+    let table = action !== "PUT" ? (ACTIONS[action === "BUTTER" ? "SPREAD" : action] || {}) : {};
+
+    if (objects.length === 0) {
+        if (action in NO_OBJECT_OK) return [NO_OBJECT_OK[action], null];
+        let why = pronouns.length > 0 ? ` (The robot can't work out what '${pronouns[0]}' refers to.)` : "";
+        let eg = action === "PUT" ? "'put bread on plate', 'put lid on jar' or 'put down knife'" : joinNames(supportedNames(action === "BUTTER" ? "SPREAD" : action).slice(0, 3).map(n => `'${label} the ${n}'`));
+        if (eg) eg = eg.replace(/ and /g, " or ");
+        return [null, [`SyntaxError: '${label}' what?`, `The robot knows how to '${label}', but you didn't say which object.${why} Try: ${eg}.`]];
+    }
+
+    if (action === "PUT") {
+        let cmd = resolvePut(objects);
+        if (cmd) return [cmd, null];
+        if (objects.length === 1 && objects[0] === "knife") return [null, ["SyntaxError: Put the knife where?", "'Put' is ambiguous here. Do you mean 'Put Down Knife' (set it aside) or 'Dip Knife' (put it in the jar)? Say exactly which."]];
+        return [null, [`SyntaxError: I can't '${label}' the ${OBJ_NAME[objects[0]]}`, "Try 'put bread on plate', 'put lid on jar' or 'put down knife'."]];
+    }
+
+    let cmds = dedupe(objects.filter(o => o in table).map(o => table[o]));
+    if (cmds.length === 1) return [cmds[0], null];
+    if (cmds.length > 1) {
+        let named = joinNames(objects.filter(o => o in table).map(o => OBJ_NAME[o]));
+        return [null, ["SyntaxError: Several targets in one step", `You named the ${named}, and each leads to a different action. Give one action on one object per step.`]];
+    }
+
+    let names = supportedNames(action === "BUTTER" ? "SPREAD" : action);
+    return [null, [`SyntaxError: I can't '${label}' the ${OBJ_NAME[objects[0]]}`, `The robot can '${label}': ${joinNames(names)}. Pick one of those, or a different action.`]];
+}
+
+function parseCommand(text) {
+    let [cmd, info] = interpretText(text);
+    if (cmd) return cmd;
+    let key = `unknown:${text}`;
+    UNKNOWN_INFO[key] = info;
+    return key;
+}
+
+// --- Game Logic & UI State ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const bot = new SandwichBot();
+let game_phase = 1;
+let failed_runs = 0;
+let text_input = "";
+let mousePos = { x: 0, y: 0 };
+
+const col1_rect = {x: 20, y: 20, w: 240, h: 710};
+const col2_rect = {x: 280, y: 20, w: 820, h: 520};
+const col2_console = {x: 280, y: 560, w: 820, h: 170};
+const col3_rect = {x: 1120, y: 20, w: 260, h: 710};
+
+const drawer_buttons = DRAWER_ACTIONS.map((a, i) => ({ rect: {x: col1_rect.x + 10, y: col1_rect.y + 60 + (i * 31), w: 220, h: 26}, label: a[0], cmd: a[1] }));
+const btn_clear = {x: col3_rect.x + 10, y: col3_rect.y + col3_rect.h - 100, w: col3_rect.w - 20, h: 40};
+const btn_run = {x: col3_rect.x + 10, y: col3_rect.y + col3_rect.h - 50, w: col3_rect.w - 20, h: 40};
+const btn_unlock = {x: col2_console.x + col2_console.w/2 - 140, y: col2_console.y + col2_console.h - 50, w: 280, h: 35};
+
+function collidePoint(r, x, y) { return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; }
+function drawRoundRect(ctx, x, y, w, h, radius, fillStyle, strokeStyle = null, lineWidth = 1) {
+    ctx.beginPath(); ctx.roundRect(x, y, w, h, radius);
+    if (fillStyle) { ctx.fillStyle = fillStyle; ctx.fill(); }
+    if (strokeStyle) { ctx.strokeStyle = strokeStyle; ctx.lineWidth = lineWidth; ctx.stroke(); }
+}
+function fillPoly(ctx, points, color, strokeColor = null, lineWidth = 1) {
+    ctx.beginPath(); ctx.moveTo(points[0][0], points[0][1]);
+    for(let i=1; i<points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
+    ctx.closePath();
+    if(color) { ctx.fillStyle = color; ctx.fill(); }
+    if(strokeColor) { ctx.strokeStyle = strokeColor; ctx.lineWidth = lineWidth; ctx.stroke(); }
+}
+
+function wrapTextLines(ctx, text, font, maxWidth) {
+    ctx.font = font;
+    let words = text.split(" "), lines = [], cur = "";
+    for (let w of words) {
+        let test = (cur + " " + w).trim();
+        if (ctx.measureText(test).width <= maxWidth) cur = test;
+        else {
+            if (cur) lines.push(cur);
+            cur = w;
+        }
+    }
+    if (cur) lines.push(cur);
+    return lines;
+}
+
+function drawDrawer() {
+    drawRoundRect(ctx, col1_rect.x, col1_rect.y, col1_rect.w, col1_rect.h, 12, toRgb(PANEL_BG), toRgb([170, 175, 188]), 3);
+    
+    if (game_phase === 1) {
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.font = "bold 16px Arial"; ctx.fillStyle = toRgb(TEXT_DARK);
+        ctx.fillText("Show us how you", col1_rect.x + col1_rect.w/2, col1_rect.y + col1_rect.h/2 - 35);
+        ctx.fillText("make a sandwich,", col1_rect.x + col1_rect.w/2, col1_rect.y + col1_rect.h/2 - 15);
+        ctx.font = "14px Arial"; ctx.fillStyle = toRgb([80, 85, 95]);
+        ctx.fillText("type your steps", col1_rect.x + col1_rect.w/2, col1_rect.y + col1_rect.h/2 + 15);
+        ctx.fillText("on the right.", col1_rect.x + col1_rect.w/2, col1_rect.y + col1_rect.h/2 + 35);
+    } else {
+        ctx.textAlign = "left"; ctx.textBaseline = "middle";
+        ctx.font = "bold 16px Arial"; ctx.fillStyle = toRgb(TEXT_DARK);
+        ctx.fillText("Show us how you", col1_rect.x + 15, col1_rect.y + 12 + 8);
+        ctx.fillText("make a sandwich!", col1_rect.x + 15, col1_rect.y + 32 + 8);
+        
+        const disabled = bot.queue_running || bot.is_busy();
+        ctx.textAlign = "center";
+        for (let btn of drawer_buttons) {
+            const hover = collidePoint(btn.rect, mousePos.x, mousePos.y) && !disabled;
+            let fill = hover ? toRgb([218, 226, 238]) : "#fff";
+            let border = hover ? toRgb(ACCENT_BLUE) : toRgb([180, 185, 195]);
+            if (disabled) { fill = toRgb([235, 238, 242]); border = toRgb([210, 214, 222]); }
+            drawRoundRect(ctx, btn.rect.x, btn.rect.y, btn.rect.w, btn.rect.h, 6, fill, border, 1);
+            ctx.font = "14px Arial"; ctx.fillStyle = disabled ? toRgb([165, 170, 180]) : toRgb(TEXT_DARK);
+            ctx.fillText(btn.label, btn.rect.x + btn.rect.w/2, btn.rect.y + btn.rect.h/2);
+        }
+    }
+}
+
+function drawStage() {
+    ctx.save();
+    ctx.translate(col2_rect.x, col2_rect.y);
+    drawRoundRect(ctx, 0, 0, col2_rect.w, col2_rect.h, 12, toRgb([208, 214, 224]));
+    
+    function getOffset(target) {
+        if (bot.shake_timer > 0 && (bot.shake_target === target || bot.shake_target === null)) {
+            return [randInt(-5, 5), randInt(-4, 4)];
+        }
+        return [0, 0];
+    }
+
+    // Bag
+    let [bx, by] = getOffset("bag");
+    let bag_x = BAG_POS[0] + bx, bag_y = BAG_POS[1] + by;
+    for (let i = 0; i < 5; i++) {
+        let sx = bag_x + 15 + (i * 18);
+        drawRoundRect(ctx, sx, bag_y + 12, 16, 115, 4, toRgb(BREAD_CRUST));
+        drawRoundRect(ctx, sx + 2, bag_y + 14, 12, 111, 3, toRgb(BREAD_BODY));
+    }
+    
+    ctx.fillStyle = toRgba([210, 235, 255], 130/255);
+    ctx.beginPath(); ctx.rect(bag_x, bag_y, 125, 135); ctx.fill();
+    drawRoundRect(ctx, bag_x, bag_y, 125, 135, 6, null, toRgb([120, 155, 195]), 3);
+
+    let p = bot.bag_open_progress;
+    let lf = Math.floor(28 * p), rf = Math.floor(28 * p), td = Math.floor(12 * p);
+    let left_flap = [[bag_x, bag_y], [bag_x - lf, bag_y - 35 + td], [bag_x + 55, bag_y - 8 + td], [bag_x + 55, bag_y]];
+    let right_flap = [[bag_x + 70, bag_y], [bag_x + 70, bag_y - 8 + td], [bag_x + 125 + rf, bag_y - 35 + td], [bag_x + 125, bag_y]];
+    fillPoly(ctx, left_flap, toRgb([180, 215, 250]), toRgb([110, 145, 185]), 2);
+    fillPoly(ctx, right_flap, toRgb([180, 215, 250]), toRgb([110, 145, 185]), 2);
+    
+    if (p < 0.85) {
+        let tie_y = bag_y - 12 + Math.floor(p * 50);
+        ctx.fillStyle = toRgba([255, 210, 0], 1.0 - p);
+        ctx.fillRect(bag_x + 44, tie_y, 36, 12);
+        ctx.strokeStyle = toRgb([180, 130, 0]); ctx.lineWidth = 2;
+        ctx.strokeRect(bag_x + 44, tie_y, 36, 12);
+    }
+
+    // Plate & Bread
+    let [px, py] = getOffset("plate");
+    ctx.fillStyle = toRgb(PLATE_SHADOW);
+    ctx.beginPath(); ctx.ellipse(PLATE_POS[0] - 10 + px + 130, PLATE_POS[1] - 5 + py + 55, 130, 55, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = toRgb(PLATE_WHITE);
+    ctx.beginPath(); ctx.ellipse(PLATE_POS[0] + px + 120, PLATE_POS[1] + py + 47.5, 120, 47.5, 0, 0, Math.PI*2); ctx.fill();
+    
+    if (bot.sandwich_assembled) {
+        drawRoundRect(ctx, PLATE_POS[0] + 70 + px, PLATE_POS[1] + 15 + py, 100, 16, 4, toRgb(BREAD_CRUST));
+        drawRoundRect(ctx, PLATE_POS[0] + 72 + px, PLATE_POS[1] + 17 + py, 96, 12, 3, toRgb(BREAD_BODY));
+        if (bot.butter_on_bread) drawRoundRect(ctx, PLATE_POS[0] + 75 + px, PLATE_POS[1] + 7 + py, 90, 8, 0, toRgb(PB_BROWN));
+        drawRoundRect(ctx, PLATE_POS[0] + 70 + px, PLATE_POS[1] - 9 + py, 100, 16, 4, toRgb(BREAD_CRUST));
+        drawRoundRect(ctx, PLATE_POS[0] + 72 + px, PLATE_POS[1] - 7 + py, 96, 12, 3, toRgb(BREAD_BODY));
+    } else {
+        if (bot.slices_on_plate >= 1) {
+            drawRoundRect(ctx, PLATE_POS[0] + 70 + px, PLATE_POS[1] + 30 + py, 100, 18, 4, toRgb(BREAD_CRUST));
+            drawRoundRect(ctx, PLATE_POS[0] + 72 + px, PLATE_POS[1] + 32 + py, 96, 14, 3, toRgb(BREAD_BODY));
+            if (bot.butter_on_bread) drawRoundRect(ctx, PLATE_POS[0] + 78 + px, PLATE_POS[1] + 34 + py, 84, 10, 2, toRgb(PB_BROWN));
+        }
+        if (bot.slices_on_plate === 2) {
+            drawRoundRect(ctx, PLATE_POS[0] + 85 + px, PLATE_POS[1] + py, 100, 18, 4, toRgb(BREAD_CRUST));
+            drawRoundRect(ctx, PLATE_POS[0] + 87 + px, PLATE_POS[1] + 2 + py, 96, 14, 3, toRgb(BREAD_BODY));
+        }
+    }
+
+    for (let s of bot.flying_slices) {
+        let [sx, sy] = s.get_pos();
+        let sw = Math.floor(90 * (1 - 0.3 * Math.sin(Math.PI * s.t)));
+        ctx.fillStyle = `rgba(0,0,0,${(60 * (1 - 0.5 * Math.sin(Math.PI * s.t)))/255})`;
+        ctx.fillRect(sx - sw/2 + 50, 240, sw, 16);
+        drawRoundRect(ctx, sx, sy, 100, 18, 4, toRgb(BREAD_CRUST));
+        drawRoundRect(ctx, sx + 2, sy + 2, 96, 14, 3, toRgb(BREAD_BODY));
+    }
+
+    // Jar
+    let [jx, jy] = getOffset("jar");
+    let jar_x = JAR_POS[0] + jx, jar_y = JAR_POS[1] + jy;
+    drawRoundRect(ctx, jar_x, jar_y, 115, 140, 10, toRgb(JAR_GLASS), bot.shake_target === "jar" ? toRgb(ALERT_RED) : toRgb([160, 90, 20]), 3);
+    drawRoundRect(ctx, jar_x + 8, jar_y + 20, 99, 112, 6, toRgb(PB_BROWN));
+    drawRoundRect(ctx, jar_x + 12, jar_y - 2, 91, 8, 2, toRgb([235, 235, 240]));
+    if (bot.jar_open) {
+        ctx.fillStyle = toRgb(PB_DARK);
+        ctx.beginPath(); ctx.ellipse(jar_x + 14 + 87/2, jar_y - 1 + 4, 87/2, 4, 0, 0, Math.PI*2); ctx.fill();
+    }
+    drawRoundRect(ctx, jar_x + 15, jar_y + 45, 85, 55, 4, "#fff", toRgb([200, 200, 200]), 2);
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.font = "bold 16px Arial"; ctx.fillStyle = toRgb(PB_DARK);
+    ctx.fillText("Peanut", jar_x + 30, jar_y + 50);
+    ctx.fillText("Butter", jar_x + 32, jar_y + 72);
+    
+    if (bot.jar_contaminated) {
+        ctx.font = "12px Arial";
+        let tw = ctx.measureText("CONTAMINATED").width;
+        drawRoundRect(ctx, jar_x - 4, jar_y - 22, tw + 10, 16, 4, toRgb(ALERT_RED));
+        ctx.fillStyle = "#fff"; ctx.fillText("CONTAMINATED", jar_x + 1, jar_y - 20);
+    }
+
+    // Lid
+    let lx = bot.lid_pos[0] + jx, ly = bot.lid_pos[1] + jy;
+    if (bot.jar_open) {
+        ctx.fillStyle = "rgba(0,0,0,0.2)";
+        ctx.fillRect(lx, ly + 20, 86, 12);
+    }
+    drawRoundRect(ctx, lx, ly, 86, 16, 4, toRgb(LID_COLOR), toRgb([130, 25, 25]), 2);
+    ctx.strokeStyle = toRgb([150, 30, 30]); ctx.lineWidth = 2;
+    for (let gx = Math.floor(lx) + 8; gx < Math.floor(lx) + 80; gx += 10) {
+        ctx.beginPath(); ctx.moveTo(gx, ly + 2); ctx.lineTo(gx, ly + 14); ctx.stroke();
+    }
+
+    // Knife
+    let kx = bot.knife_pos[0], ky = bot.knife_pos[1];
+    ctx.fillStyle = bot.knife_held ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.24)";
+    ctx.fillRect(kx, bot.knife_held ? ky + 110 : ky + 20, 120, 14);
+    
+    ctx.save();
+    ctx.translate(kx + 45, ky + 18);
+    ctx.rotate(-bot.knife_angle * Math.PI / 180);
+    ctx.translate(-45, -18);
+    
+    drawRoundRect(ctx, 0, 12, 45, 14, 3, toRgb(KNIFE_HANDLE));
+    fillPoly(ctx, [[45, 13], [120, 15], [130, 24], [45, 25]], bot.knife_has_butter ? toRgb(PB_BROWN) : toRgb(KNIFE_STEEL));
+    if (bot.knife_has_butter) {
+        ctx.fillStyle = toRgb(PB_DARK);
+        ctx.beginPath(); ctx.ellipse(90 + 16, 14 + 5, 16, 5, 0, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+
+    for (let p of bot.particles) p.draw(ctx);
+    for (let f of bot.floating_texts) f.draw(ctx);
+    
+    drawRoundRect(ctx, 0, 0, col2_rect.w, col2_rect.h, 12, null, toRgb([170, 175, 188]), 3);
+    ctx.restore();
+}
+
+function drawConsole() {
+    drawRoundRect(ctx, col2_console.x, col2_console.y, col2_console.w, col2_console.h, 12, toRgb(PANEL_BG), toRgb([170, 175, 188]), 3);
+    
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.font = "bold 16px Arial"; ctx.fillStyle = toRgb([100, 105, 115]);
+    ctx.fillText("Status", col2_console.x + 20, col2_console.y + 15);
+    
+    ctx.fillStyle = toRgb(bot.msg_color);
+    ctx.fillText(bot.message, col2_console.x + 20, col2_console.y + 40);
+    
+    if (bot.sub_message) {
+        let lines = wrapTextLines(ctx, bot.sub_message, "bold 18px Arial", 780).slice(0, 3);
+        ctx.fillStyle = toRgb([20, 20, 25]);
+        for (let i = 0; i < lines.length; i++) {
+            ctx.fillText(lines[i], col2_console.x + 20, col2_console.y + 70 + i * 24);
+        }
+    }
+
+    if (game_phase === 1 && failed_runs >= 2 && !bot.queue_running) {
+        let hover = collidePoint(btn_unlock, mousePos.x, mousePos.y);
+        drawRoundRect(ctx, btn_unlock.x, btn_unlock.y, btn_unlock.w, btn_unlock.h, 7, "#fff", hover ? toRgb(SUCCESS_GREEN) : toRgb([180, 185, 195]), 2);
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.font = "bold 16px Arial"; ctx.fillStyle = hover ? toRgb(SUCCESS_GREEN) : toRgb(TEXT_DARK);
+        ctx.fillText("Unlock Instruction Drawer", btn_unlock.x + btn_unlock.w/2, btn_unlock.y + btn_unlock.h/2);
+    }
+}
+
+function drawEditor() {
+    drawRoundRect(ctx, col3_rect.x, col3_rect.y, col3_rect.w, col3_rect.h, 12, toRgb(PANEL_BG), toRgb([170, 175, 188]), 3);
+    
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.font = "bold 16px Arial"; ctx.fillStyle = toRgb(TEXT_DARK);
+    ctx.fillText("Sandwich Recipe", col3_rect.x + 15, col3_rect.y + 15);
+    
+    let y = col3_rect.y + 50;
+    for (let i = 0; i < bot.program_queue.length; i++) {
+        let cmd = bot.program_queue[i];
+        let lbl = CMD_LABELS[cmd] || cmd;
+        if (cmd.startsWith("unknown:")) lbl = `[Unknown] ${cmd.split(":")[1]}`;
+        
+        let row_rect = {x: col3_rect.x + 10, y: y, w: col3_rect.w - 20, h: 24};
+        let tc = toRgb(TEXT_DARK);
+        
+        if (bot.queue_running && i === bot.run_index) {
+            drawRoundRect(ctx, row_rect.x, row_rect.y, row_rect.w, row_rect.h, 4, bot.queue_had_error ? toRgb(ALERT_RED) : toRgb(ACCENT_BLUE));
+            tc = "#fff";
+        }
+        
+        ctx.font = "14px Arial"; ctx.fillStyle = tc;
+        ctx.textAlign = "left"; ctx.textBaseline = "top";
+        ctx.fillText(`${i+1}. ${lbl}`, row_rect.x + 5, row_rect.y + 4);
+        
+        if (!bot.queue_running) {
+            let del_rect = {x: row_rect.x + row_rect.w - 20, y: row_rect.y + 2, w: 16, h: 16};
+            let dh = collidePoint(del_rect, mousePos.x, mousePos.y);
+            drawRoundRect(ctx, del_rect.x, del_rect.y, del_rect.w, del_rect.h, 3, dh ? toRgb([220, 80, 80]) : toRgb([180, 185, 195]));
+            ctx.font = "12px Arial"; ctx.fillStyle = "#fff";
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText("x", del_rect.x + del_rect.w/2, del_rect.y + del_rect.h/2 + 1);
+        }
+        y += 28;
+    }
+
+    if (game_phase === 1 && !bot.queue_running) {
+        let prompt_y = col3_rect.y + col3_rect.h - 170;
+        ctx.font = "12px Arial"; ctx.fillStyle = toRgb([100, 105, 115]);
+        ctx.textAlign = "left"; ctx.textBaseline = "top";
+        ctx.fillText("> Type instruction [Enter]", col3_rect.x + 10, prompt_y);
+        
+        let box = {x: col3_rect.x + 10, y: prompt_y + 18, w: col3_rect.w - 20, h: 30};
+        drawRoundRect(ctx, box.x, box.y, box.w, box.h, 4, "#fff", toRgb(ACCENT_BLUE), 2);
+        
+        ctx.font = "14px Arial"; ctx.fillStyle = toRgb(TEXT_DARK);
+        let txt_w = ctx.measureText(text_input + "_").width;
+        let tx = box.x + 5;
+        if (txt_w > box.w - 10) tx = box.x + box.w - 5 - txt_w;
+        
+        ctx.save();
+        ctx.beginPath(); ctx.rect(box.x, box.y, box.w, box.h); ctx.clip();
+        ctx.fillText(text_input + "_", tx, box.y + 6);
+        ctx.restore();
+    }
+
+    const disabled = bot.queue_running || bot.is_busy();
+
+    // Clear Btn
+    let hover_c = collidePoint(btn_clear, mousePos.x, mousePos.y) && !disabled;
+    drawRoundRect(ctx, btn_clear.x, btn_clear.y, btn_clear.w, btn_clear.h, 6, "#fff", hover_c ? toRgb(ACCENT_BLUE) : toRgb([180, 185, 195]), 2);
+    ctx.font = "14px Arial"; ctx.fillStyle = disabled ? toRgb([165, 170, 180]) : toRgb(TEXT_DARK);
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("Clear Script", btn_clear.x + btn_clear.w/2, btn_clear.y + btn_clear.h/2);
+
+    // Run Btn
+    let can_run = bot.program_queue.length >= 4 && !disabled;
+    drawRoundRect(ctx, btn_run.x, btn_run.y, btn_run.w, btn_run.h, 7, can_run ? toRgb(ACCENT_BLUE) : toRgb([220, 224, 230]));
+    
+    let run_txt = bot.queue_running ? "Running..." : (bot.program_queue.length < 4 ? `Add ${4 - bot.program_queue.length} more steps` : "Make the sandwich!");
+    ctx.font = "bold 16px Arial"; ctx.fillStyle = can_run || bot.queue_running ? "#fff" : toRgb([80, 85, 95]);
+    ctx.fillText(run_txt, btn_run.x + btn_run.w/2, btn_run.y + btn_run.h/2);
+}
+
+// --- Event Listeners ---
+canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    mousePos.x = (e.clientX - rect.left) * scaleX;
+    mousePos.y = (e.clientY - rect.top) * scaleY;
+});
+
+canvas.addEventListener('mousedown', e => {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (e.button !== 0) return;
+    
+    if (game_phase === 1 && failed_runs >= 2 && !bot.queue_running) {
+        if (collidePoint(btn_unlock, mousePos.x, mousePos.y)) game_phase = 2;
+    }
+    
+    if (!bot.queue_running && !bot.is_busy()) {
+        if (collidePoint(btn_clear, mousePos.x, mousePos.y)) {
+            bot.program_queue = [];
+        } else if (collidePoint(btn_run, mousePos.x, mousePos.y)) {
+            if (bot.program_queue.length >= 4) bot.start_program();
+            else { bot.message = "Recipe needs at least 4 steps."; bot.msg_color = ALERT_RED; }
+        } else {
+            if (game_phase === 2) {
+                for (let btn of drawer_buttons) {
+                    if (collidePoint(btn.rect, mousePos.x, mousePos.y) && bot.program_queue.length < 16) {
+                        bot.program_queue.push(btn.cmd);
+                    }
+                }
+            }
+            let y = col3_rect.y + 50;
+            for (let i = 0; i < bot.program_queue.length; i++) {
+                let del_rect = {x: col3_rect.x + col3_rect.w - 30, y: y + 2, w: 16, h: 16};
+                if (collidePoint(del_rect, mousePos.x, mousePos.y)) {
+                    bot.program_queue.splice(i, 1);
+                    break;
+                }
+                y += 28;
+            }
+        }
+    }
+});
+
+window.addEventListener('keydown', e => {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (!bot.queue_running && !bot.is_busy()) {
+        if (e.key === 'Enter') {
+            if (game_phase === 1 && text_input.trim()) {
+                if (bot.program_queue.length < 16) bot.program_queue.push(parseCommand(text_input));
+                text_input = "";
+            } else if (game_phase === 2) {
+                if (bot.program_queue.length >= 4) bot.start_program();
+                else { bot.message = "Recipe needs at least 4 steps."; bot.msg_color = ALERT_RED; }
+            }
+        } else if (game_phase === 1) {
+            if (e.key === 'Backspace') text_input = text_input.slice(0, -1);
+            else if (e.key.length === 1 && text_input.length < 40) text_input += e.key;
+        }
+    }
+});
+
+// --- Main Loop ---
+function loop() {
+    const prev_running = bot.queue_running;
+    bot.update();
+    
+    if (prev_running && !bot.queue_running) {
+        if (bot.queue_had_error) {
+            failed_runs += 1;
+            if (game_phase === 1 && failed_runs >= 2) {
+                game_phase = 2;
+                bot.message = "Here is a little help!"; bot.msg_color = SUCCESS_GREEN;
+                bot.sub_message = "Use the commands from the drawer to build your sandwich.";
+            }
+        }
+    }
+
+    ctx.fillStyle = toRgb(BG_COLOR);
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    
+    drawDrawer();
+    drawStage();
+    drawConsole();
+    drawEditor();
+    
+    requestAnimationFrame(loop);
+}
+
+// Start loop
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
