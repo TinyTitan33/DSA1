@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Updated viewport to prevent accidental zooming on touch screens -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Traffic Light Graph Coloring</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .svg-container {
+            background-image: 
+                linear-gradient(to right, #e2e8f0 1px, transparent 1px),
+                linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+        }
+
+        .node-group {
+            transition: transform 0.2s ease;
+            /* Enhance touch handling */
+            touch-action: manipulation; 
+        }
+
+        .node-group:hover {
+            transform: scale(1.05);
+            transform-origin: center;
+        }
+
+        .node-circle {
+            transition: fill 0.4s ease, stroke 0.4s ease, filter 0.4s ease;
+        }
+
+        .edge-line {
+            transition: stroke 0.4s ease, stroke-width 0.4s ease;
+        }
+
+        .conflict-edge {
+            animation: pulse-red 1.5s infinite;
+            stroke: #ef4444 !important;
+            stroke-width: 4px;
+        }
+
+        @keyframes pulse-red {
+            0% { stroke-opacity: 1; filter: drop-shadow(0 0 2px #ef4444); }
+            50% { stroke-opacity: 0.5; filter: drop-shadow(0 0 8px #ef4444); }
+            100% { stroke-opacity: 1; filter: drop-shadow(0 0 2px #ef4444); }
+        }
+
+        .color-btn {
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+        
+        .color-btn.active {
+            transform: scale(1.1);
+            box-shadow: 0 0 0 3px #475569;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col items-center py-8 px-4">
+
+    <header class="w-full max-w-5xl flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <div>
+            <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Traffic Light Phase Planning</h1>
+            <p class="text-slate-500 mt-1">Graph Coloring Visualization</p>
+        </div>
+    </header>
+
+    <main class="w-full max-w-5xl flex flex-col lg:flex-row gap-6">
+        
+        <!-- Controls Panel -->
+        <div class="w-full lg:w-1/3 flex flex-col gap-6">
+            
+            <!-- Puzzle Mode Controls -->
+            <div id="panel-puzzle" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 fade-in">
+                <h2 class="text-xl font-medium mb-4">Color Palette</h2>
+                <p class="text-sm text-slate-500 mb-4">Select a color and tap nodes to assign phases. Connected nodes cannot share the same color.</p>
+                
+                <div class="flex flex-wrap gap-3 mb-6">
+                    <button onclick="selectColor('#3b82f6', this)" class="color-btn active w-12 h-12 rounded-full border border-slate-300 touch-manipulation" style="background-color: #3b82f6;" title="Blue"></button>
+                    <button onclick="selectColor('#ec4899', this)" class="color-btn w-12 h-12 rounded-full border border-slate-300 touch-manipulation" style="background-color: #ec4899;" title="Pink"></button>
+                    <button onclick="selectColor('#22c55e', this)" class="color-btn w-12 h-12 rounded-full border border-slate-300 touch-manipulation" style="background-color: #22c55e;" title="Green"></button>
+                    <button onclick="selectColor('#ffffff', this)" class="color-btn w-12 h-12 rounded-full border border-slate-300 flex items-center justify-center text-slate-400 touch-manipulation" style="background-color: #ffffff;" title="Clear">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
+                </div>
+
+                <div class="flex gap-3">
+                    <button onclick="checkSolution()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg font-medium transition-colors touch-manipulation">
+                        Check Solution
+                    </button>
+                    <button onclick="resetGraph()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors touch-manipulation">
+                        Reset
+                    </button>
+                </div>
+                
+                <div id="puzzle-feedback" class="mt-4 text-sm font-medium hidden p-3 rounded-lg"></div>
+            </div>
+
+        </div>
+
+        <!-- SVG Canvas Area -->
+        <div class="w-full lg:w-2/3 bg-white p-4 rounded-xl shadow-sm border border-slate-200 relative">
+            <!-- Updated responsive aspect ratios for multiple screen sizes -->
+            <div id="svg-wrapper" class="w-full aspect-video lg:aspect-[4/3] svg-container overflow-hidden">
+                <svg id="graph-svg" viewBox="0 0 700 450" class="w-full h-full" preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                        <filter id="drop-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.15" />
+                        </filter>
+                    </defs>
+                    <g id="edges-layer"></g>
+                    <g id="nodes-layer"></g>
+                </svg>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Graph Data Model
+        const nodesData = [
+            { id: 'AB', x: 150, y: 100 },
+            { id: 'AC', x: 350, y: 100 },
+            { id: 'AD', x: 550, y: 100 },
+            { id: 'BC', x: 350, y: 220 },
+            { id: 'BD', x: 550, y: 220 },
+            { id: 'DB', x: 150, y: 340 },
+            { id: 'DC', x: 350, y: 340 }
+        ];
+
+        const edgesData = [
+            { source: 'AB', target: 'BC' },
+            { source: 'AB', target: 'BD' },
+            { source: 'AC', target: 'BD' },
+            { source: 'AC', target: 'DB' },
+            { source: 'BC', target: 'DB' }
+        ];
+
+        // State Variables
+        let activeColor = '#b3cde3';
+        let nodeState = {};
+
+        // Initialize state
+        nodesData.forEach(n => nodeState[n.id] = '#ffffff');
+
+        // DOM Elements
+        const edgesLayer = document.getElementById('edges-layer');
+        const nodesLayer = document.getElementById('nodes-layer');
+        const graphSvg = document.getElementById('graph-svg');
+        const puzzleFeedback = document.getElementById('puzzle-feedback');
+
+        function renderGraph() {
+            edgesLayer.innerHTML = '';
+            nodesLayer.innerHTML = '';
+
+            // Render Edges
+            edgesData.forEach(edge => {
+                const sourceNode = nodesData.find(n => n.id === edge.source);
+                const targetNode = nodesData.find(n => n.id === edge.target);
+                
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute('x1', sourceNode.x);
+                line.setAttribute('y1', sourceNode.y);
+                line.setAttribute('x2', targetNode.x);
+                line.setAttribute('y2', targetNode.y);
+                line.setAttribute('id', `edge-${edge.source}-${edge.target}`);
+                
+                // All edges are now purely black
+                line.setAttribute('stroke', '#000000');
+                line.setAttribute('stroke-width', '1.5');
+                line.classList.add('edge-line');
+                
+                edgesLayer.appendChild(line);
+            });
+
+            // Render Nodes
+            nodesData.forEach(node => {
+                const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                group.setAttribute('class', 'node-group cursor-pointer');
+                group.style.transformOrigin = `${node.x}px ${node.y}px`;
+                
+                // Event listener for puzzle mode (Pointerdown fixes touch-screen lag/inconsistency)
+                group.addEventListener('pointerdown', (e) => {
+                    if(e.isPrimary) {
+                        handleNodeClick(node.id);
+                    }
+                });
+
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute('cx', node.x);
+                circle.setAttribute('cy', node.y);
+                circle.setAttribute('r', '24');
+                circle.setAttribute('id', `node-circle-${node.id}`);
+                circle.setAttribute('fill', nodeState[node.id]);
+                circle.setAttribute('stroke', '#1e293b');
+                circle.setAttribute('stroke-width', '2');
+                circle.setAttribute('filter', 'url(#drop-shadow)');
+                circle.classList.add('node-circle');
+
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute('x', node.x);
+                text.setAttribute('y', node.y);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('dominant-baseline', 'central');
+                text.setAttribute('fill', '#0f172a');
+                text.setAttribute('font-size', '16');
+                text.setAttribute('font-weight', '600');
+                text.setAttribute('pointer-events', 'none');
+                text.textContent = node.id;
+
+                group.appendChild(circle);
+                group.appendChild(text);
+                nodesLayer.appendChild(group);
+            });
+        }
+
+        function selectColor(color, btnEl) {
+            activeColor = color;
+            document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
+            if(btnEl) btnEl.classList.add('active');
+        }
+
+        function handleNodeClick(nodeId) {
+            nodeState[nodeId] = activeColor;
+            const circle = document.getElementById(`node-circle-${nodeId}`);
+            if (circle) {
+                circle.setAttribute('fill', activeColor);
+            }
+            
+            // Clear feedback on change
+            clearConflicts();
+            hideFeedback();
+        }
+
+        function checkSolution() {
+            clearConflicts();
+            let allColored = true;
+            let hasConflict = false;
+            let conflictingEdges = [];
+
+            // Check if all nodes are colored
+            for (const id in nodeState) {
+                if (nodeState[id] === '#ffffff') {
+                    allColored = false;
+                    break;
+                }
+            }
+
+            // Check for conflicts (adjacent nodes with same color)
+            edgesData.forEach(edge => {
+                const color1 = nodeState[edge.source];
+                const color2 = nodeState[edge.target];
+                
+                if (color1 !== '#ffffff' && color1 === color2) {
+                    hasConflict = true;
+                    conflictingEdges.push(edge);
+                }
+            });
+
+            if (hasConflict) {
+                showFeedback("Conflict detected! Connected nodes cannot have the same color.", "error");
+                conflictingEdges.forEach(edge => {
+                    const line = document.getElementById(`edge-${edge.source}-${edge.target}`);
+                    if(line) line.classList.add('conflict-edge');
+                });
+            } else if (!allColored) {
+                showFeedback("Keep going! Not all routes have been assigned a phase.", "warning");
+            } else {
+                showFeedback("Success! You've found a valid phase plan.", "success");
+            }
+        }
+
+        function clearConflicts() {
+            document.querySelectorAll('.edge-line').forEach(line => {
+                line.classList.remove('conflict-edge');
+            });
+        }
+
+        function showFeedback(message, type) {
+            puzzleFeedback.textContent = message;
+            puzzleFeedback.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-yellow-100', 'text-yellow-700', 'bg-green-100', 'text-green-700');
+            
+            if (type === 'error') {
+                puzzleFeedback.classList.add('bg-red-100', 'text-red-700');
+            } else if (type === 'warning') {
+                puzzleFeedback.classList.add('bg-yellow-100', 'text-yellow-700');
+            } else if (type === 'success') {
+                puzzleFeedback.classList.add('bg-green-100', 'text-green-700');
+            }
+        }
+
+        function hideFeedback() {
+            puzzleFeedback.classList.add('hidden');
+        }
+
+        function resetGraph() {
+            for (const id in nodeState) {
+                nodeState[id] = '#ffffff';
+                const circle = document.getElementById(`node-circle-${id}`);
+                if (circle) circle.setAttribute('fill', '#ffffff');
+            }
+            clearConflicts();
+            hideFeedback();
+        }
+
+        // Initial setup
+        window.onload = () => {
+            renderGraph();
+            graphSvg.style.cursor = 'crosshair';
+        };
+
+    </script>
+</body>
+</html>
