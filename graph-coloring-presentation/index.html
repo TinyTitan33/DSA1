@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Light Graph Coloring</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .svg-container {
+            background-image: 
+                linear-gradient(to right, #e2e8f0 1px, transparent 1px),
+                linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+        }
+
+        .node-group {
+            transition: transform 0.2s ease;
+        }
+
+        .node-circle {
+            transition: fill 0.4s ease, stroke 0.4s ease, filter 0.4s ease;
+        }
+
+        .edge-line {
+            transition: stroke 0.4s ease, stroke-width 0.4s ease, stroke-dasharray 0.4s ease;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col items-center py-8 px-4">
+
+    <header class="w-full max-w-5xl flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <div>
+            <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Traffic Light Phase Planning</h1>
+            <p class="text-slate-500 mt-1">Graph Coloring Visualization</p>
+        </div>
+    </header>
+
+    <main class="w-full max-w-5xl flex flex-col lg:flex-row gap-6">
+        
+        <!-- Controls Panel -->
+        <div class="w-full lg:w-1/3 flex flex-col gap-6">
+            
+            <div id="panel-presentation" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 fade-in">
+                <h2 class="text-xl font-medium mb-4">Algorithm Walkthrough</h2>
+                <p class="text-sm text-slate-500 mb-6">Step-by-step greedy graph coloring algorithm to find the optimal phase groupings.</p>
+                
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <button onclick="prevStep()" id="btn-prev" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                        <span>Prev</span>
+                    </button>
+                    <button onclick="nextStep()" id="btn-next" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span>Next</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                    <button onclick="toggleAutoPlay()" id="btn-autoplay" class="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors flex justify-center items-center gap-2">
+                        <svg id="icon-play" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        <svg id="icon-pause" class="hidden" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                        <span id="text-autoplay">Auto Play</span>
+                    </button>
+                    <button onclick="resetPresentation()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors flex justify-center items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                        <span>Reset</span>
+                    </button>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 min-h-[140px] flex items-center">
+                    <p id="presentation-text" class="text-slate-800 text-sm leading-relaxed">
+                        Click 'Next Step' or 'Auto Play' to begin the algorithm walkthrough.
+                    </p>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- SVG Canvas Area -->
+        <div class="w-full lg:w-2/3 bg-white p-4 rounded-xl shadow-sm border border-slate-200 relative">
+            <div id="svg-wrapper" class="w-full aspect-[4/3] svg-container overflow-hidden">
+                <svg id="graph-svg" viewBox="0 0 700 450" class="w-full h-full" preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                        <filter id="drop-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.15" />
+                        </filter>
+                    </defs>
+                    <g id="edges-layer"></g>
+                    <g id="nodes-layer"></g>
+                </svg>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Graph Data Model
+        const nodesData = [
+            { id: 'AB', x: 150, y: 100 },
+            { id: 'AC', x: 350, y: 100 },
+            { id: 'AD', x: 550, y: 100 },
+            { id: 'BC', x: 350, y: 220 },
+            { id: 'BD', x: 550, y: 220 },
+            { id: 'DB', x: 150, y: 340 },
+            { id: 'DC', x: 350, y: 340 }
+        ];
+
+        const edgesData = [
+            { source: 'AB', target: 'BC' },
+            { source: 'AB', target: 'BD' },
+            { source: 'AC', target: 'BD' },
+            { source: 'AC', target: 'DB' },
+            { source: 'BC', target: 'DB' }
+        ];
+
+        // Highly visible colors mapping
+        const colorMap = { 
+            0: '#ffffff',    // Uncolored (White)
+            1: '#3b82f6',    // Phase 1 (Vibrant Blue)
+            2: '#ec4899',    // Phase 2 (Vibrant Pink)
+            3: '#22c55e'     // Phase 3 (Vibrant Green)
+        };
+
+        // Presentation Steps from source 1
+        const presentationSteps = [
+            { node: null, text: "We start with all nodes uncolored. We will assign the lowest available color (phase) to each route, ensuring colliding routes don't share a color.", state: {} },
+            { node: 'AB', color: 1, text: "Focusing on route AB. It has no colored neighbors yet, so we assign it to Phase 1 (Blue).", state: {AB: 1} },
+            { node: 'AC', color: 1, text: "Focusing on route AC. Its neighbors are BD and DB, which are uncolored. We can safely assign it Phase 1 (Blue).", state: {AB: 1, AC: 1} },
+            { node: 'AD', color: 1, text: "Route AD does not collide with any other route (no edges). We assign it Phase 1 (Blue).", state: {AB: 1, AC: 1, AD: 1} },
+            { node: 'BC', color: 2, text: "Route BC connects to AB (which is Blue). Therefore, Phase 1 is invalid. We assign the next available color: Phase 2 (Pink).", state: {AB: 1, AC: 1, AD: 1, BC: 2} },
+            { node: 'BD', color: 2, text: "Route BD connects to AB (Blue) and AC (Blue). Phase 1 is invalid, so we assign it Phase 2 (Pink).", state: {AB: 1, AC: 1, AD: 1, BC: 2, BD: 2} },
+            { node: 'DB', color: 3, text: "Route DB connects to AC (Blue) and BC (Pink). Since Phase 1 and Phase 2 are taken by neighbors, we must introduce a 3rd color: Phase 3 (Green).", state: {AB: 1, AC: 1, AD: 1, BC: 2, BD: 2, DB: 3} },
+            { node: 'DC', color: 1, text: "Route DC has no collisions. We assign it the lowest color, Phase 1 (Blue).", state: {AB: 1, AC: 1, AD: 1, BC: 2, BD: 2, DB: 3, DC: 1} },
+            { node: null, text: "<strong>Algorithm Complete!</strong> <br><br>We successfully grouped the routes using 3 traffic light phases, proving a 3-color solution is optimal for this intersection.", state: {AB: 1, AC: 1, AD: 1, BC: 2, BD: 2, DB: 3, DC: 1} }
+        ];
+
+        // State Variables
+        let currentStep = 0;
+        let autoPlayInterval = null;
+
+        // DOM Elements
+        const edgesLayer = document.getElementById('edges-layer');
+        const nodesLayer = document.getElementById('nodes-layer');
+
+        function renderGraphBase() {
+            edgesLayer.innerHTML = '';
+            nodesLayer.innerHTML = '';
+
+            // Initial edge rendering
+            edgesData.forEach(edge => {
+                const sourceNode = nodesData.find(n => n.id === edge.source);
+                const targetNode = nodesData.find(n => n.id === edge.target);
+                
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute('x1', sourceNode.x);
+                line.setAttribute('y1', sourceNode.y);
+                line.setAttribute('x2', targetNode.x);
+                line.setAttribute('y2', targetNode.y);
+                line.setAttribute('id', `edge-${edge.source}-${edge.target}`);
+                line.classList.add('edge-line');
+                edgesLayer.appendChild(line);
+            });
+
+            // Initial node rendering
+            nodesData.forEach(node => {
+                const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                group.setAttribute('class', 'node-group cursor-default');
+                group.style.transformOrigin = `${node.x}px ${node.y}px`;
+
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute('cx', node.x);
+                circle.setAttribute('cy', node.y);
+                circle.setAttribute('r', '24');
+                circle.setAttribute('id', `node-circle-${node.id}`);
+                circle.classList.add('node-circle');
+
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute('x', node.x);
+                text.setAttribute('y', node.y);
+                text.setAttribute('id', `node-text-${node.id}`);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('dominant-baseline', 'central');
+                text.setAttribute('font-size', '16');
+                text.setAttribute('font-weight', '600');
+                text.setAttribute('pointer-events', 'none');
+                text.textContent = node.id;
+
+                group.appendChild(circle);
+                group.appendChild(text);
+                nodesLayer.appendChild(group);
+            });
+        }
+
+        function updatePresentationUI() {
+            const stepData = presentationSteps[currentStep];
+            const nodeColors = stepData.state;
+            const activeNode = stepData.node;
+
+            // Update Text
+            document.getElementById('presentation-text').innerHTML = stepData.text;
+
+            // Update Edge Styles (dotted logic for active node)
+            edgesData.forEach(edge => {
+                const line = document.getElementById(`edge-${edge.source}-${edge.target}`);
+                if (activeNode === edge.source || activeNode === edge.target) {
+                    line.setAttribute('stroke', '#64748b'); // Darker slate
+                    line.setAttribute('stroke-width', '3');
+                    line.setAttribute('stroke-dasharray', '8, 6');
+                } else {
+                    line.setAttribute('stroke', '#cbd5e1'); // Lighter slate
+                    line.setAttribute('stroke-width', '1.5');
+                    line.removeAttribute('stroke-dasharray');
+                }
+            });
+
+            // Update Node Styles
+            nodesData.forEach(node => {
+                const circle = document.getElementById(`node-circle-${node.id}`);
+                const text = document.getElementById(`node-text-${node.id}`);
+                const colorIndex = nodeColors[node.id] || 0;
+                
+                circle.setAttribute('fill', colorMap[colorIndex]);
+                
+                // Keep text readable (white on dark vibrant colors, slate on white background)
+                if (colorIndex !== 0) {
+                    text.setAttribute('fill', '#ffffff');
+                } else {
+                    text.setAttribute('fill', '#0f172a');
+                }
+                
+                // Highlight active node
+                if (node.id === activeNode) {
+                    circle.setAttribute('stroke', '#eab308'); // Bright yellow
+                    circle.setAttribute('stroke-width', '4');
+                    circle.style.filter = 'drop-shadow(0 0 8px rgba(234, 179, 8, 0.6))';
+                } else {
+                    circle.setAttribute('stroke', '#1e293b');
+                    circle.setAttribute('stroke-width', '2');
+                    circle.style.filter = 'url(#drop-shadow)';
+                }
+            });
+
+            // Update Next/Prev Buttons
+            document.getElementById('btn-prev').disabled = currentStep === 0;
+            document.getElementById('btn-next').disabled = currentStep === presentationSteps.length - 1;
+        }
+
+        function nextStep() {
+            if (currentStep < presentationSteps.length - 1) {
+                currentStep++;
+                updatePresentationUI();
+            } else if (autoPlayInterval) {
+                toggleAutoPlay(); // Stop auto-play when finished
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 0) {
+                currentStep--;
+                updatePresentationUI();
+            }
+        }
+
+        function resetPresentation() {
+            if (autoPlayInterval) toggleAutoPlay();
+            currentStep = 0;
+            updatePresentationUI();
+        }
+
+        function toggleAutoPlay() {
+            const btn = document.getElementById('btn-autoplay');
+            const iconPlay = document.getElementById('icon-play');
+            const iconPause = document.getElementById('icon-pause');
+            const textSpan = document.getElementById('text-autoplay');
+
+            if (autoPlayInterval) {
+                clearInterval(autoPlayInterval);
+                autoPlayInterval = null;
+                
+                // Restore Play visual state
+                textSpan.textContent = 'Auto Play';
+                iconPlay.classList.remove('hidden');
+                iconPause.classList.add('hidden');
+            } else {
+                // If at the end, reset before playing
+                if (currentStep === presentationSteps.length - 1) {
+                    currentStep = 0;
+                    updatePresentationUI();
+                }
+
+                autoPlayInterval = setInterval(nextStep, 1500); // Progress every 1.5s
+                
+                // Set to Pause visual state
+                textSpan.textContent = 'Pause';
+                iconPlay.classList.add('hidden');
+                iconPause.classList.remove('hidden');
+            }
+        }
+
+        // Initialize setup
+        window.onload = () => {
+            renderGraphBase();
+            updatePresentationUI();
+        };
+
+    </script>
+</body>
+</html>
