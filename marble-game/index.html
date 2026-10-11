@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>The White &amp; Black Marble Jar</title>
+<style>
+:root{--m:clamp(18px,4.8vw,22px);--bg:#eef2f6;--fg:#14202e;--muted:#566578;--line:#c3cfdb;--jar:#2f6fb0;--good:#1a7f55;--panel:#f8fafc;--bk:#26303c;--serif:"Iowan Old Style",Georgia,"Times New Roman",serif}
+@media(prefers-color-scheme:dark){:root{--bg:#10171f;--fg:#e6edf4;--muted:#93a3b5;--line:#2c3a49;--jar:#6aa8e6;--good:#4cc592;--panel:#18222d;--bk:#050709}}
+*{box-sizing:border-box}
+body{margin:0;-webkit-text-size-adjust:100%;text-size-adjust:100%;background:var(--bg);color:var(--fg);font:clamp(16px,1.2vw + 12px,18px)/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:700px;margin:0 auto;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:6px}
+.title{font:700 1.05rem var(--serif);color:var(--muted)}
+.prog{color:var(--muted);font-size:.95rem}
+.bar{height:4px;background:var(--line);border-radius:2px;margin-bottom:22px}
+.bar i{display:block;height:100%;background:var(--jar);border-radius:2px;transition:width .3s}
+.page{flex:1}
+h1{font:700 clamp(1.5rem,5vw,2rem)/1.2 var(--serif);margin:0 0 12px}
+h1:focus{outline:none}
+header{flex-wrap:wrap}
+nav{position:sticky;bottom:0;background:var(--bg);display:flex;gap:10px;align-items:center;border-top:2px solid var(--line);padding:12px 0 max(12px,env(safe-area-inset-bottom));margin-top:20px}
+nav button{flex:1;margin:0}
+.muted{color:var(--muted)}.ok{color:var(--good);font-weight:600}
+.m{display:inline-block;flex:none;width:var(--m);height:var(--m);border-radius:50%;vertical-align:middle;border:2px solid #8393a5}
+.m.w{background:#fff}.m.b{background:var(--bk)}
+.m.pop{animation:pop .35s ease-out}
+@keyframes pop{from{transform:scale(.3)}to{transform:scale(1)}}
+.jar{border:3px solid var(--jar);border-radius:6px 6px 28px 28px;padding:12px;min-height:80px;display:flex;flex-wrap:wrap;align-content:flex-start;gap:6px;background:var(--panel)}
+.rule{display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap}
+.tray{min-height:50px;margin:10px 0;color:var(--muted)}
+.big{font-size:1.2rem;margin:6px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+.chip{padding:1px 10px;border-radius:14px;border:2px solid var(--good);color:var(--good);font-weight:600;font-size:.95rem}
+.chip.even{border-color:var(--jar);color:var(--jar)}
+button{font:inherit;min-height:48px;min-width:48px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;padding:9px 18px;border:2px solid var(--jar);border-radius:8px;background:transparent;color:var(--fg);cursor:pointer;font-weight:600;margin:4px 8px 4px 0}
+@media(hover:hover){button:hover:not(:disabled){background:var(--jar);color:#fff}}
+button:active:not(:disabled){background:var(--jar);color:#fff;transform:scale(.97)}
+button.sel,button.primary{background:var(--jar);color:#fff}
+button:disabled{opacity:.4;cursor:default}
+:focus-visible{outline:3px solid #e8b24a;outline-offset:2px}
+.panel{background:var(--panel);border-left:4px solid var(--jar);padding:10px 14px;margin:14px 0;border-radius:0 6px 6px 0}
+.tree{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0}
+.col{display:flex;flex-direction:column;gap:5px}
+.nd{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:3px 6px;font-size:.85rem;text-align:center;font-variant-numeric:tabular-nums}
+.nd.root{max-width:210px;margin:0 auto 8px;font-size:.95rem;border-color:var(--jar)}
+.nd.p{border-color:var(--jar);font-weight:600}
+.dots{text-align:center;font-size:1.4rem;color:var(--muted);letter-spacing:.3em;margin:4px 0}
+@media(max-width:480px){.tree{grid-template-columns:1fr}.nd{font-size:.9rem}.nd.root{max-width:none}button.g{flex:1}}
+[hidden]{display:none!important}
+@media(prefers-reduced-motion:reduce){.m.pop,.bar i{animation:none;transition:none}}
+</style>
+</head>
+<body>
+<main>
+<header><span class="title">The White &amp; Black Marble Jar</span><span class="prog" id="prog"></span></header>
+<div class="bar"><i id="bar"></i></div>
+
+<div class="page" id="p1">
+<h1>The puzzle</h1>
+<p>A jar holds <b class="W0"></b> white marbles and <b class="B0"></b> black marbles. Reach in and pull out two random marbles:</p>
+<div class="rule"><span class="m w"></span><span class="m w"></span> or <span class="m b"></span><span class="m b"></span> same color: throw both away and put in a <span class="m b"></span> black marble.</div>
+<div class="rule"><span class="m w"></span><span class="m b"></span> different colors: throw away the black one and put the <span class="m w"></span> white one back.</div>
+<p>Repeat until only one marble is left. <b>What color is the last marble?</b></p>
+<button class="g" data-c="White">White</button><button class="g" data-c="Black">Black</button>
+<p class="muted" id="gMsg">Make a guess to continue.</p>
+</div>
+
+<div class="page" id="p2" hidden>
+<h1>The trap</h1>
+<p>You could try to follow every possible sequence of random picks. Here are just the first two turns:</p>
+<div class="nd root" id="root"></div>
+<div class="tree" id="tree"></div>
+<div class="dots" aria-hidden="true">&#8942;</div>
+<p>That is only 2 of <b id="nSteps"></b> turns. There are up to <b id="paths"></b> possible sequences of picks. Simulating the whole tree is overwhelming, so we need a smarter idea.</p>
+</div>
+
+<div class="page" id="p3" hidden>
+<h1>The invariant</h1>
+<p>Instead of tracking everything, watch just the <b>white marbles</b>. Here is how each kind of pick changes the white count:</p>
+<div class="rule"><span class="m w"></span><span class="m w"></span> two white: white count drops by <b>2</b></div>
+<div class="rule"><span class="m b"></span><span class="m b"></span> two black: white count drops by <b>0</b></div>
+<div class="rule"><span class="m w"></span><span class="m b"></span> one of each: white count drops by <b>0</b></div>
+<div class="panel">Every move changes the white count by <b>0</b> or <b>&minus;2</b>. Subtracting 2 never turns odd into even, so the <b>parity</b> (odd or even) of the white count <b>never changes</b>. That is an <b>invariant</b>: something that stays true after every step.</div>
+<p>Keep an eye on the white count while you play next.</p>
+</div>
+
+<div class="page" id="p4" hidden>
+<h1>Play it</h1>
+<div class="jar" id="jar" aria-label="The jar"></div>
+<div class="tray" id="tray" aria-live="polite"></div>
+<div class="big">White marbles: <b id="wc"></b> <span id="wp"></span></div>
+<div class="chips" id="hist"></div>
+<p><button id="stepBtn">Take 2 marbles</button><button id="autoBtn">Auto-play</button><button id="resetBtn">Reset</button></p>
+<p id="status" aria-live="polite"></p>
+</div>
+
+<div class="page" id="p5" hidden>
+<h1>The punchline</h1>
+<div id="result"></div>
+<div id="punch"></div>
+</div>
+
+<nav>
+<button id="back">Back</button>
+<button id="next" class="primary"></button>
+<button id="again" hidden>Start over</button>
+</nav>
+</main>
+
+<script>
+// Change these two numbers to explore other jars. Everything on the page updates.
+const W0 = 15, B0 = 20;
+
+const $ = id => document.getElementById(id);
+const labels = ['Show me the trap', 'Is there a better way?', 'Let me play', 'Show the punchline'];
+const TOTAL = 5;
+let page = 1, w, b, hist, guess = null, busy = false, timer = null, finished = false, lastColor = null;
+const par = n => n % 2 ? 'odd' : 'even';
+const endWhite = W0 % 2 === 1;
+const lastName = endWhite ? 'white' : 'black';
+
+function marble(c, cls) {
+  const s = document.createElement('span');
+  s.className = 'm ' + (c === 'W' ? 'w' : 'b') + ' ' + (cls || '');
+  return s;
+}
+const kids = (x, y) => {
+  const o = [];
+  if (x >= 2) o.push(['two white', x - 2, y + 1]);
+  if (y >= 2) o.push(['two black', x, y - 1]);
+  if (x >= 1 && y >= 1) o.push(['one of each', x, y - 1]);
+  return o;
+};
+
+function go(n, focus = true) {
+  page = n; stopAuto();
+  for (let i = 1; i <= TOTAL; i++) $('p' + i).hidden = i !== n;
+  $('prog').textContent = 'Page ' + n + ' of ' + TOTAL;
+  $('bar').style.width = (n / TOTAL * 100) + '%';
+  $('back').hidden = n === 1;
+  $('next').hidden = n === TOTAL; $('again').hidden = n !== TOTAL;
+  $('next').textContent = labels[n - 1] || '';
+  $('next').disabled = (n === 1 && !guess) || (n === 4 && !finished);
+  if (n === 4 && !finished && !hist) reset();
+  if (n === 5) showPunchline();
+  window.scrollTo(0, 0);
+  if (focus) $('p' + n).querySelector('h1').focus({preventScroll: true});
+}
+
+function render() {
+  const jar = $('jar'); jar.replaceChildren();
+  for (let i = 0; i < w; i++) jar.append(marble('W'));
+  for (let i = 0; i < b; i++) jar.append(marble('B'));
+  $('wc').textContent = w; $('wp').textContent = '(' + par(w) + ')';
+  const chips = hist.map(n => { const c = document.createElement('span'); c.className = 'chip ' + par(n); c.textContent = n + ' ' + par(n); return c; });
+  $('hist').replaceChildren(document.createTextNode('White count after each turn: '), ...chips);
+  $('stepBtn').disabled = busy || w + b < 2;
+  $('autoBtn').disabled = w + b < 2;
+}
+function reset() {
+  stopAuto();
+  w = W0; b = B0; hist = [W0]; busy = false; finished = false; lastColor = null;
+  $('status').textContent = '';
+  $('tray').textContent = 'Press "Take 2 marbles" to play one turn at a time.';
+  $('next').disabled = page === 4;
+  render();
+}
+function step() {
+  if (busy || w + b < 2) return;
+  busy = true;
+  const pick = () => { const c = Math.random() * (w + b) < w ? 'W' : 'B'; c === 'W' ? w-- : b--; return c; };
+  const c1 = pick(), c2 = pick(), res = c1 === c2 ? 'B' : 'W';
+  const nm = {W: 'white', B: 'black'};
+  $('tray').replaceChildren(marble(c1, 'pop'), marble(c2, 'pop'),
+    document.createTextNode(' Took ' + nm[c1] + ' and ' + nm[c2] + '. Put back ' + nm[res] + '.'));
+  render(); $('stepBtn').disabled = true;
+  setTimeout(() => {
+    res === 'W' ? w++ : b++;
+    hist.push(w); busy = false; render();
+    $('tray').append(' ', marble(res, 'pop'));
+    if (w + b === 1) done();
+  }, 600);
+}
+function done() {
+  stopAuto(); finished = true; lastColor = w ? 'White' : 'Black';
+  $('status').innerHTML = 'Only one marble is left, and it is <b>' + lastColor + '</b>. The white count was ' + par(W0) + ' every turn.';
+  $('next').disabled = false;
+}
+function stopAuto() { clearInterval(timer); timer = null; $('autoBtn').textContent = 'Auto-play'; }
+function auto() {
+  if (timer) return stopAuto();
+  $('autoBtn').textContent = 'Pause'; step(); timer = setInterval(step, 800);
+}
+
+function showPunchline() {
+  $('result').innerHTML = '<p>You guessed <b>' + guess + '</b>. In your game the last marble was <b>' + lastColor + '</b>' +
+    (guess === lastColor ? ' <span class="ok">(your guess was right)</span>' : ' (your guess was off)') + '.</p>';
+  $('punch').innerHTML =
+    '<p>In every move the white count changes by 0 or &minus;2, so its parity never changes. ' +
+    'It started ' + par(W0) + ' (' + W0 + ' white), so it must stay ' + par(W0) + '.</p>' +
+    '<p>Each turn removes 2 marbles and adds 1, so the game ends with exactly 1 marble. ' +
+    (endWhite ? 'That marble cannot be black: it would mean 0 white marbles, and 0 is even.'
+              : 'That marble cannot be white: it would mean 1 white marble, and 1 is odd.') + '</p>' +
+    '<div class="panel">Therefore the final marble is guaranteed to be <b>' + lastName + '</b>, and we never had to simulate the tree.</div>';
+}
+
+// static text driven by the two constants
+document.querySelectorAll('.W0').forEach(e => e.textContent = W0);
+document.querySelectorAll('.B0').forEach(e => e.textContent = B0);
+const n = W0 + B0 - 1, ex = Math.floor(n * Math.log10(3));
+$('nSteps').textContent = n;
+$('paths').innerHTML = 'about ' + (3 ** n / 10 ** ex).toFixed(1) + ' \u00d7 10<sup>' + ex + '</sup>';
+$('root').textContent = 'Start: ' + W0 + 'W, ' + B0 + 'B';
+kids(W0, B0).forEach(([name, x, y]) => {
+  const col = document.createElement('div'); col.className = 'col';
+  const p = document.createElement('div'); p.className = 'nd p'; p.textContent = name + ': ' + x + 'W, ' + y + 'B';
+  col.append(p);
+  kids(x, y).forEach(([n2, x2, y2]) => {
+    const c = document.createElement('div'); c.className = 'nd'; c.textContent = n2 + ': ' + x2 + 'W, ' + y2 + 'B';
+    col.append(c);
+  });
+  $('tree').append(col);
+});
+
+document.querySelectorAll('.g').forEach(x => x.onclick = () => {
+  guess = x.dataset.c;
+  document.querySelectorAll('.g').forEach(y => { y.classList.toggle('sel', y === x); y.setAttribute('aria-pressed', y === x); });
+  $('gMsg').textContent = 'You guessed ' + guess + '. Continue when you are ready.';
+  $('next').disabled = false;
+});
+$('stepBtn').onclick = step; $('autoBtn').onclick = auto; $('resetBtn').onclick = reset;
+$('back').onclick = () => go(page - 1);
+$('next').onclick = () => go(page + 1);
+$('again').onclick = () => {
+  guess = null; hist = null; finished = false;
+  document.querySelectorAll('.g').forEach(y => { y.classList.remove('sel'); y.setAttribute('aria-pressed', 'false'); });
+  $('gMsg').textContent = 'Make a guess to continue.';
+  go(1);
+};
+document.querySelectorAll('.g').forEach(y => y.setAttribute('aria-pressed', 'false'));
+document.querySelectorAll('h1').forEach(h => h.tabIndex = -1);
+// Left/Right arrow keys move between pages (mouse, touch and keyboard all work together)
+document.addEventListener('keydown', e => {
+  if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  if (e.key === 'ArrowRight' && !$('next').hidden && !$('next').disabled) go(page + 1);
+  if (e.key === 'ArrowLeft' && !$('back').hidden) go(page - 1);
+});
+go(1, false);
+</script>
+</body>
+</html>
