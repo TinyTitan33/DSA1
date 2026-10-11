@@ -53,12 +53,13 @@ button:disabled{opacity:.4;cursor:default}
 body{transition:background .3s}
 @keyframes glow{0%,100%{box-shadow:0 0 6px 1px rgba(224,49,49,.55)}50%{box-shadow:0 0 22px 7px rgba(224,49,49,.95)}}
 button.alert:not(:disabled){background:#d62f2f;border-color:#d62f2f;color:#fff;animation:glow 1.5s ease-in-out infinite}
-body.term{--bg:#fbeeee;--jar:#c0392b;--panel:#fff6f4;--line:#e4bcb8;--fg:#2a1210;--muted:#7a4a45}
-@media(prefers-color-scheme:dark){body.term{--bg:#1d0f10;--jar:#ff7b72;--panel:#2a1517;--line:#5a2c2f;--fg:#fbe9e7;--muted:#d09a95}}
-#p6 h1{color:var(--jar)}
-#p6 .rule.hl{font-size:1.2rem;line-height:1.5;border:3px solid var(--jar);background:var(--jar);color:#fff;border-radius:10px;padding:16px 18px;margin:14px 0;gap:10px}
-#p6 .rule.hl .m{border-color:#fff}
-@media(prefers-color-scheme:dark){#p6 .rule.hl{color:#1d0f10}#p6 .rule.hl .m{border-color:#1d0f10}}
+#p6 .rule.hl{position:relative;font-size:1.2rem;line-height:1.5;color:#1f1700;border:5px solid transparent;border-radius:10px;padding:26px 16px 14px;margin:26px 0 14px;gap:8px 14px;
+background:linear-gradient(#ffe9a8,#ffe9a8) padding-box,repeating-linear-gradient(-45deg,#f2b705 0 12px,#1f1700 12px 24px) border-box}
+#p6 .rule.hl .m{border-color:#1f1700}
+.badge{position:absolute;top:-17px;left:14px;background:#1f1700;color:#ffe9a8;font-weight:700;font-size:.85rem;letter-spacing:.06em;padding:2px 12px;border-radius:6px}
+#hist2 .chip,#hist2 .chip.even{border-color:var(--muted);color:var(--fg)}
+.redword{color:#b3261e;font-weight:700}
+@media(prefers-color-scheme:dark){.redword{color:#ff8a80}}
 @media(prefers-reduced-motion:reduce){button.alert:not(:disabled){animation:none;box-shadow:0 0 0 4px rgba(224,49,49,.45)}}
 [hidden]{display:none!important}
 @media(prefers-reduced-motion:reduce){.m.pop,.bar i{animation:none;transition:none}}
@@ -117,7 +118,7 @@ body.term{--bg:#fbeeee;--jar:#c0392b;--panel:#fff6f4;--line:#e4bcb8;--fg:#2a1210
 <div class="page" id="p6" hidden>
 <h1>Termination: what if the jar never shrinks?</h1>
 <p>Same jar, but a new rule:</p>
-<div class="rule hl"><b>New rule:</b> take 2 marbles, then put <b>both of them back</b>. <span class="m w"></span><span class="m b"></span> &rarr; <span class="m w"></span><span class="m b"></span></div>
+<div class="rule hl"><span class="badge">NEW RULE</span><span>Take 2 marbles, then put <b>both of them back</b>.</span><span><span class="m w"></span><span class="m b"></span> &rarr; <span class="m w"></span><span class="m b"></span></span></div>
 <p><b>Will this game ever end?</b> Press Auto-play and watch.</p>
 <div class="jar" id="jar2" aria-label="The jar"></div>
 <div class="tray" id="tray2" aria-live="polite"></div>
@@ -169,7 +170,6 @@ function go(n, focus = true) {
   $('next').hidden = n === TOTAL; $('again').hidden = n !== TOTAL;
   $('next').textContent = labels[n - 1] || '';
   $('next').classList.toggle('alert', n === 5);
-  document.body.classList.toggle('term', n === 6);
   $('again').disabled = n === 6 && !shown2;
   $('next').disabled = (n === 1 && !guess) || (n === 4 && !finished) || (n === 6 && !shown2);
   if (n === 4 && !finished && !hist) reset();
@@ -261,9 +261,9 @@ function showOut2() {
   $('out2').hidden = false;
   $('out2').innerHTML =
     '<div class="panel"><b>Outcome after ' + turns2 + ' turns:</b> there are still ' + (x2 + y2) + ' marbles in the jar. ' +
-    'The game is no closer to ending, and it never will end.</div>' +
+    'The game is no closer to ending, and it <b class="redword">never will end</b>.</div>' +
     '<ul class="cmp"><li><b>Real rule</b> (put 1 back): total ' + T + ' &rarr; ' + (T - 1) + ' &rarr; ' + (T - 2) + ' &rarr; &hellip; &rarr; 1. It ends after exactly ' + st + ' turns.</li>' +
-    '<li><b>New rule</b> (put 2 back): total ' + T + ' &rarr; ' + T + ' &rarr; ' + T + ' &rarr; &hellip; It never ends.</li></ul>' +
+    '<li><b>New rule</b> (put 2 back): total ' + T + ' &rarr; ' + T + ' &rarr; ' + T + ' &rarr; &hellip; <b class="redword">It never ends.</b></li></ul>' +
     '<p>The white count is still ' + x2 + ' (' + par(x2) + '), so the invariant held the whole time. But there is <b>no last marble</b> to predict.</p>' +
     '<div class="panel">An invariant tells you what stays true at every step. <b>Termination</b> tells you the process actually stops. You need both to get an answer.</div>';
   shown2 = true;
