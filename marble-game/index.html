@@ -48,6 +48,18 @@ button:disabled{opacity:.4;cursor:default}
 .nd.p{border-color:var(--jar);font-weight:600}
 .dots{text-align:center;font-size:1.4rem;color:var(--muted);letter-spacing:.3em;margin:4px 0}
 @media(max-width:480px){.tree{grid-template-columns:1fr}.nd{font-size:.9rem}.nd.root{max-width:none}button.g{flex:1}}
+.rule.hl{background:var(--panel);border:2px solid var(--jar);border-radius:8px;padding:8px 12px}
+.cmp{margin:10px 0;padding-left:0;list-style:none}.cmp li{margin:6px 0}
+body{transition:background .3s}
+@keyframes glow{0%,100%{box-shadow:0 0 6px 1px rgba(224,49,49,.55)}50%{box-shadow:0 0 22px 7px rgba(224,49,49,.95)}}
+button.alert:not(:disabled){background:#d62f2f;border-color:#d62f2f;color:#fff;animation:glow 1.5s ease-in-out infinite}
+body.term{--bg:#fbeeee;--jar:#c0392b;--panel:#fff6f4;--line:#e4bcb8;--fg:#2a1210;--muted:#7a4a45}
+@media(prefers-color-scheme:dark){body.term{--bg:#1d0f10;--jar:#ff7b72;--panel:#2a1517;--line:#5a2c2f;--fg:#fbe9e7;--muted:#d09a95}}
+#p6 h1{color:var(--jar)}
+#p6 .rule.hl{font-size:1.2rem;line-height:1.5;border:3px solid var(--jar);background:var(--jar);color:#fff;border-radius:10px;padding:16px 18px;margin:14px 0;gap:10px}
+#p6 .rule.hl .m{border-color:#fff}
+@media(prefers-color-scheme:dark){#p6 .rule.hl{color:#1d0f10}#p6 .rule.hl .m{border-color:#1d0f10}}
+@media(prefers-reduced-motion:reduce){button.alert:not(:disabled){animation:none;box-shadow:0 0 0 4px rgba(224,49,49,.45)}}
 [hidden]{display:none!important}
 @media(prefers-reduced-motion:reduce){.m.pop,.bar i{animation:none;transition:none}}
 </style>
@@ -97,9 +109,22 @@ button:disabled{opacity:.4;cursor:default}
 </div>
 
 <div class="page" id="p5" hidden>
-<h1>The punchline</h1>
+<h1>The verdict</h1>
 <div id="result"></div>
 <div id="punch"></div>
+</div>
+
+<div class="page" id="p6" hidden>
+<h1>Termination: what if the jar never shrinks?</h1>
+<p>Same jar, but a new rule:</p>
+<div class="rule hl"><b>New rule:</b> take 2 marbles, then put <b>both of them back</b>. <span class="m w"></span><span class="m b"></span> &rarr; <span class="m w"></span><span class="m b"></span></div>
+<p><b>Will this game ever end?</b> Press Auto-play and watch.</p>
+<div class="jar" id="jar2" aria-label="The jar"></div>
+<div class="tray" id="tray2" aria-live="polite"></div>
+<div class="big">Marbles in the jar: <b id="tot2"></b> &nbsp; White: <b id="wc2"></b> <span id="wp2"></span></div>
+<div class="chips" id="hist2"></div>
+<p><button id="stepBtn2">Take 2 marbles</button><button id="autoBtn2">Auto-play</button><button id="resetBtn2">Reset</button></p>
+<div id="out2" aria-live="polite" hidden></div>
 </div>
 
 <nav>
@@ -114,8 +139,9 @@ button:disabled{opacity:.4;cursor:default}
 const W0 = 15, B0 = 20;
 
 const $ = id => document.getElementById(id);
-const labels = ['Show me the trap', 'Is there a better way?', 'Let me play', 'Show the punchline'];
-const TOTAL = 5;
+const labels = ['Show me the trap', 'Is there a better way?', 'Let me play', 'Show the verdict', 'But does the game always end?'];
+const TOTAL = 6;
+let x2, y2, hist2 = null, turns2 = 0, busy2 = false, timer2 = null, shown2 = false;
 let page = 1, w, b, hist, guess = null, busy = false, timer = null, finished = false, lastColor = null;
 const par = n => n % 2 ? 'odd' : 'even';
 const endWhite = W0 % 2 === 1;
@@ -135,15 +161,19 @@ const kids = (x, y) => {
 };
 
 function go(n, focus = true) {
-  page = n; stopAuto();
+  page = n; stopAuto(); stopAuto2();
   for (let i = 1; i <= TOTAL; i++) $('p' + i).hidden = i !== n;
   $('prog').textContent = 'Page ' + n + ' of ' + TOTAL;
   $('bar').style.width = (n / TOTAL * 100) + '%';
   $('back').hidden = n === 1;
   $('next').hidden = n === TOTAL; $('again').hidden = n !== TOTAL;
   $('next').textContent = labels[n - 1] || '';
-  $('next').disabled = (n === 1 && !guess) || (n === 4 && !finished);
+  $('next').classList.toggle('alert', n === 5);
+  document.body.classList.toggle('term', n === 6);
+  $('again').disabled = n === 6 && !shown2;
+  $('next').disabled = (n === 1 && !guess) || (n === 4 && !finished) || (n === 6 && !shown2);
   if (n === 4 && !finished && !hist) reset();
+  if (n === 6 && !hist2) reset2();
   if (n === 5) showPunchline();
   window.scrollTo(0, 0);
   if (focus) $('p' + n).querySelector('h1').focus({preventScroll: true});
@@ -167,7 +197,7 @@ function reset() {
   $('next').disabled = page === 4;
   render();
 }
-function step() {
+function step(d = 600) {
   if (busy || w + b < 2) return;
   busy = true;
   const pick = () => { const c = Math.random() * (w + b) < w ? 'W' : 'B'; c === 'W' ? w-- : b--; return c; };
@@ -181,7 +211,7 @@ function step() {
     hist.push(w); busy = false; render();
     $('tray').append(' ', marble(res, 'pop'));
     if (w + b === 1) done();
-  }, 600);
+  }, d);
 }
 function done() {
   stopAuto(); finished = true; lastColor = w ? 'White' : 'Black';
@@ -191,7 +221,58 @@ function done() {
 function stopAuto() { clearInterval(timer); timer = null; $('autoBtn').textContent = 'Auto-play'; }
 function auto() {
   if (timer) return stopAuto();
-  $('autoBtn').textContent = 'Pause'; step(); timer = setInterval(step, 800);
+  $('autoBtn').textContent = 'Pause'; step(200); timer = setInterval(() => step(200), 280);
+}
+
+function render2() {
+  const jar = $('jar2'); jar.replaceChildren();
+  for (let i = 0; i < x2; i++) jar.append(marble('W'));
+  for (let i = 0; i < y2; i++) jar.append(marble('B'));
+  $('tot2').textContent = x2 + y2; $('wc2').textContent = x2; $('wp2').textContent = '(' + par(x2) + ')';
+  const chips = hist2.map(n => { const c = document.createElement('span'); c.className = 'chip ' + par(n); c.textContent = n + ' ' + par(n); return c; });
+  $('hist2').replaceChildren(document.createTextNode('White count after each turn: '), ...chips);
+  $('stepBtn2').disabled = busy2;
+}
+function reset2() {
+  stopAuto2();
+  x2 = W0; y2 = B0; hist2 = [W0]; turns2 = 0; busy2 = false; shown2 = false;
+  $('out2').hidden = true; $('out2').innerHTML = '';
+  $('tray2').textContent = 'Press "Take 2 marbles" or Auto-play.';
+  if (page === 6) $('next').disabled = true;
+  render2();
+}
+function step2(d = 600) {
+  if (busy2) return;
+  busy2 = true;
+  let ax = x2, ay = y2;
+  const pick = () => { const c = Math.random() * (x2 + y2) < x2 ? 'W' : 'B'; c === 'W' ? x2-- : y2--; return c; };
+  const c1 = pick(), c2 = pick();
+  const nm = {W: 'white', B: 'black'};
+  $('tray2').replaceChildren(marble(c1, 'pop'), marble(c2, 'pop'),
+    document.createTextNode(' Took ' + nm[c1] + ' and ' + nm[c2] + '. New rule: put both back.'));
+  render2(); $('stepBtn2').disabled = true;
+  setTimeout(() => {
+    x2 = ax; y2 = ay; turns2++; hist2.push(x2); busy2 = false; render2();
+    if (turns2 >= 6) { stopAuto2(); showOut2(); }
+  }, d);
+}
+function showOut2() {
+  const T = W0 + B0, st = T - 1;
+  $('out2').hidden = false;
+  $('out2').innerHTML =
+    '<div class="panel"><b>Outcome after ' + turns2 + ' turns:</b> there are still ' + (x2 + y2) + ' marbles in the jar. ' +
+    'The game is no closer to ending, and it never will end.</div>' +
+    '<ul class="cmp"><li><b>Real rule</b> (put 1 back): total ' + T + ' &rarr; ' + (T - 1) + ' &rarr; ' + (T - 2) + ' &rarr; &hellip; &rarr; 1. It ends after exactly ' + st + ' turns.</li>' +
+    '<li><b>New rule</b> (put 2 back): total ' + T + ' &rarr; ' + T + ' &rarr; ' + T + ' &rarr; &hellip; It never ends.</li></ul>' +
+    '<p>The white count is still ' + x2 + ' (' + par(x2) + '), so the invariant held the whole time. But there is <b>no last marble</b> to predict.</p>' +
+    '<div class="panel">An invariant tells you what stays true at every step. <b>Termination</b> tells you the process actually stops. You need both to get an answer.</div>';
+  shown2 = true;
+  if (page === 6) { $('next').disabled = false; $('again').disabled = false; }
+}
+function stopAuto2() { clearInterval(timer2); timer2 = null; $('autoBtn2').textContent = 'Auto-play'; }
+function auto2() {
+  if (timer2) return stopAuto2();
+  $('autoBtn2').textContent = 'Pause'; step2(200); timer2 = setInterval(() => step2(200), 280);
 }
 
 function showPunchline() {
@@ -230,11 +311,12 @@ document.querySelectorAll('.g').forEach(x => x.onclick = () => {
   $('gMsg').textContent = 'You guessed ' + guess + '. Continue when you are ready.';
   $('next').disabled = false;
 });
-$('stepBtn').onclick = step; $('autoBtn').onclick = auto; $('resetBtn').onclick = reset;
+$('stepBtn2').onclick = () => step2(); $('autoBtn2').onclick = auto2; $('resetBtn2').onclick = reset2;
+$('stepBtn').onclick = () => step(); $('autoBtn').onclick = auto; $('resetBtn').onclick = reset;
 $('back').onclick = () => go(page - 1);
 $('next').onclick = () => go(page + 1);
 $('again').onclick = () => {
-  guess = null; hist = null; finished = false;
+  guess = null; hist = null; finished = false; hist2 = null; shown2 = false;
   document.querySelectorAll('.g').forEach(y => { y.classList.remove('sel'); y.setAttribute('aria-pressed', 'false'); });
   $('gMsg').textContent = 'Make a guess to continue.';
   go(1);
