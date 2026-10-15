@@ -781,6 +781,9 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const hiddenInput = document.getElementById('hiddenInput');
 const bot = new SandwichBot();
+bot.message = "Round 1 of 2: type your first step in the text box on the right →";
+bot.msg_color = ACCENT_BLUE;
+bot.sub_message = "The robot waits for YOU. Click the box, type a step, press Enter. The command panel unlocks after round 2.";
 let game_phase = 1;
 let failed_runs = 0;
 let text_input = "";
@@ -870,13 +873,21 @@ function drawDrawer() {
     drawRoundRect(ctx, col1_rect.x, col1_rect.y, col1_rect.w, col1_rect.h, 12, toRgb(PANEL_BG), toRgb([170, 175, 188]), 3);
     
     if (game_phase === 1) {
+        const cx = col1_rect.x + col1_rect.w/2, cy = col1_rect.y + col1_rect.h/2;
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.font = "bold 16px Arial"; ctx.fillStyle = toRgb(TEXT_DARK);
-        ctx.fillText("Show us how you", col1_rect.x + col1_rect.w/2, col1_rect.y + col1_rect.h/2 - 35);
-        ctx.fillText("make a sandwich,", col1_rect.x + col1_rect.w/2, col1_rect.y + col1_rect.h/2 - 15);
-        ctx.font = "14px Arial"; ctx.fillStyle = toRgb([80, 85, 95]);
-        ctx.fillText("type your steps", col1_rect.x + col1_rect.w/2, col1_rect.y + col1_rect.h/2 + 15);
-        ctx.fillText("on the right.", col1_rect.x + col1_rect.w/2, col1_rect.y + col1_rect.h/2 + 35);
+        ctx.font = "bold 18px Arial"; ctx.fillStyle = toRgb([120, 125, 135]);
+        ctx.fillText("🔒 Command panel", cx, cy - 70);
+        ctx.fillText("locked", cx, cy - 46);
+        ctx.fillStyle = toRgb(TEXT_DARK);
+        let ly = cy - 5;
+        for (const line of wrapTextLines(ctx, "Rounds 1 & 2: type your own steps in the text box on the right →", "bold 15px Arial", col1_rect.w - 40)) {
+            ctx.fillText(line, cx, ly); ly += 22;
+        }
+        ly += 14;
+        ctx.fillStyle = toRgb([80, 85, 95]);
+        for (const line of wrapTextLines(ctx, "After round 2, this panel unlocks with buttons you can click.", "14px Arial", col1_rect.w - 40)) {
+            ctx.fillText(line, cx, ly); ly += 20;
+        }
     } else {
         ctx.textAlign = "left"; ctx.textBaseline = "middle";
         ctx.font = "bold 16px Arial"; ctx.fillStyle = toRgb(TEXT_DARK);
@@ -1064,6 +1075,10 @@ function drawEditor() {
     ctx.textAlign = "left"; ctx.textBaseline = "top";
     ctx.font = "bold 16px Arial"; ctx.fillStyle = toRgb(TEXT_DARK);
     ctx.fillText("Sandwich Recipe", col3_rect.x + 15, col3_rect.y + 15);
+    if (game_phase === 1) {
+        ctx.font = "bold 12px Arial"; ctx.fillStyle = toRgb(ACCENT_BLUE);
+        ctx.fillText(`Round ${Math.min(failed_runs + 1, 2)} of 2: type your own steps`, col3_rect.x + 15, col3_rect.y + 36);
+    }
     
     let y = col3_rect.y + 50;
     for (let i = 0; i < bot.program_queue.length; i++) {
@@ -1096,12 +1111,26 @@ function drawEditor() {
 
     if (game_phase === 1 && !bot.queue_running) {
         let prompt_y = col3_rect.y + col3_rect.h - 170;
+        const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 300);
+        if (bot.program_queue.length === 0) {
+            const cb = {x: col3_rect.x + 10, y: col3_rect.y + 90, w: col3_rect.w - 20, h: 215};
+            const mid = cb.x + cb.w/2;
+            drawRoundRect(ctx, cb.x, cb.y, cb.w, cb.h, 10, toRgba(ACCENT_BLUE, 0.08), toRgba(ACCENT_BLUE, 0.4 + 0.4 * pulse), 2);
+            ctx.textAlign = "center"; ctx.textBaseline = "top";
+            ctx.font = "bold 20px Arial"; ctx.fillStyle = toRgb(ACCENT_BLUE);
+            ctx.fillText("Your turn!", mid, cb.y + 14);
+            ctx.font = "14px Arial"; ctx.fillStyle = toRgb(TEXT_DARK);
+            const tips = ["The robot has no buttons yet.", "Type each step yourself:", "1. Click the white box below", "2. Type one step", "3. Press Enter"];
+            tips.forEach((t, i) => ctx.fillText(t, mid, cb.y + 50 + i * 22));
+            ctx.font = "bold 26px Arial"; ctx.fillStyle = toRgb(ACCENT_BLUE);
+            ctx.fillText("↓", mid, cb.y + cb.h - 42 + pulse * 6);
+        }
         ctx.font = "12px Arial"; ctx.fillStyle = toRgb([100, 105, 115]);
         ctx.textAlign = "left"; ctx.textBaseline = "top";
         ctx.fillText("> Type instruction [Enter]", col3_rect.x + 10, prompt_y);
         
         let box = {x: col3_rect.x + 10, y: prompt_y + 18, w: col3_rect.w - 20, h: 30};
-        drawRoundRect(ctx, box.x, box.y, box.w, box.h, 4, "#fff", toRgb(ACCENT_BLUE), 2);
+        drawRoundRect(ctx, box.x, box.y, box.w, box.h, 4, "#fff", toRgb(ACCENT_BLUE), 2 + pulse * 2);
         
         ctx.font = "14px Arial"; ctx.fillStyle = toRgb(TEXT_DARK);
         let txt_w = ctx.measureText(text_input + "_").width;
@@ -1111,6 +1140,7 @@ function drawEditor() {
         ctx.save();
         ctx.beginPath(); ctx.rect(box.x, box.y, box.w, box.h); ctx.clip();
         ctx.fillText(text_input + (document.activeElement === hiddenInput ? "|" : "_"), tx, box.y + 6);
+        if (!text_input) { ctx.fillStyle = toRgb([150, 155, 165]); ctx.fillText("Click here and type a step...", box.x + 16, box.y + 6); }
         ctx.restore();
     }
 
@@ -1260,8 +1290,8 @@ function logicStep() {
             failed_runs += 1;
             if (game_phase === 1 && failed_runs >= 2) {
                 game_phase = 2;
-                bot.message = "Here is a little help!"; bot.msg_color = SUCCESS_GREEN;
-                bot.sub_message = "Use the commands from the drawer to build your sandwich.";
+                bot.message = "🔓 Command panel unlocked!"; bot.msg_color = SUCCESS_GREEN;
+                bot.sub_message = "You typed 2 rounds by hand. Now click the commands in the left panel to build your sandwich.";
             }
         }
     }
