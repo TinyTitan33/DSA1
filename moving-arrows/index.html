@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Moving arrows — Java Memory Model</title>
+  <style>
+    :root {
+      --ink: #1d2433;
+      --mute: #5d6678;
+      --line: #dde2ea;
+      --blue: #2f6fdb;
+      --blue-active: #2054ab;
+      --purple: #8a4fd1;
+      --amber: #d98f0b;
+      --green: #17855c;
+      --green-bg: #e3f5ec;
+      --red: #c93c3c;
+      --red-bg: #fbe6e6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: clamp(12px, 3vw, 20px);
+      background: #f4f6fa;
+      color: var(--ink);
+      font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .wrap {
+      max-width: 640px;
+      margin: 0 auto;
+    }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    /* Top Progress Bar */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .title-sub {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--mute);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .step-badge {
+      font-size: 13px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: #eef2f8;
+      color: var(--blue);
+      border: 1px solid var(--line);
+      transition: all 0.2s ease;
+    }
+    .step-badge.done {
+      background: var(--green-bg);
+      color: var(--green);
+      border-color: #bfead4;
+    }
+
+    /* Interactive Stage */
+    .stage {
+      position: relative;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: clamp(14px, 4vw, 24px);
+      overflow: hidden;
+    }
+    .stage svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(24px, 8vw, 70px);
+      align-items: center;
+      min-height: clamp(180px, 35vw, 220px);
+      position: relative;
+      z-index: 1;
+    }
+    .col {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(18px, 4vw, 28px);
+    }
+    .col.r {
+      align-items: flex-end;
+    }
+
+    /* Name Tags (Stack) */
+    .tag {
+      width: min(120px, 100%);
+      border: 2px solid;
+      border-radius: 14px;
+      padding: clamp(8px, 2vw, 12px);
+      text-align: center;
+      position: relative;
+      background: #fbfcff;
+      font-size: clamp(20px, 5vw, 24px);
+      font-weight: 700;
+      user-select: none;
+    }
+    .tag.a { border-color: var(--blue); }
+    .tag.b { border-color: var(--purple); }
+    .tag.empty { border-style: dashed; opacity: .55; }
+
+    /* Ports */
+    .port {
+      position: absolute;
+      top: 50%;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      transform: translateY(-50%);
+      transition: box-shadow 0.25s ease;
+    }
+    .tag .port { right: -8px; }
+    .box .port { left: -8px; }
+
+    /* Visual Comparison Highlights (Suggestion 2) */
+    @keyframes haloPulseSame {
+      0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 0 7px var(--green); }
+      50% { box-shadow: 0 0 0 2px #fff, 0 0 0 14px rgba(23, 133, 92, 0.35); }
+    }
+    @keyframes haloPulseDiff {
+      0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 0 7px var(--red); }
+      50% { box-shadow: 0 0 0 2px #fff, 0 0 0 14px rgba(201, 60, 60, 0.35); }
+    }
+    @keyframes valGlowPulse {
+      0%, 100% { background: transparent; }
+      50% { background: #d1fae5; color: #065f46; box-shadow: 0 0 0 6px #d1fae5; border-radius: 6px; }
+    }
+
+    .halo-same {
+      animation: haloPulseSame 1s ease-in-out infinite;
+      z-index: 10;
+    }
+    .halo-diff {
+      animation: haloPulseDiff 1s ease-in-out infinite;
+      z-index: 10;
+    }
+    .val-glow {
+      display: inline-block;
+      animation: valGlowPulse 0.9s ease-in-out infinite;
+    }
+
+    /* Object Boxes (Heap) */
+    .box {
+      width: min(140px, 100%);
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      padding: clamp(10px, 2.5vw, 14px);
+      position: relative;
+      background: #fff;
+      text-align: center;
+      font-size: clamp(20px, 5vw, 24px);
+      font-weight: 700;
+      user-select: none;
+    }
+    .box-val {
+      display: inline-block;
+      padding: 0 4px;
+      transition: all 0.2s ease;
+    }
+
+    path.ar {
+      fill: none;
+      stroke-width: 3.5;
+      stroke-linecap: round;
+    }
+
+    /* Accessible Result Box (Suggestion 5) */
+    .msg {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #eaf1ff;
+      font-size: clamp(14px, 3.8vw, 16px);
+      min-height: 52px;
+      line-height: 1.5;
+    }
+    .msg.t { background: var(--green-bg); }
+    .msg.f { background: var(--red-bg); }
+    .msg b.t { color: var(--green); }
+    .msg b.f { color: var(--red); }
+
+    /* Controls (Suggestion 3) */
+    .ctl {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 14px;
+    }
+    .btn {
+      border-radius: 12px;
+      padding: 12px 20px;
+      min-height: 48px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: background 0.15s ease, transform 0.1s ease, border-color 0.15s ease;
+    }
+    .btn:active {
+      transform: scale(0.97);
+    }
+    .btn-run {
+      border: 2px solid var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+    @media (hover: hover) {
+      .btn-run:hover { background: #2560c4; }
+    }
+    .btn-run:active {
+      background: var(--blue-active);
+    }
+
+    /* Choice Buttons for Micro-Predictions */
+    .btn-choice {
+      border: 2px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      font-weight: 700;
+      min-width: 96px;
+    }
+    @media (hover: hover) {
+      .btn-choice.true:hover {
+        border-color: var(--green);
+        background: #f0fdf4;
+        color: var(--green);
+      }
+      .btn-choice.false:hover {
+        border-color: var(--red);
+        background: #fef2f2;
+        color: var(--red);
+      }
+    }
+
+    .reset {
+      background: none;
+      border: 0;
+      color: var(--mute);
+      font: inherit;
+      font-size: 15px;
+      text-decoration: underline;
+      cursor: pointer;
+      padding: 10px 6px;
+      min-height: 44px;
+      touch-action: manipulation;
+    }
+    .reset:active { color: var(--ink); }
+
+    button:focus-visible {
+      outline: 3px solid #9cc0ff;
+      outline-offset: 2px;
+    }
+    .hint {
+      color: var(--mute);
+      font-size: 14px;
+      flex-basis: 100%;
+    }
+    @media (min-width: 520px) {
+      .hint { flex-basis: auto; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <!-- Progress Orientation (Suggestion 4) -->
+  <div class="top-bar">
+    <span class="title-sub mono">Memory Model</span>
+    <span class="step-badge mono" id="stepBadge">Step 1 of 5</span>
+  </div>
+
+  <div class="stage" id="stage">
+    <svg id="sv">
+      <defs>
+        <marker id="mb" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0 1.5L8 5L0 8.5z" fill="#2f6fdb"/>
+        </marker>
+        <marker id="mp" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0 1.5L8 5L0 8.5z" fill="#8a4fd1"/>
+        </marker>
+      </defs>
+      <path id="pa" class="ar" stroke="#2f6fdb" marker-end="url(#mb)"/>
+      <path id="pb" class="ar" stroke="#8a4fd1" marker-end="url(#mp)"/>
+    </svg>
+    <div class="cols">
+      <div class="col">
+        <div class="tag a mono">a<span class="port" id="portA" style="background:#2f6fdb"></span></div>
+        <div class="tag b mono empty" id="tagB">b<span class="port" id="portB" style="background:#8a4fd1"></span></div>
+      </div>
+      <div class="col r">
+        <div class="box mono"><span class="port" id="port1" style="background:#d98f0b"></span><span class="box-val" id="val1">42</span></div>
+        <div class="box mono" id="box2" hidden><span class="port" id="port2" style="background:#d98f0b"></span><span class="box-val" id="val2">42</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accessible Message Box (Suggestion 5) -->
+  <div class="msg" id="msg" aria-live="polite">
+    Tag <b>a</b> points to a box holding 42. Tag <b>b</b> is empty, so it has no arrow yet.
+  </div>
+
+  <!-- Guided Micro-Prediction Controls (Suggestion 3) -->
+  <div class="ctl">
+    <button class="btn btn-run mono" id="btnRun">Run: b = a</button>
+
+    <div id="choiceGroup" style="display:none; gap:10px;">
+      <button class="btn btn-choice true mono" id="btnTrue">✓ True</button>
+      <button class="btn btn-choice false mono" id="btnFalse">✗ False</button>
+    </div>
+
+    <button class="btn btn-run mono" id="btnNext" style="display:none;">Next step →</button>
+    <button class="reset" id="btnReset" style="display:none;">Start over ↺</button>
+    <span class="hint" id="hint">Tap to run this line.</span>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function pt(el, svg) {
+  const r = el.getBoundingClientRect(), s = svg.getBoundingClientRect();
+  return [r.left - s.left + r.width / 2, r.top - s.top + r.height / 2];
+}
+
+function link(path, from, to) {
+  const svg = path.ownerSVGElement,
+        [x1, y1] = pt(from, svg),
+        [x2, y2] = pt(to, svg),
+        d = Math.max(20, (x2 - x1) * 0.45);
+  path.setAttribute('d', `M${x1} ${y1}C${x1 + d} ${y1},${x2 - d} ${y2},${x2} ${y2}`);
+}
+
+let state = 0; // 0 to 7
+let bTarget = null; // null | 'box1' | 'box2'
+
+function draw() {
+  link($('pa'), $('portA'), $('port1'));
+  if (bTarget === 'box1') {
+    $('pb').style.display = '';
+    link($('pb'), $('portB'), $('port1'));
+  } else if (bTarget === 'box2') {
+    $('pb').style.display = '';
+    link($('pb'), $('portB'), $('port2'));
+  } else {
+    $('pb').style.display = 'none';
+  }
+}
+
+function clearHighlights() {
+  $('port1').classList.remove('halo-same', 'halo-diff');
+  $('port2').classList.remove('halo-same', 'halo-diff');
+  $('val1').classList.remove('val-glow');
+  $('val2').classList.remove('val-glow');
+}
+
+function setMsg(text, type) {
+  const m = $('msg');
+  m.innerHTML = text;
+  m.className = 'msg' + (type === 't' ? ' t' : type === 'f' ? ' f' : '');
+}
+
+function showControls({ run = false, runText = '', choices = false, next = false, nextText = 'Next step →', reset = false, hint = '' }) {
+  $('btnRun').style.display = run ? '' : 'none';
+  if (run) $('btnRun').textContent = runText;
+
+  $('choiceGroup').style.display = choices ? 'flex' : 'none';
+  $('btnNext').style.display = next ? '' : 'none';
+  if (next) $('btnNext').textContent = nextText;
+
+  $('btnReset').style.display = reset ? '' : 'none';
+  $('hint').textContent = hint;
+}
+
+function updateStage() {
+  clearHighlights();
+
+  switch (state) {
+    case 0: // Step 1: Initial
+      bTarget = null;
+      $('box2').hidden = true;
+      $('tagB').classList.add('empty');
+      $('stepBadge').textContent = 'Step 1 of 5';
+      $('stepBadge').className = 'step-badge mono';
+      setMsg('Tag <b>a</b> points to a box holding 42. Tag <b>b</b> is empty, so it has no arrow yet.');
+      showControls({ run: true, runText: 'Run: b = a', hint: 'Tap to run this line.' });
+      break;
+
+    case 1: // Step 2: Prediction for a == b
+      bTarget = 'box1';
+      $('tagB').classList.remove('empty');
+      $('stepBadge').textContent = 'Step 2 of 5';
+      setMsg('<b>b = a</b> copied the arrow. Will <code class="mono">a == b</code> evaluate to true or false?');
+      showControls({ choices: true, hint: 'Predict before checking.' });
+      break;
+
+    case 3: // Step 3: Run new Item(42)
+      $('stepBadge').textContent = 'Step 3 of 5';
+      setMsg('Now let\'s allocate a separate box on the heap using <code class="mono">new</code>.');
+      showControls({ run: true, runText: 'Run: b = new Item(42)', hint: 'Tap to run this line.' });
+      break;
+
+    case 4: // Step 4: Prediction for a == b after new
+      bTarget = 'box2';
+      $('box2').hidden = false;
+      $('stepBadge').textContent = 'Step 4 of 5';
+      setMsg('<b>new</b> created a second box. Will <code class="mono">a == b</code> evaluate to true or false?');
+      showControls({ choices: true, hint: 'Predict before checking.' });
+      break;
+
+    case 6: // Step 5: Prediction for a.equals(b)
+      $('stepBadge').textContent = 'Step 5 of 5';
+      setMsg('Both boxes hold 42. Will <code class="mono">a.equals(b)</code> evaluate to true or false?');
+      showControls({ choices: true, hint: 'Predict before checking.' });
+      break;
+  }
+  draw();
+}
+
+// Action button: Runs assignment / allocation
+$('btnRun').onclick = () => {
+  if (state === 0) {
+    state = 1;
+  } else if (state === 3) {
+    state = 4;
+  }
+  updateStage();
+};
+
+// Choice buttons: Active prediction evaluation (Suggestion 3 & 5)
+function handlePrediction(userChoice) {
+  if (state === 1) {
+    // Step 2 Answer: a == b is TRUE (same box port)
+    const isCorrect = userChoice === true;
+    $('port1').classList.add('halo-same'); // Suggestion 2
+    setMsg(
+      `${isCorrect ? '<b>✓ Correct!</b> ' : '<b>✗ Not quite.</b> '}<b class="t">✓ true.</b> <code class="mono">==</code> asks: do both arrows land at the same box? Yes.`,
+      isCorrect ? 't' : 'f'
+    );
+    showControls({ next: true, nextText: 'Next: b = new Item(42) →', hint: 'Notice the highlighted port where both arrows meet.' });
+    state = 2;
+  } else if (state === 4) {
+    // Step 4 Answer: a == b is FALSE (different ports)
+    const isCorrect = userChoice === false;
+    $('port1').classList.add('halo-diff'); // Suggestion 2
+    $('port2').classList.add('halo-diff');
+    setMsg(
+      `${isCorrect ? '<b>✓ Correct!</b> ' : '<b>✗ Not quite.</b> '}<b class="f">✗ false.</b> The arrows end at two different boxes, even though both hold 42.`,
+      isCorrect ? 't' : 'f'
+    );
+    showControls({ next: true, nextText: 'Next: a.equals(b) →', hint: 'The highlighted ports show the arrows land at different boxes.' });
+    state = 5;
+  } else if (state === 6) {
+    // Step 5 Answer: a.equals(b) is TRUE (values inside match)
+    const isCorrect = userChoice === true;
+    $('val1').classList.add('val-glow'); // Suggestion 2
+    $('val2').classList.add('val-glow');
+    setMsg(
+      `${isCorrect ? '<b>✓ Correct!</b> ' : '<b>✗ Not quite.</b> '}<b class="t">✓ true.</b> <code class="mono">equals</code> opens the boxes to inspect what is inside. Both hold 42!`,
+      isCorrect ? 't' : 'f'
+    );
+    $('stepBadge').textContent = 'Completed';
+    $('stepBadge').className = 'step-badge done mono';
+    showControls({ reset: true, hint: 'You completed the sequence!' });
+    state = 7;
+  }
+}
+
+$('btnTrue').onclick = () => handlePrediction(true);
+$('btnFalse').onclick = () => handlePrediction(false);
+
+// Advance from result feedback to next step
+$('btnNext').onclick = () => {
+  if (state === 2) state = 3;
+  else if (state === 5) state = 6;
+  updateStage();
+};
+
+// Reset
+$('btnReset').onclick = () => {
+  state = 0;
+  updateStage();
+};
+
+// Geometry sync
+if (window.ResizeObserver) {
+  new ResizeObserver(() => draw()).observe($('stage'));
+} else {
+  window.addEventListener('resize', draw);
+}
+window.addEventListener('load', draw);
+
+updateStage();
+</script>
+</body>
+</html>
