@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Screen 2: Shared object</title>
+<style>
+:root {
+  --ink: #1d2433;
+  --mute: #5d6678;
+  --line: #dde2ea;
+  --blue: #2f6fdb;
+  --blue-active: #2356ab;
+  --green: #17855c;
+  --red: #c93c3c;
+  --red-active: #9b2828;
+  --amber: #d98f0b;
+  --violet: #6d4fc2;
+  --card-bg: #ffffff;
+  --bg: #f4f6fa;
+}
+
+* { 
+  box-sizing: border-box; 
+  margin: 0; 
+  padding: 0; 
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  padding: clamp(12px, 3vw, 24px) clamp(8px, 2.5vw, 16px);
+}
+
+.wrap { 
+  width: 100%;
+  max-width: 640px; 
+  margin: 0 auto; 
+}
+
+.mono { 
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; 
+}
+
+.setup {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: #1d2433;
+  color: #e8ecf5;
+  border-radius: 10px;
+  font-size: clamp(11.5px, 2.8vw, 13px);
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+}
+
+.stage {
+  position: relative;
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: clamp(14px, 3vw, 24px) clamp(10px, 2.5vw, 20px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  overflow: hidden;
+}
+
+.stage svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.headers, .cols {
+  display: grid;
+  /* Fluid columns: left hugs the list slots, right hugs the box, space between houses the arrows */
+  grid-template-columns: auto minmax(130px, 185px);
+  justify-content: space-between;
+  column-gap: clamp(10px, 3vw, 36px);
+}
+
+.headers {
+  margin-bottom: 14px;
+  font-size: clamp(11.5px, 2.8vw, 13px);
+  font-weight: 600;
+  color: var(--mute);
+}
+.headers div:last-child { text-align: right; }
+
+.cols {
+  align-items: center;
+  min-height: 200px;
+  position: relative;
+  z-index: 1;
+}
+
+.col { 
+  display: flex; 
+  flex-direction: column; 
+  gap: clamp(12px, 3vw, 20px); 
+  min-width: 0;
+}
+.col.r { 
+  align-items: flex-end; 
+}
+
+.list-wrapper { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 4px; 
+}
+
+.list-label { 
+  font-size: clamp(11.5px, 2.8vw, 13px); 
+  font-weight: 600; 
+  color: var(--mute); 
+}
+
+.list-box {
+  display: inline-flex;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: #fbfcff;
+  position: relative;
+  width: fit-content;
+  transition: opacity 0.3s;
+}
+.list-box.la { border-color: var(--green); }
+.list-box.lb { border-color: var(--blue); }
+
+.slot {
+  display: flex;
+  align-items: center;
+  gap: clamp(4px, 1.5vw, 8px);
+  padding: 8px clamp(8px, 2vw, 14px);
+  font-size: clamp(12px, 3vw, 14px);
+  font-weight: 600;
+  position: relative;
+}
+.slot .idx { 
+  color: var(--mute); 
+  font-size: clamp(10.5px, 2.5vw, 12px); 
+}
+
+.port {
+  position: absolute;
+  top: 50%;
+  right: -6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  transform: translateY(-50%);
+  transition: opacity 0.3s;
+}
+
+.ghost-slot { 
+  color: #94a3b8; 
+  font-style: italic; 
+  font-weight: normal; 
+}
+
+.box {
+  width: 100%;
+  border: 2px solid var(--amber);
+  border-radius: 12px;
+  padding: clamp(10px, 2.5vw, 14px) clamp(10px, 2.5vw, 16px);
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(217, 143, 11, 0.08);
+}
+
+.box-title {
+  font-size: clamp(13px, 3.2vw, 16px);
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.ref-badge {
+  font-size: clamp(9.5px, 2.4vw, 11px);
+  font-weight: 600;
+  padding: 2px clamp(4px, 1.2vw, 8px);
+  background: #fdf5e8;
+  border: 1px solid #fae1ba;
+  color: #8a4f00;
+  border-radius: 99px;
+  white-space: nowrap;
+  transition: all 0.3s;
+}
+
+.box-fields {
+  margin-top: 8px;
+  font-size: clamp(11.5px, 2.8vw, 13px);
+  background: #f8fafc;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #eaedf2;
+  line-height: 1.6;
+  word-break: break-word;
+}
+.box-fields b { font-weight: 600; }
+#st { color: #b45309; transition: color 0.3s; }
+#st.changed { color: var(--violet); }
+
+path.ar {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: opacity 0.4s ease;
+}
+
+.reads {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: clamp(11.5px, 2.8vw, 13px);
+  line-height: 1.8;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+}
+.reads .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+.reads b { font-weight: 600; color: #b45309; transition: color 0.3s; }
+.reads b.changed { color: var(--violet); }
+
+.msg {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #eaf1ff;
+  font-size: clamp(13px, 3.2vw, 15px);
+  line-height: 1.45;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.2s;
+}
+.msg.success { background: #ede8fa; }
+.msg.warn { background: #fff8e6; }
+.msg b { font-weight: 600; }
+
+.ctl { 
+  margin-top: 14px; 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+  flex-wrap: wrap; 
+}
+
+/* Touch-optimized button hit targets (WCAG compliant >=44px) */
+.btn {
+  border: 2px solid var(--blue);
+  background: var(--blue);
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 18px;
+  min-height: 44px;
+  font-size: clamp(13px, 3vw, 14px);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.08s;
+}
+.btn:hover { background: #2560c4; border-color: #2560c4; }
+.btn:active { background: var(--blue-active); border-color: var(--blue-active); transform: scale(0.98); }
+
+.btn.danger { border-color: var(--red); background: var(--red); }
+.btn.danger:hover { background: #b03232; border-color: #b03232; }
+.btn.danger:active { background: var(--red-active); border-color: var(--red-active); transform: scale(0.98); }
+
+.reset {
+  background: none;
+  border: 0;
+  color: var(--mute);
+  font: inherit;
+  font-size: clamp(13px, 3vw, 14px);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 10px 14px;
+  min-height: 44px;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  display: inline-flex;
+  align-items: center;
+}
+.reset:hover { color: var(--ink); }
+.reset:active { opacity: 0.7; transform: scale(0.98); }
+
+button:focus-visible { outline: 3px solid #9cc0ff; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="setup mono">Task t = new Task("Write report");<br>listA.add(t);  listB.add(t);</div>
+
+  <div class="stage">
+    <div class="headers">
+      <div>Lists</div>
+      <div>Object on the heap</div>
+    </div>
+    <svg id="sv" aria-hidden="true">
+      <defs>
+        <marker id="mg" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0 1.5L8 5L0 8.5z" fill="#17855c"/>
+        </marker>
+        <marker id="mb" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0 1.5L8 5L0 8.5z" fill="#2f6fdb"/>
+        </marker>
+      </defs>
+      <path id="pla" class="ar" stroke="#17855c" marker-end="url(#mg)"/>
+      <path id="plb" class="ar" stroke="#2f6fdb" marker-end="url(#mb)"/>
+    </svg>
+    <div class="cols">
+      <div class="col">
+        <div class="list-wrapper">
+          <span class="list-label mono">listA</span>
+          <div class="list-box la mono" id="boxLA">
+            <div class="slot">
+              <span class="idx" id="idxA">[0]</span>
+              <span id="contentA">ref</span>
+              <span class="port" id="portLA" style="background:#17855c"></span>
+            </div>
+          </div>
+        </div>
+        <div class="list-wrapper">
+          <span class="list-label mono">listB</span>
+          <div class="list-box lb mono">
+            <div class="slot">
+              <span class="idx">[0]</span>
+              <span>ref</span>
+              <span class="port" id="portLB" style="background:#2f6fdb"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col r">
+        <div class="box mono" id="targetBox">
+          <div class="box-title">
+            <span>Task</span>
+            <span class="ref-badge" id="refBadge">2 arrows in</span>
+          </div>
+          <div class="box-fields">
+            title: "Write report"<br>
+            status: <b id="st">"Pending"</b>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="reads mono" aria-live="polite">
+    <div>
+      <span class="dot" style="background:#17855c"></span>
+      <span id="readAExpr">listA.get(0).status</span> → <b id="vA">"Pending"</b>
+    </div>
+    <div>
+      <span class="dot" style="background:#2f6fdb"></span>
+      <span>listB.get(0).status → <b id="vB">"Pending"</b></span>
+    </div>
+  </div>
+
+  <div class="msg" id="msg" aria-live="polite">
+    Two separate lists hold an arrow to the exact same Task object in memory.
+  </div>
+
+  <div class="ctl">
+    <button class="btn mono" id="btnAction">listA.get(0).status = "Done";</button>
+    <button class="reset" id="btnReset" hidden>Start over</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let state = 0;
+  let rafId = null;
+
+  function center(el, svg) {
+    const r = el.getBoundingClientRect(), s = svg.getBoundingClientRect();
+    return [r.left - s.left + r.width / 2, r.top - s.top + r.height / 2];
+  }
+
+  function edge(el, svg, dy) {
+    const r = el.getBoundingClientRect(), s = svg.getBoundingClientRect();
+    return [r.left - s.left - 3, r.top - s.top + r.height / 2 + dy];
+  }
+
+  function link(path, from, dy) {
+    const svg = path.ownerSVGElement;
+    const [x1, y1] = center(from, svg);
+    const [x2, y2] = edge($('targetBox'), svg, dy);
+    // Graceful curve handling even if columns are very tight on ultra-small screens
+    const dx = Math.max(8, x2 - x1);
+    const d = Math.max(12, dx * 0.45);
+    path.setAttribute('d', `M${x1} ${y1}C${x1 + d} ${y1},${x2 - d} ${y2},${x2} ${y2}`);
+  }
+
+  function updateArrows() {
+    link($('pla'), $('portLA'), -9);
+    link($('plb'), $('portLB'), 9);
+  }
+
+  function scheduleUpdate() {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(updateArrows);
+  }
+
+  $('btnAction').onclick = () => {
+    if (state === 0) {
+      state = 1;
+      $('st').textContent = '"Done"';
+      $('st').classList.add('changed');
+      $('vA').textContent = '"Done"';
+      $('vB').textContent = '"Done"';
+      $('vA').classList.add('changed');
+      $('vB').classList.add('changed');
+
+      const m = $('msg');
+      m.className = 'msg success';
+      m.innerHTML = '<b>Changed through listA!</b> listB points to the same object, so listB.get(0).status is now also "Done".';
+
+      const btn = $('btnAction');
+      btn.textContent = 'listA.remove(0);';
+      btn.className = 'btn danger mono';
+    } else if (state === 1) {
+      state = 2;
+      $('pla').style.opacity = '0';
+      $('portLA').style.opacity = '0';
+      $('idxA').hidden = true;
+      $('contentA').innerHTML = '<span class="ghost-slot">empty list</span>';
+      $('boxLA').style.opacity = '0.6';
+
+      $('refBadge').textContent = '1 arrow in';
+      $('refBadge').style.borderColor = '#94a3b8';
+      $('refBadge').style.color = '#64748b';
+      $('refBadge').style.background = '#f1f5f9';
+
+      $('readAExpr').textContent = 'listA.size()';
+      $('vA').textContent = '0';
+      $('vA').style.color = '#64748b';
+      $('vA').classList.add('changed');
+
+      const m = $('msg');
+      m.className = 'msg warn';
+      m.innerHTML = '<b>listA.remove(0) removed the arrow, not the object.</b> The Task is still there because listB still points to it.';
+
+      $('btnAction').hidden = true;
+      $('btnReset').hidden = false;
+      $('btnReset').focus();
+    }
+    scheduleUpdate();
+  };
+
+  $('btnReset').onclick = () => {
+    state = 0;
+    $('st').textContent = '"Pending"';
+    $('st').classList.remove('changed');
+
+    $('pla').style.opacity = '1';
+    $('portLA').style.opacity = '1';
+    $('idxA').hidden = false;
+    $('contentA').textContent = 'ref';
+    $('boxLA').style.opacity = '1';
+
+    $('refBadge').textContent = '2 arrows in';
+    $('refBadge').borderColor = '#fae1ba';
+    $('refBadge').style.color = '#8a4f00';
+    $('refBadge').style.background = '#fdf5e8';
+
+    $('readAExpr').textContent = 'listA.get(0).status';
+    $('vA').textContent = '"Pending"';
+    $('vA').style.color = '';
+    $('vA').classList.remove('changed');
+
+    $('vB').textContent = '"Pending"';
+    $('vB').classList.remove('changed');
+
+    const m = $('msg');
+    m.className = 'msg';
+    m.innerHTML = 'Two separate lists hold an arrow to the exact same Task object in memory.';
+
+    const btn = $('btnAction');
+    btn.textContent = 'listA.get(0).status = "Done";';
+    btn.className = 'btn mono';
+    btn.hidden = false;
+    $('btnReset').hidden = true;
+    btn.focus();
+
+    scheduleUpdate();
+  };
+
+  // Resize and orientation listeners for mobile, tablets, and desktop
+  window.addEventListener('resize', scheduleUpdate);
+  window.addEventListener('orientationchange', scheduleUpdate);
+
+  if (window.ResizeObserver) {
+    new ResizeObserver(scheduleUpdate).observe(document.querySelector('.stage'));
+  }
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(scheduleUpdate);
+  }
+
+  scheduleUpdate();
+})();
+</script>
+</body>
+</html>
