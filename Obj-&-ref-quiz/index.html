@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Screen 3: Predict first</title>
+  <style>
+    :root {
+      --ink: #1d2433;
+      --mute: #5d6678;
+      --line: #dde2ea;
+      --blue: #2f6fdb;
+      --blue-hover: #2560c4;
+      --purple: #8a4fd1;
+      --green: #17855c;
+      --red: #c93c3c;
+      --bg: #f4f6fa;
+      --card-bg: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px 16px 60px;
+      background: var(--bg);
+      color: var(--ink);
+      font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow-x: hidden;
+    }
+
+    .wrap {
+      max-width: 660px;
+      margin: 0 auto;
+    }
+
+    header { margin-bottom: 24px; }
+    .eyebrow { font-size: 13px; font-weight: 700; color: var(--blue); margin-bottom: 4px; }
+    h1 { font-size: 24px; margin: 0 0 8px; }
+    .subtitle { color: var(--mute); margin: 0; font-size: 15px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .q-num { font-size: 13px; font-weight: 600; color: var(--mute); margin-bottom: 10px; }
+
+    .code-block {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 15px;
+      font-weight: 600;
+      white-space: pre;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Interactive Buttons (Touch & Ergonomics) */
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .btn {
+      flex: 1;
+      min-height: 48px;
+      padding: 10px 16px;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, transform 0.08s ease;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .btn-true { background: #eef4ff; border-color: var(--blue); color: var(--blue); }
+    .btn-false { background: #fff; border-color: var(--line); color: var(--mute); }
+
+    /* Hover rules scoped to pointer-capable mice only */
+    @media (hover: hover) and (pointer: fine) {
+      .btn-true:not(:disabled):hover { background: var(--blue); color: #fff; }
+      .btn-false:not(:disabled):hover { border-color: var(--ink); color: var(--ink); }
+      .next-btn:hover { background: var(--blue-hover); border-color: var(--blue-hover); }
+      .reset-btn:hover { text-decoration-thickness: 2px; }
+    }
+
+    .btn:disabled { cursor: default; }
+    .btn:disabled:not(.picked) { opacity: 0.45; }
+    .btn.picked.ok { background: var(--green); border-color: var(--green); color: #fff; }
+    .btn.picked.no { background: var(--red); border-color: var(--red); color: #fff; }
+    .btn.show-correct { border-color: var(--green); color: var(--green); opacity: 0.9; }
+    button:focus-visible { outline: 3px solid #9cc0ff; outline-offset: 2px; }
+
+    .msg {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 15px;
+      line-height: 1.4;
+    }
+    .msg:focus { outline: none; }
+    .msg.t { background: #e6f6ee; color: #0d543a; }
+    .msg.f { background: #fde8e8; color: #7a1c1c; }
+    .msg b { font-weight: 700; }
+
+    /* Visual Diagram Stage */
+    .stage {
+      position: relative;
+      background: #fbfcff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 24px 18px;
+      margin: 16px 0 12px;
+      overflow: hidden;
+    }
+    .stage svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .cols {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 40px;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+    .col { display: flex; flex-direction: column; gap: 20px; }
+    .col.r { align-items: flex-end; }
+
+    .tag {
+      width: min(115px, 100%);
+      border: 2px solid;
+      border-radius: 10px;
+      padding: 8px 10px;
+      text-align: center;
+      position: relative;
+      background: #fff;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+    }
+    .tag.a { border-color: var(--blue); color: var(--blue); }
+    .tag.b { border-color: var(--purple); color: var(--purple); }
+    .tag small { display: block; font-size: 11px; font-weight: 500; color: var(--mute); }
+    .port {
+      position: absolute;
+      top: 50%;
+      right: -6px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      transform: translateY(-50%);
+    }
+
+    .box {
+      width: min(130px, 100%);
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fff;
+      text-align: center;
+      font-size: 17px;
+      font-weight: 700;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    .box small {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--mute);
+      margin-bottom: 2px;
+    }
+    .box .blabel {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      font-style: normal;
+      color: var(--mute);
+      margin-top: 2px;
+    }
+    .box.sep { border-style: dashed; border-color: #aab3c2; }
+    .box.same, .box.match { border-color: var(--green); background: #f6fdf9; }
+
+    path.ar { fill: none; stroke-width: 3; stroke-linecap: round; }
+    path.ar.a { stroke: var(--blue); }
+    path.ar.b { stroke: var(--purple); }
+
+    .inspect-pill {
+      margin-top: 14px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      word-break: break-word;
+    }
+    .inspect-pill.f { background: #fee2e2; color: #991b1b; }
+    .inspect-pill.t { background: #dcfce7; color: #166534; }
+
+    .explanation { font-size: 14px; color: var(--mute); margin-top: 10px; line-height: 1.5; }
+
+    .next-btn {
+      width: 100%;
+      min-height: 48px;
+      margin-top: 14px;
+      border: 2px solid var(--blue);
+      background: var(--blue);
+      color: #fff;
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: background-color 0.15s, border-color 0.15s, transform 0.08s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .next-btn:active { transform: scale(0.99); }
+
+    .takeaway {
+      background: #f0f5ff;
+      border: 2px solid #cbdcff;
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-top: 24px;
+    }
+    .takeaway:focus { outline: none; }
+    .score { font-weight: 700; margin: 0 0 8px; font-size: 16px; }
+    .takeaway-title { font-weight: 700; color: var(--blue); margin-bottom: 6px; font-size: 15px; }
+    .takeaway p { margin: 0 0 8px; font-size: 14px; color: var(--ink); }
+
+    .reset-btn {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 6px 0;
+      margin-top: 6px;
+      background: none;
+      border: 0;
+      color: var(--blue);
+      font: inherit;
+      font-weight: 600;
+      text-decoration: underline;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    /* Small Tablet & Mobile Refinements */
+    @media (max-width: 520px) {
+      body { padding: 16px 12px 48px; }
+      .card { padding: 16px 14px; }
+      .stage { padding: 18px 12px; margin: 14px 0 10px; }
+      .cols { gap: 24px; }
+      .tag { max-width: 105px; padding: 6px 8px; font-size: 13px; }
+      .box { max-width: 120px; padding: 8px 6px; font-size: 16px; }
+      .code-block { font-size: 14px; padding: 10px 12px; }
+    }
+
+    /* Compact Smartphones (down to 320px) */
+    @media (max-width: 380px) {
+      body { padding: 12px 8px 40px; }
+      .card { padding: 14px 10px; border-radius: 12px; }
+      .stage { padding: 14px 8px; border-radius: 10px; }
+      .cols { gap: 14px; }
+      .tag { max-width: 90px; padding: 6px 4px; font-size: 12px; }
+      .tag small { font-size: 10px; }
+      .box { max-width: 105px; padding: 6px 4px; font-size: 14px; }
+      .box small, .box .blabel { font-size: 10px; }
+      .inspect-pill { font-size: 12px; padding: 6px 8px; }
+      .btn { font-size: 14px; padding: 8px 12px; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Chapter 1: References and objects</div>
+    <h1>Predict first</h1>
+    <p class="subtitle">Decide true or false before revealing the arrow diagram.</p>
+  </header>
+
+  <div id="quiz"></div>
+
+  <div id="summary" hidden>
+    <div class="takeaway" id="takeaway" tabindex="-1">
+      <p class="score" id="score"></p>
+      <div class="takeaway-title">The takeaway</div>
+      <p>A variable holds an <strong>arrow to an object</strong>, never the object itself.
+         <code>==</code> only checks whether two arrows lead to the exact same box.
+         <code>.equals()</code> opens the boxes and checks whether their contents match.</p>
+      <button class="reset-btn" id="resetBtn">Start over</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const QUESTIONS = [
+  {
+    code: 'new String("abc") == new String("abc")',
+    ans: false,
+    tags: [['left', 'expr 1'], ['right', 'expr 2']],
+    boxes: [
+      { type: 'String', val: '"abc"', cls: 'sep', label: 'box 1' },
+      { type: 'String', val: '"abc"', cls: 'sep', label: 'box 2' }
+    ],
+    targets: [0, 1],
+    pill: '== compares arrows: different boxes → false',
+    exp: 'new always builds a brand-new box on the heap. Both boxes hold "abc", but == never looks inside. It only asks whether both arrows end at the same box, and here they don\'t.'
+  },
+  {
+    code: 'String s = new String("abc");\nString t = s;\ns == t',
+    ans: true,
+    tags: [['s', 'variable'], ['t', 'variable']],
+    boxes: [
+      { type: 'String', val: '"abc"', cls: 'same', label: 'one box' }
+    ],
+    targets: [0, 0],
+    pill: '== compares arrows: same box → true',
+    exp: 't = s copies the arrow, not the box. There is only one box, and both arrows end at it, so == is true.'
+  },
+  {
+    code: 'new String("abc").equals(new String("abc"))',
+    ans: true,
+    tags: [['left', 'expr 1'], ['right', 'expr 2']],
+    boxes: [
+      { type: 'String', val: '"abc"', cls: 'match', label: 'box 1' },
+      { type: 'String', val: '"abc"', cls: 'match', label: 'box 2' }
+    ],
+    targets: [0, 1],
+    pill: '"abc" equals "abc" → true',
+    exp: '.equals() does not care that the arrows point to separate boxes. It opens both boxes and compares their contents. Both contain "abc", so the result is true.'
+  },
+  {
+    code: 'Integer.valueOf(42) == Integer.valueOf(42)',
+    ans: true,
+    tags: [['left', 'expr 1'], ['right', 'expr 2']],
+    boxes: [
+      { type: 'Integer', val: '42', cls: 'same', label: 'cached box' }
+    ],
+    targets: [0, 0],
+    pill: '== compares arrows: same cached box → true',
+    exp: 'Integer.valueOf reuses ready-made boxes for small numbers (-128 to 127), so both calls hand back an arrow to the same box. A surprise, but the rule has not changed: == only compares arrows.'
+  },
+  {
+    code: 'Integer.valueOf(300) == Integer.valueOf(300)',
+    ans: false,
+    tags: [['left', 'expr 1'], ['right', 'expr 2']],
+    boxes: [
+      { type: 'Integer', val: '300', cls: 'sep', label: 'box 1' },
+      { type: 'Integer', val: '300', cls: 'sep', label: 'box 2' }
+    ],
+    targets: [0, 1],
+    pill: '== compares arrows: different boxes → false',
+    exp: '300 is outside the cached range, so valueOf builds a new box each time and the arrows end at different boxes. To compare the numbers inside Integer boxes, use .equals().'
+  }
+];
+
+const LAST = QUESTIONS.length - 1;
+let score = 0;
+
+function pt(el, svg) {
+  const r = el.getBoundingClientRect(), s = svg.getBoundingClientRect();
+  return [r.left - s.left + r.width / 2, r.top - s.top + r.height / 2];
+}
+
+function link(path, fromEl, toEl, dy) {
+  if (!path || !fromEl || !toEl) return;
+  const svg = path.ownerSVGElement;
+  const s = svg.getBoundingClientRect();
+  const [x1, y1] = pt(fromEl, svg);
+  const r = toEl.getBoundingClientRect();
+  const x2 = r.left - s.left - 3;
+  const y2 = r.top - s.top + r.height / 2 + dy;
+  const dx = Math.max(20, (x2 - x1) * 0.45);
+  path.setAttribute('d', `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`);
+}
+
+function updateArrows(i) {
+  const q = QUESTIONS[i];
+  if (!$('pathA' + i)) return;
+  const shared = q.targets[0] === q.targets[1];
+  link($('pathA' + i), $('portA' + i), $('box' + i + '_' + q.targets[0]), shared ? -9 : 0);
+  link($('pathB' + i), $('portB' + i), $('box' + i + '_' + q.targets[1]), shared ? 9 : 0);
+}
+
+function updateAllArrows() {
+  QUESTIONS.forEach((_, i) => updateArrows(i));
+}
+
+// Automatically recalculates arrows when container or viewport shifts
+const resizeObserver = window.ResizeObserver ? new ResizeObserver(() => {
+  updateAllArrows();
+}) : null;
+
+function renderStage(i, q) {
+  const boxes = q.boxes.map((b, k) => `
+    <div class="box ${b.cls}" id="box${i}_${k}">
+      <small>${b.type}</small>
+      <span class="mono">${b.val}</span>
+      <em class="blabel">${b.label}</em>
+    </div>`).join('');
+  return `
+    <div class="stage" id="stage${i}">
+      <svg id="svg${i}">
+        <defs>
+          <marker id="arrA${i}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 1 L 9 5 L 0 9 z" fill="#2f6fdb"/>
+          </marker>
+          <marker id="arrB${i}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 1 L 9 5 L 0 9 z" fill="#8a4fd1"/>
+          </marker>
+        </defs>
+        <path class="ar a" id="pathA${i}" marker-end="url(#arrA${i})"/>
+        <path class="ar b" id="pathB${i}" marker-end="url(#arrB${i})"/>
+      </svg>
+      <div class="cols">
+        <div class="col">
+          <div class="tag a mono" id="tagA${i}">${q.tags[0][0]}<small>${q.tags[0][1]}</small>
+            <div class="port" id="portA${i}" style="background:#2f6fdb"></div>
+          </div>
+          <div class="tag b mono" id="tagB${i}">${q.tags[1][0]}<small>${q.tags[1][1]}</small>
+            <div class="port" id="portB${i}" style="background:#8a4fd1"></div>
+          </div>
+        </div>
+        <div class="col r">${boxes}</div>
+      </div>
+      <div class="inspect-pill mono ${q.ans ? 't' : 'f'}">${q.pill}</div>
+    </div>`;
+}
+
+function addCard(i) {
+  const q = QUESTIONS[i];
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = 'card' + i;
+  card.innerHTML = `
+    <div class="q-num">Question ${i + 1} of ${QUESTIONS.length}</div>
+    <div class="code-block mono"></div>
+    <div class="btn-row" id="btnRow${i}">
+      <button type="button" class="btn btn-true" data-v="true">True</button>
+      <button type="button" class="btn btn-false" data-v="false">False</button>
+    </div>
+    <div id="res${i}" aria-live="polite"></div>`;
+  card.querySelector('.code-block').textContent = q.code;
+  $('quiz').appendChild(card);
+  card.querySelectorAll('.btn').forEach(btn => {
+    btn.onclick = () => handleAnswer(i, btn.dataset.v === 'true', btn);
+  });
+  if (i > 0) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  card.querySelector('.btn-true').focus({ preventScroll: i > 0 });
+}
+
+function handleAnswer(i, choice, pickedBtn) {
+  const q = QUESTIONS[i];
+  const ok = choice === q.ans;
+  if (ok) score++;
+
+  document.querySelectorAll('#btnRow' + i + ' .btn').forEach(b => { b.disabled = true; });
+  pickedBtn.classList.add('picked', ok ? 'ok' : 'no');
+
+  if (!ok) {
+    const correctBtn = document.querySelector(`#btnRow${i} .btn[data-v="${q.ans}"]`);
+    if (correctBtn) correctBtn.classList.add('show-correct');
+  }
+
+  const nextLabel = i < LAST ? 'Next question →' : 'See the results';
+  $('res' + i).innerHTML = `
+    <div class="msg ${ok ? 't' : 'f'}" id="msg${i}" tabindex="-1">
+      <b>${q.ans ? 'True' : 'False'}.</b> ${ok ? 'Spot on prediction!' : 'Not quite.'}
+    </div>
+    ${renderStage(i, q)}
+    <div class="explanation">${q.exp}</div>
+    <button type="button" class="next-btn" id="next${i}">${nextLabel}</button>`;
+
+  const stage = $('stage' + i);
+  if (resizeObserver && stage) resizeObserver.observe(stage);
+
+  requestAnimationFrame(() => updateArrows(i));
+  $('msg' + i).focus({ preventScroll: true });
+
+  $('next' + i).onclick = () => {
+    $('next' + i).hidden = true;
+    if (i < LAST) {
+      addCard(i + 1);
+    } else {
+      $('score').textContent = `You predicted ${score} of ${QUESTIONS.length} correctly.`;
+      $('summary').hidden = false;
+      $('takeaway').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      $('takeaway').focus({ preventScroll: true });
+    }
+  };
+}
+
+function buildQuiz() {
+  score = 0;
+  if (resizeObserver) resizeObserver.disconnect();
+  $('summary').hidden = true;
+  $('quiz').innerHTML = '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  addCard(0);
+}
+
+$('resetBtn').onclick = buildQuiz;
+window.addEventListener('resize', updateAllArrows);
+window.addEventListener('orientationchange', () => setTimeout(updateAllArrows, 150));
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(updateAllArrows);
+
+buildQuiz();
+</script>
+</body>
+</html>
