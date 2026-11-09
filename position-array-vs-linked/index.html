@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Position: array vs linked list</title>
+<style>
+:root{
+  --bg:#FAFAF7;--panel:#FFFFFF;--ink:#1A1A1A;--muted:#6B6B6B;--line:#D9D9D4;
+  --work:#C8431D;--work-soft:#F8E4DC;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--ink);
+  font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding:clamp(12px,3vw,24px);-webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:980px;margin:0 auto}
+h1{font-size:clamp(1.2rem,3.5vw,1.45rem);margin:0 0 6px;line-height:1.25;font-weight:700}
+.lead{margin:0 0 16px;color:var(--muted);font-size:clamp(.88rem,2.5vw,.95rem)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em}
+button:focus-visible{outline:3px solid var(--work);outline-offset:2px}
+
+/* Step bar */
+.step-bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.step-btn{
+  flex:1 1 140px;min-height:44px;padding:8px 12px;border:1px solid var(--line);
+  background:transparent;color:var(--muted);border-radius:6px;font:600 .88rem system-ui,sans-serif;
+  cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.step-btn:hover:not(:disabled){border-color:var(--ink);color:var(--ink)}
+.step-btn.active{border-color:var(--ink);background:var(--ink);color:var(--panel)}
+.step-btn.done::after{content:"\2713";font-weight:700}
+
+/* Predict */
+.predict-box,section.box,.panel{
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;
+  padding:clamp(12px,2.5vw,18px);margin-bottom:14px;
+}
+.predict-title{font-size:.95rem;font-weight:700;margin:0 0 10px;display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.predict-hint{font-weight:400;color:var(--muted);font-size:.84rem}
+.predict-options{display:flex;flex-wrap:wrap;gap:8px}
+.predict-btn{
+  flex:1 1 180px;min-height:46px;padding:8px 14px;border:1px solid var(--line);
+  border-radius:6px;background:var(--bg);color:var(--ink);font:500 .9rem system-ui,sans-serif;
+  cursor:pointer;touch-action:manipulation;text-align:left;
+}
+.predict-btn:hover:not(:disabled){border-color:var(--ink)}
+.predict-btn.selected{border-color:var(--ink);background:var(--ink);color:var(--panel)}
+.predict-btn:disabled{cursor:not-allowed;opacity:.55}
+
+h2{font-size:clamp(.9rem,2.2vw,1rem);margin:0 0 10px;font-weight:700}
+
+/* ADT row */
+.adt-scroll{overflow-x:auto;padding:6px 2px 10px;-webkit-overflow-scrolling:touch}
+.adt{display:inline-flex;align-items:center;gap:6px;min-height:52px}
+.br{font:600 1.6rem/1 ui-monospace,Menlo,Consolas,monospace;color:var(--muted);padding:0 2px;user-select:none}
+.chip{
+  min-width:44px;height:44px;display:inline-grid;place-items:center;
+  border:1.5px solid var(--ink);border-radius:4px;background:var(--panel);
+  font:600 1.1rem ui-monospace,Menlo,Consolas,monospace;user-select:none;
+}
+.chip.new{background:var(--ink);color:var(--panel)}
+.gap{
+  min-width:38px;height:38px;padding:0;border:1.5px dashed var(--muted);border-radius:50%;
+  background:transparent;color:var(--muted);font:600 .9rem ui-monospace,Menlo,Consolas,monospace;
+  cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  display:inline-grid;place-items:center;
+}
+.gap:hover:not(:disabled){border-color:var(--ink);color:var(--ink)}
+.gap.sel{background:var(--ink);color:var(--panel);border-style:solid;border-color:var(--ink)}
+.gap.hint{box-shadow:0 0 0 3px var(--line)}
+.gap:disabled{cursor:not-allowed;opacity:.45}
+
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
+.btn{
+  min-height:44px;font:600 .95rem system-ui,sans-serif;padding:10px 18px;border-radius:6px;
+  border:1px solid var(--ink);background:var(--ink);color:var(--panel);
+  cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* Panels */
+.panel-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.panel-head h2{margin:0}
+.sub{margin:2px 0 0;font-size:.82rem;color:var(--muted)}
+.btn-panel{
+  min-height:38px;min-width:9.5rem;padding:7px 14px;border-radius:6px;font:600 .86rem system-ui,sans-serif;
+  cursor:pointer;touch-action:manipulation;border:1px solid var(--ink);
+  background:var(--ink);color:var(--panel);
+}
+.btn-panel.done{background:transparent;color:var(--muted);border-color:var(--line);cursor:default}
+.btn-panel:disabled:not(.done){opacity:.4;cursor:not-allowed}
+.btn-panel.pulse{outline:2px solid var(--work);outline-offset:2px;animation:ring 1.6s infinite}
+@keyframes ring{0%,100%{outline-offset:2px}50%{outline-offset:5px;outline-color:transparent}}
+
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));column-gap:14px;row-gap:0}
+.panel{min-width:0;display:grid;grid-row:span 6;grid-template-rows:subgrid;row-gap:0;margin-bottom:14px}
+
+.watch-cue{
+  font-size:.86rem;line-height:1.4;margin-bottom:10px;color:var(--muted);
+  border-left:2px solid var(--line);padding:2px 0 2px 10px;
+}
+.watch-cue strong{color:var(--ink)}
+
+.scroll{position:relative;overflow-x:auto;padding:8px 2px 12px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.row{display:flex;align-items:flex-start;gap:4px;width:max-content}
+.cell{width:36px;text-align:center;user-select:none}
+.cell b{
+  display:grid;place-items:center;height:42px;border:1.5px solid var(--ink);border-radius:4px;
+  background:var(--panel);font:600 1.05rem ui-monospace,Menlo,Consolas,monospace;
+}
+.cell.empty b{background:transparent;border:1.5px dashed var(--line)}
+.cell i{display:block;font:normal .75rem ui-monospace,Menlo,Consolas,monospace;color:var(--muted);margin-top:3px}
+.cell.hot b{background:var(--work-soft);border-color:var(--work)}
+.cell.ok b{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+
+.lrow{display:flex;align-items:center;width:max-content;min-height:54px;user-select:none}
+.tag{font:600 .82rem ui-monospace,Menlo,Consolas,monospace;color:var(--muted)}
+.node{
+  min-width:44px;height:42px;padding:0 6px;display:grid;place-items:center;
+  border:1.5px solid var(--ink);border-radius:4px;background:var(--panel);
+  font:600 1.05rem ui-monospace,Menlo,Consolas,monospace;
+}
+.node.visit{background:var(--work-soft);border-color:var(--work)}
+.node.ok{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+.arrow{padding:0 5px;font-size:1.25rem;color:var(--muted)}
+.arrow.hot{color:var(--work);font-weight:700}
+.arrow-badge{
+  display:inline-flex;align-items:center;padding:1px 6px;margin:0 2px;
+  background:var(--work-soft);border:1.5px solid var(--work);border-radius:4px;
+  color:var(--ink);font:600 .75rem ui-monospace,Menlo,Consolas,monospace;
+}
+
+.stage-card{
+  border:1px dashed var(--line);border-radius:6px;padding:10px 12px;margin:8px 0 4px;
+  min-height:76px;display:flex;flex-direction:column;justify-content:center;
+}
+.stage-card[data-active="true"]{border-color:var(--ink);border-style:solid}
+.stage-lbl{font:700 .75rem/1 system-ui,sans-serif;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:6px}
+.stage-flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font:600 .9rem ui-monospace,Menlo,Consolas,monospace}
+.pill{padding:2px 8px;border-radius:4px;border:1px solid var(--muted);background:var(--panel);color:var(--ink)}
+.pill.tgt{border-color:var(--ink)}
+.pill.pred{border-color:var(--work);background:var(--work-soft)}
+
+.count{font-size:.95rem;margin:10px 0 2px}
+.count strong{font:700 1.3rem ui-monospace,Menlo,Consolas,monospace}
+.msg{min-height:2.2em;color:var(--muted);font-size:.9rem;margin:4px 0 0;line-height:1.4}
+#status{font-weight:600;min-height:1.5em;margin:10px 0 0}
+
+/* Verdict */
+.verdict-box{
+  border:1px solid var(--line);border-left:3px solid var(--ink);border-radius:0 6px 6px 0;
+  padding:14px 16px;margin:14px 0 2px;display:none;animation:fadein .2s ease;
+}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.verdict-pred-badge{display:inline-block;padding:3px 10px;border:1px solid var(--line);border-radius:4px;font-size:.85rem;font-weight:600;margin-bottom:10px;color:var(--muted)}
+.verdict-pred-badge.correct{border-color:var(--ink);color:var(--ink)}
+.verdict-pred-badge.wrong{border-color:var(--work);color:var(--ink)}
+.verdict-header{font-weight:700;font-size:1rem;margin-bottom:6px}
+.verdict-body{font-size:.91rem;line-height:1.5}
+.verdict-next{margin-top:14px}
+
+/* Table */
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:6px}
+table{border-collapse:collapse;width:100%;min-width:440px;font-size:.92rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600}
+th small{display:block;font-weight:400;color:var(--muted);font-size:.8rem}
+td.dim{color:var(--muted)}
+td.a,td.l{font-weight:600}
+td.pred-col{font-weight:600;font-size:.85rem}
+.take{
+  margin:12px 0 0;padding:12px 14px;border:1px solid var(--line);border-left:3px solid var(--ink);
+  border-radius:0 6px 6px 0;font-size:.92rem;
+}
+/* Scale-up explorer */
+.sl{display:grid;gap:14px 24px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-top:10px}
+.sl label{display:flex;justify-content:space-between;font-weight:600;font-size:.92rem;margin-bottom:4px}
+.sl output{font:700 1rem ui-monospace,Menlo,Consolas,monospace}
+input[type=range]{width:100%;min-height:32px;accent-color:var(--ink);cursor:pointer}
+input[type=range]:focus-visible{outline:3px solid var(--work);outline-offset:2px}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+.presets span{font-size:.88rem;color:var(--muted)}
+.presets .btn{min-height:38px;padding:6px 14px}
+.presets .btn.on{background:var(--ink);color:var(--panel)}
+.barrow{display:grid;grid-template-columns:minmax(150px,210px) 1fr minmax(4.5ch,auto);gap:10px;align-items:center;margin-top:12px;font-size:.9rem}
+.track{height:20px;border:1px solid var(--line);border-radius:3px;background:var(--bg);overflow:hidden}
+.fill{height:100%;width:0;background:var(--work)}
+.barrow strong{font:700 1.15rem ui-monospace,Menlo,Consolas,monospace;text-align:right}
+.calc{display:block;font-size:.8rem;color:var(--muted)}
+@media (max-width:560px){.barrow{grid-template-columns:1fr auto}.track{grid-column:1/-1;order:3}}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Same list, different insides</h1>
+  <p class="lead">Compare how arrays and linked lists handle insertion at different positions.</p>
+
+  <!-- Step Selection Bar -->
+  <div class="step-bar" role="group" aria-label="Investigation steps">
+    <button class="step-btn active" id="btn-step-1" type="button">Step 1: Front (Index 0)</button>
+    <button class="step-btn" id="btn-step-2" type="button">Step 2: End (Index 5)</button>
+    <button class="step-btn" id="btn-step-3" type="button">Step 3: Middle (Index 2)</button>
+    <button class="step-btn" id="btn-step-free" type="button">Free Explore</button>
+  </div>
+
+  <!-- Predict Box -->
+  <div class="predict-box" id="predict-box">
+    <div class="predict-title">
+      Predict
+      <span class="predict-hint" id="pred-hint">&mdash; select an option to start</span>
+    </div>
+    <div class="predict-options">
+      <button class="predict-btn" data-predict="array" type="button">
+        <span><strong>Array</strong> shifts more</span>
+      </button>
+      <button class="predict-btn" data-predict="linked" type="button">
+        <span><strong>Linked list</strong> traverses more</span>
+      </button>
+      <button class="predict-btn" data-predict="equal" type="button">
+        <span><strong>About equal</strong> work</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ADT Container -->
+  <section class="box" aria-labelledby="h-adt">
+    <h2 id="h-adt">What the user sees (the list as an ADT)</h2>
+    <div class="adt-scroll">
+      <div class="adt" id="adt"></div>
+    </div>
+    <div class="bar">
+      <button class="btn ghost" id="reset" type="button">Reset list</button>
+    </div>
+    <p id="status" aria-live="polite"></p>
+
+    <!-- Verdict Banner -->
+    <div class="verdict-box" id="verdict">
+      <div class="verdict-pred-badge" id="v-pred-badge"></div>
+      <div class="verdict-header" id="v-head"></div>
+      <div class="verdict-body" id="v-body"></div>
+      <div class="verdict-next" id="v-next-box"></div>
+    </div>
+  </section>
+
+  <!-- Side by side columns with Independent Action Buttons -->
+  <div class="cols">
+    <!-- Array Panel -->
+    <section class="panel a" aria-labelledby="h-a">
+      <div class="panel-head">
+        <div><h2 id="h-a">Inside 1: array</h2><p class="sub">10 cells, fixed size</p></div>
+        <button class="btn-panel btn-arr" id="btn-run-arr" type="button">Run array</button>
+      </div>
+      <div class="watch-cue">
+        <div><strong>Watch:</strong> How many existing elements must slide right to free up cell <em>i</em>.</div>
+      </div>
+      <div class="scroll"><div class="row" id="arr"></div></div>
+      <div class="stage-card" id="stageA" data-active="false">
+        <div class="stage-lbl" id="stgA-lbl">Array step</div>
+        <div class="stage-flow" id="stgA-flow"><span style="color:var(--muted)">Idle &mdash; pick an index to begin</span></div>
+      </div>
+
+      <p class="count">Elements shifted: <strong id="cA">0</strong></p>
+      <p class="msg" id="mA"></p>
+    </section>
+
+    <!-- Linked List Panel -->
+    <section class="panel l" aria-labelledby="h-l">
+      <div class="panel-head">
+        <div><h2 id="h-l">Inside 2: linked list</h2><p class="sub">Singly linked, head pointer only</p></div>
+        <button class="btn-panel btn-lnk" id="btn-run-lnk" type="button">Run linked list</button>
+      </div>
+      <div class="watch-cue">
+        <div><strong>Watch:</strong> How many node hops from <code>head</code> are needed to locate predecessor <em>i&minus;1</em>.</div>
+      </div>
+      <div class="scroll"><div class="lrow" id="lnk"></div></div>
+
+      <!-- Live floating memory & rewiring stage -->
+      <div class="stage-card" id="stage" data-active="false">
+        <div class="stage-lbl" id="stg-lbl">Memory stage</div>
+        <div class="stage-flow" id="stg-flow"><span style="color:var(--muted)">Idle &mdash; pick an index to begin</span></div>
+      </div>
+
+      <p class="count">Nodes visited: <strong id="cL1">0</strong> &nbsp;|&nbsp; Arrows re-pointed: <strong id="cL2">0</strong></p>
+      <p class="msg" id="mL"></p>
+    </section>
+  </div>
+
+  <!-- Results Table -->
+  <section class="box" aria-labelledby="h-t">
+    <h2 id="h-t">Your results</h2>
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Insert position</th>
+            <th>Prediction</th>
+            <th>Array work</th>
+            <th>Linked list work</th>
+          </tr>
+        </thead>
+        <tbody id="tb"></tbody>
+      </table>
+    </div>
+    <p class="take" id="take" hidden><strong>Key takeaway:</strong> Neither structure wins everywhere. The array must shift every item after the gap (n − i elements), so adding at the end is cheap (O(1), while there is room) but adding at the front is expensive (O(n)). The linked list must walk from the head to the gap (i hops), so adding at the front is cheap (O(1)) but adding at the end is expensive (O(n)). Re-pointing the two arrows is always constant time; the walk is where the linked list spends its effort.</p>
+  </section>
+
+  <!-- Scale-up explorer -->
+  <section class="box" id="scale" aria-labelledby="h-s" hidden>
+    <h2 id="h-s">Scale it up</h2>
+    <p style="margin:0;color:var(--muted);font-size:.92rem">An insert costs the array n &minus; i shifts and the linked list i node visits. Drag the sliders to see what happens with long lists. This only counts; nothing is animated.</p>
+    <div class="sl">
+      <div>
+        <label for="sl-n">List size n <output id="o-n" for="sl-n" aria-live="off">1000</output></label>
+        <input type="range" id="sl-n" min="10" max="1000" step="10" value="1000">
+      </div>
+      <div>
+        <label for="sl-i">Position i <output id="o-i" for="sl-i" aria-live="off">500</output></label>
+        <input type="range" id="sl-i" min="0" max="1000" step="1" value="500">
+      </div>
+    </div>
+    <div class="presets" role="group" aria-label="Jump to a position">
+      <span>Jump to:</span>
+      <button class="btn ghost" type="button" data-mode="front">Front</button>
+      <button class="btn ghost" type="button" data-mode="middle">Middle</button>
+      <button class="btn ghost" type="button" data-mode="end">End</button>
+    </div>
+    <div class="barrow">
+      <span>Array<span class="calc" id="ca-calc"></span></span>
+      <div class="track"><div class="fill" id="fa"></div></div>
+      <strong id="va">0</strong>
+    </div>
+    <div class="barrow">
+      <span>Linked list<span class="calc" id="cl-calc"></span></span>
+      <div class="track"><div class="fill" id="fl"></div></div>
+      <strong id="vl">0</strong>
+    </div>
+    <p class="take"><strong>Notice:</strong> the two numbers always add up to n. No position is cheap for both, and in the middle each side costs about n/2, however long the list is. That is what O(n) means here.<br><br>
+    This counts operations, not time. Copying neighbouring array elements is a fast block copy, while following links from node to node is often slower per step, so an array can win even where the counts look level. Also, Java&rsquo;s <code>java.util.LinkedList</code> is doubly linked and keeps a tail reference, so adding at either end is O(1). The picture above is the simplest version.</p>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  var CAP = 10, START = ['A','B','C','D','E'];
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var sleep = function(){ return new Promise(function(r){ setTimeout(r, reduce ? 80 : 380); }); };
+  var $ = function(s){ return document.querySelector(s); };
+
+  var currentStep = 1; // 1: Front, 2: End, 3: Middle, 0: Free
+  var userPrediction = null;
+  var items, arr, sel, count, busy = false, lastNew = -1;
+  var results = { front: null, middle: null, end: null };
+
+  // Independent execution state for current round
+  var arrDone = false, lnkDone = false;
+  var arrShiftsCount = 0, lnkVisitedCount = 0;
+
+  function getStepConfig(stepNum){
+    var endIdx = items.length;
+    var midIdx = Math.floor(items.length / 2);
+    return {
+      1: { name: 'Step 1: Front (Index 0)', index: 0 },
+      2: { name: 'Step 2: End (Index ' + endIdx + ')', index: endIdx },
+      3: { name: 'Step 3: Middle (Index ' + midIdx + ')', index: midIdx },
+      0: { name: 'Free Explore', index: null }
+    }[stepNum];
+  }
+
+  function init(keepResults){
+    items = START.slice();
+    arr = [];
+    for(var k = 0; k < CAP; k++) arr.push(k < items.length ? items[k] : null);
+    count = START.length;
+    lastNew = -1;
+    resetRound();
+    $('#status').textContent = '';
+    $('#verdict').style.display = 'none';
+
+    if(!keepResults){
+      results = { front: null, middle: null, end: null };
+      ['#btn-step-1','#btn-step-2','#btn-step-3'].forEach(function(id){
+        document.querySelector(id).classList.remove('done');
+      });
+    }
+    setStep(currentStep);
+  }
+
+  function el(tag, cls, txt){
+    var e = document.createElement(tag);
+    if(cls) e.className = cls;
+    if(txt != null) e.textContent = txt;
+    return e;
+  }
+
+  function resetStageA(){
+    $('#stageA').setAttribute('data-active', 'false');
+    $('#stgA-lbl').textContent = 'Array step';
+    $('#stgA-flow').innerHTML = '<span style="color:var(--muted)">Idle &mdash; pick an index to begin</span>';
+  }
+
+  function setStageA(label, val, cell, isWrite){
+    $('#stageA').setAttribute('data-active', 'true');
+    $('#stgA-lbl').textContent = label;
+    var flow = $('#stgA-flow');
+    flow.innerHTML = '';
+    flow.appendChild(el('div', 'node' + (isWrite ? ' ok' : ''), val));
+    flow.appendChild(el('span', 'arrow hot', '\u2192'));
+    flow.appendChild(el('span', 'pill tgt', 'cell ' + cell));
+  }
+
+  function resetStage(){
+    var stg = $('#stage');
+    stg.setAttribute('data-active', 'false');
+    $('#stg-lbl').textContent = 'Memory stage';
+    $('#stg-flow').innerHTML = '<span style="color:var(--muted)">Idle &mdash; pick an index to begin</span>';
+  }
+
+  function setStage(step, nodeVal, targetVal){
+    var stg = $('#stage');
+    stg.setAttribute('data-active', 'true');
+    var lbl = $('#stg-lbl');
+    var flow = $('#stg-flow');
+    flow.innerHTML = '';
+
+    if(step === 'alloc'){
+      lbl.textContent = 'Step 1: Allocate node in memory';
+      var n = el('div', 'node ok', nodeVal);
+      var desc = el('span', '', 'Allocated node [' + nodeVal + ']. Pointers are not yet linked.');
+      flow.appendChild(n);
+      flow.appendChild(desc);
+    } else if(step === 'point1'){
+      lbl.textContent = 'Step 2: Connect outgoing pointer (1 of 2)';
+      var n1 = el('div', 'node ok', nodeVal);
+      var arrw = el('span', 'arrow hot', '\u2192');
+      var pill = el('span', 'pill tgt', targetVal);
+      var desc1 = el('span', '', '(' + nodeVal + '.next points to ' + targetVal + ')');
+      flow.appendChild(n1);
+      flow.appendChild(arrw);
+      flow.appendChild(pill);
+      flow.appendChild(desc1);
+    } else if(step === 'point2'){
+      lbl.textContent = 'Step 3: Redirect incoming pointer (2 of 2)';
+      var pillPred = el('span', 'pill pred', targetVal);
+      var arrw2 = el('span', 'arrow hot', '\u2192');
+      var n2 = el('div', 'node ok', nodeVal);
+      var desc2 = el('span', '', '(' + targetVal + ' redirected to point to ' + nodeVal + ')');
+      flow.appendChild(pillPred);
+      flow.appendChild(arrw2);
+      flow.appendChild(n2);
+      flow.appendChild(desc2);
+    }
+  }
+
+  function resetRound(){
+    arrDone = false;
+    lnkDone = false;
+    arrShiftsCount = 0;
+    lnkVisitedCount = 0;
+    userPrediction = null;
+
+    document.querySelectorAll('.predict-btn').forEach(function(b){
+      b.classList.remove('selected');
+      b.disabled = false;
+      b.removeAttribute('aria-pressed');
+    });
+
+    var predHint = $('#pred-hint');
+    if(predHint) predHint.textContent = '\u2014 select an option to start';
+
+    arr = [];
+    for(var k = 0; k < CAP; k++) arr.push(k < items.length ? items[k] : null);
+
+    $('#cA').textContent = '0';
+    $('#cL1').textContent = '0';
+    $('#cL2').textContent = '0';
+    $('#mA').textContent = '';
+    $('#mL').textContent = '';
+    resetStage();
+    resetStageA();
+    renderArray();
+    renderLinked();
+    updatePanelButtons();
+  }
+
+  function setStep(stepNum){
+    currentStep = stepNum;
+
+    // Reset list state back to baseline n=5 when switching guided steps
+    if(stepNum !== 0 && items.length !== START.length){
+      items = START.slice();
+      count = START.length;
+      lastNew = -1;
+    }
+
+    resetRound();
+
+    var cfg = getStepConfig(stepNum);
+
+    // Update Step tabs
+    $('#btn-step-1').classList.toggle('active', stepNum === 1);
+    $('#btn-step-2').classList.toggle('active', stepNum === 2);
+    $('#btn-step-3').classList.toggle('active', stepNum === 3);
+    $('#btn-step-free').classList.toggle('active', stepNum === 0);
+    [['#btn-step-1', 1], ['#btn-step-2', 2], ['#btn-step-3', 3], ['#btn-step-free', 0]].forEach(function(p){
+      if(stepNum === p[1]) $(p[0]).setAttribute('aria-current', 'step');
+      else $(p[0]).removeAttribute('aria-current');
+    });
+
+    // Keep dynamic button label synced with actual index
+    $('#btn-step-2').textContent = 'Step 2: End (Index ' + items.length + ')';
+    $('#btn-step-3').textContent = 'Step 3: Middle (Index ' + Math.floor(items.length / 2) + ')';
+
+    // Target gap index: End step dynamically points to items.length
+    if(stepNum === 2){
+      sel = items.length;
+    } else if(cfg.index !== null){
+      sel = Math.min(cfg.index, items.length);
+    }
+
+    $('#verdict').style.display = 'none';
+
+    if(stepNum === 1){
+      $('#status').textContent = 'Step 1 (Front, index 0): Make a prediction above to unlock the run buttons.';
+    } else if(stepNum === 2){
+      $('#status').textContent = 'Step 2 (End, index ' + items.length + '): Make a prediction above to unlock the run buttons.';
+    } else if(stepNum === 3){
+      $('#status').textContent = 'Step 3 (Middle, index ' + Math.floor(items.length / 2) + '): Make a prediction above to unlock the run buttons.';
+    } else {
+      $('#status').textContent = 'Free Explore: Choose an index and predict above to unlock the run buttons.';
+    }
+
+    renderAll();
+  }
+
+  function recordPrediction(type){
+    if(busy || arrDone || lnkDone) return;
+    userPrediction = type;
+    document.querySelectorAll('.predict-btn').forEach(function(b){
+      var isSel = (b.getAttribute('data-predict') === type);
+      b.classList.toggle('selected', isSel);
+      b.setAttribute('aria-pressed', isSel);
+    });
+    var predHint = $('#pred-hint');
+    if(predHint) predHint.textContent = '\u2014 prediction recorded';
+    $('#status').textContent = 'Prediction recorded. Now run either structure to compare!';
+    updatePanelButtons();
+  }
+
+  function renderADT(){
+    var box = $('#adt');
+    box.innerHTML = '';
+    box.appendChild(el('span', 'br', '['));
+    for(var i = 0; i <= items.length; i++){
+      var isTarget = (currentStep !== 0 && i === sel);
+      var g = el('button', 'gap' + (i === sel ? ' sel' : '') + (isTarget ? ' hint' : ''), String(i));
+      g.type = 'button';
+      g.disabled = busy || (arrDone || lnkDone);
+      g.setAttribute('aria-pressed', i === sel);
+      g.setAttribute('aria-label', 'Insert at index ' + i);
+      (function(idx){
+        g.onclick = function(){
+          if(busy || arrDone || lnkDone) return;
+          sel = idx;
+          var targetIdx = (currentStep === 2) ? items.length : (currentStep !== 0 ? getStepConfig(currentStep).index : null);
+          if(currentStep !== 0 && idx !== targetIdx){
+            setStep(0);
+          } else {
+            resetRound();
+            if(currentStep === 0){
+              $('#status').textContent = 'Selected index ' + idx + '. Make a prediction above to unlock the run buttons.';
+            }
+            renderADT();
+          }
+        };
+      })(i);
+      box.appendChild(g);
+      if(i < items.length){
+        box.appendChild(el('span', 'chip' + (i === lastNew ? ' new' : ''), items[i]));
+      }
+    }
+    box.appendChild(el('span', 'br', ']'));
+  }
+
+  function renderArray(hl){
+    hl = hl || {};
+    var row = $('#arr');
+    row.innerHTML = '';
+    arr.forEach(function(v, k){
+      var c = el('div', 'cell' + (v == null ? ' empty' : '') + ((hl.from === k || hl.to === k) ? ' hot' : '') + (hl.written === k ? ' ok' : ''));
+      c.appendChild(el('b', '', v == null ? '' : v));
+      c.appendChild(el('i', '', String(k)));
+      row.appendChild(c);
+    });
+  }
+
+  function renderLinked(hl){
+    hl = hl || {};
+    var row = $('#lnk');
+    row.innerHTML = '';
+
+    row.appendChild(el('span', 'tag', 'head'));
+
+    if(hl.repointHead){
+      var bHead = el('span', 'arrow-badge', '\u2192 ' + hl.repointHead);
+      row.appendChild(bHead);
+    } else {
+      row.appendChild(el('span', 'arrow' + (hl.arrow === -1 ? ' hot' : ''), '\u2192'));
+    }
+
+    var vis = null;
+    items.forEach(function(v, k){
+      var isVisiting = (hl.visit === k);
+      var isWritten = (hl.written === k);
+      var n = el('div', 'node' + (isVisiting ? ' visit' : '') + (isWritten ? ' ok' : ''), v);
+      if(isVisiting) vis = n;
+      row.appendChild(n);
+
+      if(hl.repointPredIdx === k){
+        var bPred = el('span', 'arrow-badge', '\u2192 ' + hl.repointPredVal);
+        row.appendChild(bPred);
+      } else {
+        row.appendChild(el('span', 'arrow' + (hl.arrow === k ? ' hot' : ''), '\u2192'));
+      }
+    });
+
+    row.appendChild(el('span', 'tag', 'null'));
+    if(vis){
+      var sc = row.parentNode;
+      var left = Math.max(0, vis.offsetLeft - (sc.clientWidth - vis.offsetWidth) / 2);
+      if(sc.scrollTo) sc.scrollTo({ left: left, behavior: reduce ? 'auto' : 'smooth' });
+      else sc.scrollLeft = left;
+    }
+  }
+
+  function renderTable(){
+    var tb = $('#tb');
+    tb.innerHTML = '';
+    [['front', 'Front'], ['end', 'End'], ['middle', 'Middle']].forEach(function(r){
+      var t = results[r[0]];
+      var tr = el('tr');
+      var th = el('th', '', r[1]);
+      if(t) th.appendChild(el('small', '', 'n = ' + t.n + ', i = ' + t.i));
+      tr.appendChild(th);
+      if(!t){
+        ['\u2013', '\u2013', '\u2013'].forEach(function(x){ tr.appendChild(el('td', 'dim', x)); });
+      } else {
+        var predTd = el('td', 'pred-col');
+        if(!t.prediction){
+          predTd.textContent = 'None';
+          predTd.className += ' dim';
+        } else {
+          var icon = t.isCorrect ? ' \u2713' : ' \u2717';
+          predTd.textContent = (t.prediction === 'array' ? 'Array shifts' : (t.prediction === 'linked' ? 'LL traverses' : 'Equal')) + icon;
+          predTd.style.color = t.isCorrect ? 'var(--ink)' : 'var(--work)';
+        }
+        tr.appendChild(predTd);
+        tr.appendChild(el('td', 'a', t.shifts + ' shifts'));
+        tr.appendChild(el('td', 'l', t.visited + ' visited + 2 re-pointed'));
+      }
+      tb.appendChild(tr);
+    });
+    var all = Boolean(results.front && results.middle && results.end);
+    $('#take').hidden = !all;
+    $('#scale').hidden = !all;
+  }
+
+  function updatePanelButtons(){
+    var btnA = $('#btn-run-arr');
+    var btnL = $('#btn-run-lnk');
+
+    // Freeze predictions once execution starts for this round
+    var locked = busy || arrDone || lnkDone;
+    document.querySelectorAll('.predict-btn').forEach(function(b){
+      b.disabled = locked;
+    });
+
+    if(items.length >= CAP){
+      btnA.textContent = 'Array is full';
+      btnA.disabled = true;
+      btnA.title = '';
+      btnL.textContent = 'Array is full';
+      btnL.disabled = true;
+      btnL.title = '';
+      return;
+    }
+
+    var canRun = Boolean(userPrediction);
+
+    // Array button state
+    if(arrDone){
+      btnA.textContent = 'Array done (' + arrShiftsCount + ' shifts)';
+      btnA.className = 'btn-panel btn-arr done';
+      btnA.disabled = true;
+      btnA.title = '';
+    } else {
+      btnA.textContent = 'Run array';
+      btnA.className = 'btn-panel btn-arr' + (lnkDone && !busy && canRun ? ' pulse' : '');
+      btnA.disabled = busy || !canRun;
+      btnA.title = !canRun ? 'Make a prediction above before running' : '';
+    }
+
+    // Linked list button state
+    if(lnkDone){
+      btnL.textContent = 'Linked list done (' + lnkVisitedCount + ' hops)';
+      btnL.className = 'btn-panel btn-lnk done';
+      btnL.disabled = true;
+      btnL.title = '';
+    } else {
+      btnL.textContent = 'Run linked list';
+      btnL.className = 'btn-panel btn-lnk' + (arrDone && !busy && canRun ? ' pulse' : '');
+      btnL.disabled = busy || !canRun;
+      btnL.title = !canRun ? 'Make a prediction above before running' : '';
+    }
+  }
+
+  function plural(k, w){ return k + ' ' + w + (k === 1 ? '' : 's'); }
+
+  function showVerdict(i, n, shifts, visited){
+    var vBox = $('#verdict');
+    var vPredBadge = $('#v-pred-badge');
+    var vHead = $('#v-head');
+    var vBody = $('#v-body');
+    var vNextBox = $('#v-next-box');
+
+    vBox.style.display = 'block';
+
+    var diff = shifts - visited;
+    var actual = (Math.abs(diff) <= 1) ? 'equal' : (diff > 0 ? 'array' : 'linked');
+
+    var facts = 'The array shifted <strong>' + plural(shifts, 'element') + '</strong> (n \u2212 i = ' + n + ' \u2212 ' + i + '). ' +
+                'The linked list walked <strong>' + plural(visited, 'node') + '</strong> from <code>head</code> (i = ' + i + ') and re-pointed 2 arrows. ';
+
+    vHead.className = 'verdict-header';
+    if(actual === 'array'){
+      vHead.textContent = 'The linked list did less work at index ' + i;
+      vBody.innerHTML = facts + '<em>Why:</em> ' + (i === 0
+        ? 'the head pointer gives direct access to index 0, so there was nothing to walk past, while the array still had to move every element.'
+        : 'the array pays for every element after the gap, while the linked list pays only for the nodes before it.');
+    } else if(actual === 'linked'){
+      vHead.textContent = 'The array did less work at index ' + i;
+      vBody.innerHTML = facts + '<em>Why:</em> ' + (i === n
+        ? 'a singly linked list with only a head pointer has to walk the whole list to reach the end, while the array just writes into the next free cell.'
+        : 'the linked list pays for every node before the gap, while the array pays only for the elements after it.');
+    } else {
+      vHead.textContent = 'About equal work at index ' + i;
+      vBody.innerHTML = facts + 'Both counts grow with the size of the list, so neither is clearly better here.';
+    }
+
+    vPredBadge.innerHTML = '';
+    vPredBadge.removeAttribute('style');
+    var isCorrect = false;
+    if(userPrediction){
+      isCorrect = (userPrediction === actual);
+      vPredBadge.className = 'verdict-pred-badge ' + (isCorrect ? 'correct' : 'wrong');
+      if(isCorrect){
+        vPredBadge.textContent = 'Your prediction was right.';
+      } else {
+        var guessName = userPrediction === 'array' ? 'Array shifts more' : (userPrediction === 'linked' ? 'Linked list traverses more' : 'About equal work');
+        vPredBadge.textContent = 'You predicted "' + guessName + '". Look at where the work built up.';
+      }
+    } else {
+      vPredBadge.className = 'verdict-pred-badge';
+      vPredBadge.textContent = 'No prediction this time.';
+    }
+
+    vNextBox.innerHTML = '';
+    if(currentStep === 1){
+      $('#btn-step-1').classList.add('done');
+      var bNext = el('button', 'btn', 'Step two');
+      bNext.onclick = function(){ setStep(2); };
+      vNextBox.appendChild(bNext);
+    } else if(currentStep === 2){
+      $('#btn-step-2').classList.add('done');
+      var bNext2 = el('button', 'btn', 'Step three');
+      bNext2.onclick = function(){ setStep(3); };
+      vNextBox.appendChild(bNext2);
+    } else if(currentStep === 3){
+      $('#btn-step-3').classList.add('done');
+      var bFree = el('button', 'btn ghost', 'Explore');
+      bFree.onclick = function(){ setStep(0); };
+      vNextBox.appendChild(bFree);
+    } else {
+      var full = items.length >= CAP;
+      var bAgain = el('button', 'btn', full ? 'List is full: reset' : 'Insert again');
+      bAgain.onclick = function(){ if(full){ init(true); } else { setStep(0); } };
+      vNextBox.appendChild(bAgain);
+    }
+
+    return isCorrect;
+  }
+
+  function renderAll(){
+    renderADT();
+    renderArray();
+    renderLinked();
+    updatePanelButtons();
+    renderTable();
+  }
+
+  async function runArrayOnly(){
+    if(!userPrediction || busy || arrDone || items.length >= CAP) return;
+    busy = true;
+    updatePanelButtons();
+    $('#status').textContent = 'Animating array shifts...';
+
+    var i = sel, n = items.length;
+    var x = String.fromCharCode(65 + count);
+    var shifts = 0;
+
+    for(var k = n - 1; k >= i; k--){
+      arr[k + 1] = arr[k];
+      shifts++;
+      $('#cA').textContent = shifts;
+      $('#mA').textContent = 'Shift ' + items[k] + ' from cell ' + k + ' \u2192 cell ' + (k + 1) + '.';
+      renderArray({ from: k, to: k + 1 });
+      setStageA('Shift one cell right', items[k], k + 1, false);
+      await sleep();
+    }
+    arr[i] = x;
+    $('#mA').textContent = (shifts === 0)
+      ? 'No shifting required. Write ' + x + ' directly into cell ' + i + '.'
+      : 'Target cell ' + i + ' is free. Write ' + x + ' into array.';
+    renderArray({ written: i });
+    setStageA('Write the new element', x, i, true);
+
+    arrDone = true;
+    arrShiftsCount = shifts;
+    busy = false;
+
+    checkBothCompleted();
+  }
+
+  async function runLinkedOnly(){
+    if(!userPrediction || busy || lnkDone || items.length >= CAP) return;
+    busy = true;
+    updatePanelButtons();
+    $('#status').textContent = 'Animating linked list traversal & pointer rewiring...';
+
+    var i = sel, n = items.length;
+    var x = String.fromCharCode(65 + count);
+    var visited = 0, rep = 0;
+
+    // Traversal
+    for(var k = 0; k < i; k++){
+      visited++;
+      $('#cL1').textContent = visited;
+      $('#mL').textContent = 'Traversing: step to node ' + items[k] + ' (hops: ' + visited + ').';
+      renderLinked({ visit: k });
+      await sleep();
+    }
+
+    if(i === 0){
+      $('#mL').textContent = 'Target is head (index 0): 0 traversal hops needed.';
+      renderLinked();
+    } else {
+      $('#mL').textContent = 'Arrived at predecessor node ' + items[i - 1] + '.';
+      renderLinked({ visit: i - 1 });
+    }
+    await sleep();
+
+    var succ = (i < n) ? items[i] : 'null';
+    var pred = (i === 0) ? 'head' : items[i - 1];
+
+    setStage('alloc', x);
+    $('#mL').textContent = 'Allocate node ' + x + ' in heap memory.';
+    await sleep();
+
+    rep++;
+    $('#cL2').textContent = rep;
+    setStage('point1', x, succ);
+    $('#mL').textContent = 'Arrow 1 of 2: Set ' + x + '.next \u2192 ' + succ + '.';
+    await sleep();
+
+    rep++;
+    $('#cL2').textContent = rep;
+    setStage('point2', x, pred);
+    $('#mL').textContent = 'Arrow 2 of 2: Redirect ' + pred + ' \u2192 ' + x + '.';
+
+    if(i === 0){
+      renderLinked({ repointHead: x });
+    } else {
+      renderLinked({ visit: i - 1, repointPredIdx: i - 1, repointPredVal: x });
+    }
+    await sleep();
+
+    lnkDone = true;
+    lnkVisitedCount = visited;
+    busy = false;
+
+    checkBothCompleted();
+  }
+
+  function checkBothCompleted(){
+    var i = sel, n = items.length;
+    var x = String.fromCharCode(65 + count);
+
+    if(arrDone && !lnkDone){
+      $('#status').textContent = 'Array complete (' + arrShiftsCount + ' shifts). Now click "Run linked list" to compare!';
+      updatePanelButtons();
+    } else if(lnkDone && !arrDone){
+      $('#status').textContent = 'Linked list complete (' + lnkVisitedCount + ' hops). Now click "Run array" to compare!';
+      updatePanelButtons();
+    } else if(arrDone && lnkDone){
+      items.splice(i, 0, x);
+      count++;
+      lastNew = i;
+
+      var cat = (i === 0) ? 'front' : (i === n ? 'end' : 'middle');
+      var isCorrect = showVerdict(i, n, arrShiftsCount, lnkVisitedCount);
+
+      results[cat] = {
+        n: n,
+        i: i,
+        shifts: arrShiftsCount,
+        visited: lnkVisitedCount,
+        prediction: userPrediction,
+        isCorrect: isCorrect
+      };
+
+      $('#status').textContent = 'Both done. The array shifted ' + arrShiftsCount + ' and the linked list visited ' + lnkVisitedCount + '. The list now contains [' + items.join(', ') + ']. See the verdict box.';
+      renderAll();
+      renderLinked({ written: i });
+    }
+  }
+
+  // Scale-up explorer (counts only, no animation)
+  var scaleMode = 'middle';
+  function scaleRender(){
+    var n = +$('#sl-n').value, iEl = $('#sl-i'), cur = +iEl.value, i;
+    iEl.max = n;
+    if(scaleMode === 'front') i = 0;
+    else if(scaleMode === 'end') i = n;
+    else if(scaleMode === 'middle') i = Math.floor(n / 2);
+    else i = Math.min(cur, n);
+    iEl.value = i;
+    var shifts = n - i, visits = i;
+    $('#o-n').textContent = n;
+    $('#o-i').textContent = i;
+    $('#va').textContent = shifts;
+    $('#vl').textContent = visits;
+    $('#fa').style.width = (shifts / n * 100) + '%';
+    $('#fl').style.width = (visits / n * 100) + '%';
+    $('#ca-calc').textContent = 'n \u2212 i = ' + n + ' \u2212 ' + i + ' shifts';
+    $('#cl-calc').textContent = 'i = ' + i + ' node visits, plus 2 re-pointed arrows';
+    document.querySelectorAll('.presets .btn').forEach(function(b){
+      b.classList.toggle('on', b.getAttribute('data-mode') === scaleMode);
+      b.setAttribute('aria-pressed', b.getAttribute('data-mode') === scaleMode);
+    });
+  }
+  $('#sl-n').addEventListener('input', scaleRender);
+  $('#sl-i').addEventListener('input', function(){ scaleMode = null; scaleRender(); });
+  document.querySelectorAll('.presets .btn').forEach(function(b){
+    b.addEventListener('click', function(){ scaleMode = this.getAttribute('data-mode'); scaleRender(); });
+  });
+
+  // Event bindings
+  $('#btn-run-arr').addEventListener('click', runArrayOnly);
+  $('#btn-run-lnk').addEventListener('click', runLinkedOnly);
+  $('#reset').addEventListener('click', function(){ if(!busy) init(false); });
+
+  $('#btn-step-1').addEventListener('click', function(){ if(!busy) setStep(1); });
+  $('#btn-step-2').addEventListener('click', function(){ if(!busy) setStep(2); });
+  $('#btn-step-3').addEventListener('click', function(){ if(!busy) setStep(3); });
+  $('#btn-step-free').addEventListener('click', function(){ if(!busy) setStep(0); });
+
+  document.querySelectorAll('.predict-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      recordPrediction(this.getAttribute('data-predict'));
+    });
+  });
+
+  init(false);
+  scaleRender();
+})();
+</script>
+</body>
+</html>
