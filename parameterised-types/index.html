@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Parameterised types</title>
+<style>
+:root{
+  --bg:#0f172a;--panel:#1e293b;--deep:#0b1220;--line:#334155;--ink:#e8edf4;--muted:#a3b0c2;
+  --em:#34d399;--em2:#0f766e;--in:#a5b4fc;--in2:#6366f1;--am:#fbbf24;--ro:#fb7185;
+  --toy:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font:16px/1.5 var(--toy);
+  padding:16px;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+.wrap{max-width:1000px;margin:0 auto}
+h1{font:700 1.5rem/1.2 var(--toy);margin:0 0 12px;text-align:center}
+
+/* Clean, easy-to-read instruction guide */
+.lead-guide{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:10px;
+  margin:0 auto 18px;
+}
+.lead-step{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:10px 14px;
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  font-size:.92rem;
+  line-height:1.45;
+  color:var(--ink);
+}
+.lead-num{
+  display:inline-grid;
+  place-items:center;
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  background:var(--in2);
+  color:#fff;
+  font-weight:700;
+  font-size:.78rem;
+  flex:none;
+  margin-top:1px;
+}
+
+code,.mono{font-family:var(--mono)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.rowhead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+h2{font-size:.95rem;font-weight:700;margin:0}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+.mini{
+  font:600 .85rem var(--toy);
+  min-height:38px;
+  padding:6px 12px;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:#2b3a50;
+  color:var(--ink);
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.mini:hover{border-color:var(--muted)}
+button:focus-visible,[role="button"]:focus-visible{outline:3px solid var(--am);outline-offset:2px}
+
+.carts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:10px}
+.cart{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  text-align:left;
+  min-height:48px;
+  padding:10px 12px;
+  border-radius:12px;
+  border:2px solid;
+  background:var(--deep);
+  color:var(--ink);
+  cursor:pointer;
+  font-family:var(--toy);
+  box-shadow:0 4px 0 rgba(0,0,0,.35);
+  touch-action:manipulation;
+}
+.cart:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.35)}
+.cart.int{border-color:#10b981}.cart.str{border-color:var(--in2)}.cart.prim{border-color:#d97706}
+.cart[aria-pressed="true"]{outline:3px solid var(--ink);outline-offset:2px}
+.cart b{display:block;font:700 1rem var(--mono)}
+.cart small{display:block;color:var(--muted);font-size:.8rem}
+
+.ico{width:44px;height:44px;flex:none;display:grid;place-items:center}
+.circle{border-radius:50%}
+.dia{width:32px;height:32px;transform:rotate(45deg);display:grid;place-items:center;border-radius:4px}
+.dia>span{transform:rotate(-45deg)}
+.jag{width:40px;height:40px;clip-path:polygon(0 0,15% 10%,30% 0,45% 10%,60% 0,75% 10%,90% 0,100% 12%,100% 88%,88% 100%,72% 90%,58% 100%,42% 90%,28% 100%,12% 90%,0 100%);background:#78350f;display:grid;place-items:center;color:var(--am)}
+
+.grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:14px}
+@media (min-width:860px){.grid{grid-template-columns:5fr 7fr}}
+.grp{margin-top:12px}
+.grp h3{font:700 .85rem var(--mono);margin:0 0 8px}
+
+.blocks{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.blk{
+  border:2px solid;
+  cursor:grab;
+  font:700 1rem var(--toy);
+  color:#06241c;
+  box-shadow:0 4px 0 rgba(0,0,0,.3);
+  display:grid;
+  place-items:center;
+  padding:0;
+  touch-action:none;
+}
+.blk:hover{transform:scale(1.07)}
+.blk.i{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#34d399,#0d9488);border-color:#a7f3d0}
+.blk.s{width:42px;height:42px;transform:rotate(45deg);border-radius:5px;background:linear-gradient(135deg,#a5b4fc,#7c3aed);border-color:#c7d2fe;color:#fff;font-size:.78rem;margin:7px}
+.blk.s:hover{transform:rotate(45deg) scale(1.1)}
+.blk.s>span{transform:rotate(-45deg)}
+
+.hint{margin:14px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted)}
+.label{font:700 1.05rem var(--mono);padding:3px 10px;border-radius:8px;border:1px solid var(--line);background:var(--deep)}
+.label.int{color:var(--em);border-color:#10b981}.label.str{color:var(--in);border-color:var(--in2)}
+.count{font:700 .85rem var(--mono);color:var(--muted)}
+
+.sorter{max-width:420px;width:100%;margin:8px auto 0}
+.lid{height:96px;border-radius:16px;border:2px solid #475569;background:linear-gradient(#475569,#334155);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;position:relative;z-index:2}
+.lid small{font-size:.78rem;color:#cbd5e1}
+.ap{display:grid;place-items:center;background:var(--deep);box-shadow:inset 0 4px 8px rgba(0,0,0,.6);transition:all .25s}
+.ap.none{width:112px;height:44px;border:2px dashed var(--in);border-radius:12px;color:var(--in);font:700 .95rem var(--mono)}
+.ap.int{width:56px;height:56px;border:3px solid var(--em);border-radius:50%;color:var(--em)}
+.ap.str{width:44px;height:44px;border:3px solid var(--in);border-radius:5px;transform:rotate(45deg);margin:6px 0;color:var(--in)}
+.ap.str>span{transform:rotate(-45deg)}
+.ap.bad{border-color:var(--ro)!important;background:#3a1220}
+
+.hopper{width:94%;margin:0 auto;height:190px;border:2px solid #475569;border-top:0;border-radius:0 0 26px 26px;background:rgba(2,6,23,.7);position:relative;overflow:hidden;display:flex;flex-wrap:wrap-reverse;align-content:flex-start;justify-content:center;gap:8px;padding:12px}
+.hopper .empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:14px;color:var(--muted);font-size:.85rem;font-style:italic}
+.item{width:46px;height:46px;display:grid;place-items:center;font:700 .95rem var(--toy);animation:drop .5s cubic-bezier(.34,1.56,.64,1)}
+.item.i{border-radius:50%;background:linear-gradient(135deg,#34d399,#0d9488);color:#06241c;border:2px solid #a7f3d0}
+.item.s>div{width:34px;height:34px;transform:rotate(45deg);display:grid;place-items:center;border-radius:4px;background:linear-gradient(135deg,#a5b4fc,#7c3aed);color:#fff;border:2px solid #c7d2fe;font-size:.7rem}
+.item.s>div>span{transform:rotate(-45deg)}
+.rim{height:14px;width:100%;background:#475569;border-radius:0 0 12px 12px}
+
+pre{
+  margin:12px 0 0;
+  padding:12px 14px;
+  background:var(--deep);
+  border:1px solid var(--line);
+  border-radius:10px;
+  font:.88rem/1.55 var(--mono);
+  white-space:pre-wrap;
+  word-break:break-word;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  -webkit-user-select:text;
+  user-select:text;
+}
+.c{color:var(--muted)}.t{color:var(--am);font-weight:700}.ok{color:var(--em)}.bd{color:var(--ro)}
+
+.status{margin-top:12px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--deep);display:flex;gap:10px;align-items:flex-start;font-size:.92rem}
+.status .ic{font-size:1.2rem;line-height:1.3}
+.status.success{background:#0a2a22;border-color:#10b981}
+.status.error{background:#3a1220;border-color:var(--ro)}
+.status.warn{background:#33250a;border-color:#d97706}
+
+.reads{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;font-size:.85rem;color:var(--muted)}
+.reads .mini{font-family:var(--mono);white-space:normal;text-align:left}
+.ans{display:inline-flex;gap:8px;margin-left:8px}
+.pulse{animation:ring 1.8s infinite}
+.take{margin:14px 0 0;text-align:center;color:var(--muted);font-size:.9rem}
+.wob{animation:wob .45s}.boing{animation:boing .55s}
+
+@keyframes wob{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}50%{transform:translateX(7px)}75%{transform:translateX(-4px)}}
+@keyframes boing{30%{transform:translateY(-14px)}60%{transform:translateY(4px)}}
+@keyframes ring{0%{box-shadow:0 4px 0 rgba(0,0,0,.35),0 0 0 0 rgba(165,180,252,.6)}100%{box-shadow:0 4px 0 rgba(0,0,0,.35),0 0 0 12px rgba(165,180,252,0)}}
+@keyframes drop{0%{transform:translateY(-60px);opacity:0}70%{transform:translateY(8px);opacity:1}100%{transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* Responsive adjustments for phones */
+@media (max-width:540px){
+  body{padding:10px}
+  .card{padding:12px}
+  .lead-guide{grid-template-columns:1fr;gap:8px}
+  .rowhead{flex-direction:column;align-items:flex-start}
+  .tools{width:100%}
+  .tools .mini{flex:1 1 auto;text-align:center}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Parameterised types</h1>
+
+  <section class="lead-guide" aria-label="Instructions">
+    <div class="lead-step">
+      <span class="lead-num">1</span>
+      <span><b>Select a type:</b> Fill in <code>E</code> with <code>Integer</code> or <code>String</code>.</span>
+    </div>
+    <div class="lead-step">
+      <span class="lead-num">2</span>
+      <span><b>Test items:</b> Tap or drag blocks to test <code>add(...)</code> and read them back.</span>
+    </div>
+    <div class="lead-step">
+      <span class="lead-num">3</span>
+      <span><b>Check errors:</b> Read compiler messages to see what fits and why.</span>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="h1">
+    <div class="rowhead">
+      <h2 id="h1">Step 1: choose the type for <code>E</code></h2>
+      <div class="tools">
+        <button class="mini" id="pred" type="button" aria-pressed="false">Predict first: off</button>
+        <button class="mini" id="back" type="button">Back to List<E></button>
+      </div>
+    </div>
+    <div class="carts">
+      <button class="cart int" id="c-Integer" type="button" aria-pressed="false">
+        <span class="ico"><span class="circle" style="width:40px;height:40px;border:2px solid #34d399;background:rgba(52,211,153,.2);display:block"></span></span>
+        <span><b style="color:var(--em)">Integer</b><small>Round opening</small></span>
+      </button>
+      <button class="cart str" id="c-String" type="button" aria-pressed="false">
+        <span class="ico"><span class="dia" style="border:2px solid var(--in);background:rgba(129,140,248,.2)"></span></span>
+        <span><b style="color:var(--in)">String</b><small>Diamond opening</small></span>
+      </button>
+      <button class="cart prim" id="c-int" type="button">
+        <span class="ico"><span class="jag">⚡</span></span>
+        <span><b style="color:var(--am)">int <span style="color:var(--ro);font:600 .8rem var(--toy)">(primitive)</span></b><small>Try it and see</small></span>
+      </button>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="h2">
+      <h2 id="h2">Step 2: try adding these</h2>
+      <p style="margin:6px 0 0;color:var(--muted);font-size:.9rem">Tap a block, or drag it onto the lid.</p>
+      <div class="grp">
+        <h3 style="color:var(--em)">Integer values</h3>
+        <div class="blocks" id="ints"></div>
+      </div>
+      <div class="grp">
+        <h3 style="color:var(--in)">String values</h3>
+        <div class="blocks" id="strs"></div>
+      </div>
+      <p class="hint">Each block is one call of <code>list.add(...)</code>.</p>
+    </section>
+
+    <section class="card" aria-labelledby="h3">
+      <div class="rowhead">
+        <h2 id="h3">The list</h2>
+        <span class="label" id="label">List<E></span>
+        <span style="display:flex;gap:10px;align-items:center"><span class="count" id="cnt">0 / 6 items</span><button class="mini" id="empty" type="button">Empty</button></span>
+      </div>
+      <div class="sorter">
+        <div class="lid" id="lid">
+          <small>Opening for add(...)</small>
+          <div class="ap none" id="ap"><span id="apg">E</span></div>
+          <small id="aph">No type chosen yet</small>
+        </div>
+        <div class="hopper"><div class="empty" id="hopEmpty">Items that fit will stack up inside the list.</div><div style="display:contents" id="stack"></div></div>
+        <div class="rim"></div>
+      </div>
+      <pre id="code" aria-label="Java code for the current list"></pre>
+      <div class="reads"><span>Read it back:</span><button class="mini" id="rdI" type="button">Integer x = list.get(0);</button><button class="mini" id="rdS" type="button">String s = list.get(0);</button></div>
+      <div class="status" id="status" aria-live="polite"><span class="ic" id="sic">ℹ️</span><span id="stx">Choose <b>Integer</b> or <b>String</b> to fill in <code>E</code>.</span></div>
+    </section>
+  </div>
+
+  <p class="take"><code>List<E></code> is written once. Choosing a type fixes what goes in and what comes out, and the compiler checks it before the program runs.</p>
+</div>
+
+<script>
+(function(){
+  var $=function(s){return document.getElementById(s)};
+  var MAX=6,T=null,items=[],last=null,predict=false;
+  var INTS=['42','300','-15'],STRS=['Java','Tree','ADT'];
+
+  function flash(el,cls,ms){el.classList.add(cls);setTimeout(function(){el.classList.remove(cls)},ms)}
+  function esc(s){return String(s).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>')}
+  function setStatus(icon,html,kind){
+    $('sic').textContent=icon;$('stx').innerHTML=html;
+    $('status').className='status '+(kind||'');
+  }
+
+  function keyAct(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();this.click()}}
+
+  function attachTouchDrag(el, v, type){
+    var ghost = null, startX = 0, startY = 0, dragging = false;
+    el.addEventListener('touchstart', function(e){
+      if(e.touches.length !== 1) return;
+      var t = e.touches[0];
+      startX = t.clientX;
+      startY = t.clientY;
+      dragging = false;
+    }, {passive:true});
+
+    el.addEventListener('touchmove', function(e){
+      if(e.touches.length !== 1) return;
+      var t = e.touches[0];
+      var dx = t.clientX - startX;
+      var dy = t.clientY - startY;
+      if(!dragging && (Math.abs(dx) > 10 || Math.abs(dy) > 10)){
+        dragging = true;
+        ghost = el.cloneNode(true);
+        ghost.style.position = 'fixed';
+        ghost.style.pointerEvents = 'none';
+        ghost.style.zIndex = '9999';
+        ghost.style.opacity = '0.85';
+        ghost.style.transform = 'translate(-50%, -50%) scale(1.1)';
+        document.body.appendChild(ghost);
+      }
+      if(dragging && ghost){
+        if(e.cancelable) e.preventDefault();
+        ghost.style.left = t.clientX + 'px';
+        ghost.style.top = t.clientY + 'px';
+      }
+    }, {passive:false});
+
+    function finishDrag(e){
+      if(dragging && ghost){
+        var t = e.changedTouches[0];
+        ghost.remove();
+        ghost = null;
+        var hit = document.elementFromPoint(t.clientX, t.clientY);
+        if(hit && hit.closest('#lid, .sorter')){
+          tryAdd(v, type);
+        }
+      }
+      dragging = false;
+    }
+    el.addEventListener('touchend', finishDrag);
+    el.addEventListener('touchcancel', function(){
+      if(ghost){ ghost.remove(); ghost = null; }
+      dragging = false;
+    });
+  }
+
+  function mkBlocks(){
+    INTS.forEach(function(v){
+      var b=document.createElement('div');b.setAttribute('role','button');b.tabIndex=0;b.onkeydown=keyAct;b.className='blk i';b.textContent=v;
+      b.setAttribute('aria-label','Add integer '+v);b.draggable=true;
+      b.onclick=function(){tryAdd(v,'Integer')};
+      b.ondragstart=function(e){e.dataTransfer.setData('text/plain',v+'|Integer')};
+      attachTouchDrag(b, v, 'Integer');
+      $('ints').appendChild(b);
+    });
+    STRS.forEach(function(v){
+      var b=document.createElement('div');b.setAttribute('role','button');b.tabIndex=0;b.onkeydown=keyAct;b.className='blk s';
+      b.innerHTML='<span>"'+v+'"</span>';
+      b.setAttribute('aria-label','Add string '+v);b.draggable=true;
+      b.onclick=function(){tryAdd(v,'String')};
+      b.ondragstart=function(e){e.dataTransfer.setData('text/plain',v+'|String')};
+      attachTouchDrag(b, v, 'String');
+      $('strs').appendChild(b);
+    });
+  }
+
+  function stmt(v,type){return type==='Integer'?'list.add('+v+');':'list.add("'+v+'");'}
+
+  function renderCode(){
+    var h='';
+    if(!T){
+      h+='<span class="c">// the class, before you choose a type</span>\ninterface List<<span class="t">E</span>> {\n  boolean add(<span class="t">E</span> e);\n  <span class="t">E</span> get(int index);\n}';
+    }else{
+      h+='List<<span class="t">'+T+'</span>> list = new ArrayList<>();\n<span class="c">// E is now '+T+' in every method:</span>\n<span class="c">boolean add(</span><span class="t">'+T+'</span><span class="c"> e);   </span><span class="t">'+T+'</span><span class="c"> get(int index);</span>';
+    }
+    if(last){
+      h+='\n\n'+esc(last.code)+'\n'+(last.ok?'<span class="ok">✓ compiles</span>'+(last.note?'   <span class="c">// '+esc(last.note)+'</span>':''):'<span class="bd">✗ error: '+esc(last.msg)+'</span>');
+    }
+    $('code').innerHTML=h;
+  }
+
+  function render(){
+    var lab=$('label'),ap=$('ap');
+    lab.textContent=T?'List<'+T+'>':'List<E>';
+    lab.className='label'+(T==='Integer'?' int':T==='String'?' str':'');
+    ap.className='ap '+(T==='Integer'?'int':T==='String'?'str':'none');
+    $('apg').textContent=T==='Integer'?'●':T==='String'?'◆':'E';
+    $('aph').textContent=T?'Fits '+T+' only':'No type chosen yet';
+    ['Integer','String'].forEach(function(t){$('c-'+t).setAttribute('aria-pressed',T===t);$('c-'+t).classList.toggle('pulse',!T)});
+    var st=$('stack');st.innerHTML='';
+    $('hopEmpty').style.display=items.length?'none':'grid';
+    items.forEach(function(it,i){
+      var d=document.createElement('div');d.className='item '+(it.type==='Integer'?'i':'s');
+      d.title='Index '+i;
+      d.innerHTML=it.type==='Integer'?esc(it.v):'<div><span>"'+esc(it.v)+'"</span></div>';
+      st.appendChild(d);
+    });
+    $('cnt').textContent=items.length+' / '+MAX+' items';
+    renderCode();
+  }
+
+  function setType(t){
+    if(T===t)return;
+    var had=items.length;
+    T=t;items=[];last=null;
+    render();
+    setStatus('✨','New list: <code>List<'+t+'></code>. A list’s type is fixed when it is declared, so'+(had?' the old list is gone and this one starts empty.':' this list only accepts '+t+' values.'),'success');
+  }
+  function back(){
+    if(!T&&!items.length)return;
+    T=null;items=[];last=null;render();
+    setStatus('ℹ️','Back to the class <code>List<E></code>. <code>E</code> is a placeholder until you choose a type.');
+  }
+  function prim(){
+    flash($('c-int'),'wob',500);
+    last={code:'List<int> list = new ArrayList<>();',ok:false,msg:'unexpected type\n  required: reference\n  found:    int'};
+    renderCode();
+    setStatus('⛔','A type argument must be a class, not a primitive. Use <code>Integer</code>. You can still write <code>list.add(42)</code>: Java boxes the <code>int</code> into an <code>Integer</code> for you.','error');
+  }
+  function tryAdd(v,type){
+    if(T&&items.length<MAX)ask(stmt(v,type),type===T,function(){doAdd(v,type)});
+    else doAdd(v,type);
+  }
+  function doAdd(v,type){
+    var lid=$('lid'),ap=$('ap');
+    if(!T){
+      flash(lid,'wob',450);
+      setStatus('⚠️','Choose a type for <code>E</code> first. A real list variable always has one.','warn');return;
+    }
+    if(items.length>=MAX){
+      setStatus('📦','The list is full. Press <b>Empty</b> to start again.');return;
+    }
+    if(type===T){
+      items.push({v:v,type:type});
+      last={code:stmt(v,type),ok:true};
+      render();flash(lid,'boing',550);
+      setStatus('✅','<code>'+esc(stmt(v,type))+'</code> compiles. '+(type==='Integer'?'Java boxes the <code>int</code> '+esc(v)+' into an <code>Integer</code>.':'A <code>String</code> goes into a <code>List<String></code>.'),'success');
+    }else{
+      flash(lid,'boing',550);flash(ap,'bad',550);
+      last={code:stmt(v,type),ok:false,msg:'incompatible types: '+(type==='Integer'?'int':'String')+' cannot be converted to '+T};
+      renderCode();
+      setStatus('🛑','Compile error: the program would not even start. The list is <code>List<'+T+'></code>, so only <b>'+T+'</b> values fit.','error');
+    }
+  }
+  var NAME={Integer:'x',String:'s'};
+  function ask(codeText,expectOk,run){
+    if(!predict){run();return}
+    $('sic').textContent='🤔';$('status').className='status';
+    $('stx').innerHTML='Predict: will <code>'+esc(codeText)+'</code> compile? <span class="ans"><button class="mini" id="py" type="button">Yes</button><button class="mini" id="pn" type="button">No</button></span>';
+    function answer(g){run();$('stx').innerHTML+='<br><b>'+(g===expectOk?'You predicted correctly.':'Not what you predicted.')+'</b>'}
+    $('py').onclick=function(){answer(true)};
+    $('pn').onclick=function(){answer(false)};
+  }
+  function read(rt){
+    if(!T){
+      flash($('lid'),'wob',450);
+      setStatus('⚠️','Choose a type for <code>E</code> first.','warn');return;
+    }
+    ask(rt+' '+NAME[rt]+' = list.get(0);',rt===T,function(){doRead(rt)});
+  }
+  function doRead(rt){
+    var code=rt+' '+NAME[rt]+' = list.get(0);';
+    if(rt!==T){
+      flash($('lid'),'boing',550);
+      last={code:code,ok:false,msg:'incompatible types: '+T+' cannot be converted to '+rt};
+      renderCode();
+      setStatus('🛑','Compile error: <code>list.get(0)</code> gives back a <code>'+T+'</code>, so it cannot go into a <code>'+rt+'</code> variable.','error');
+    }else if(items.length){
+      var f=items[0].v;
+      last={code:code,ok:true,note:NAME[rt]+' is '+(rt==='String'?'"'+f+'"':f)};
+      renderCode();
+      setStatus('✅','<code>get</code> returns exactly <code>'+rt+'</code>, so it fits with no cast.','success');
+    }else{
+      last={code:code,ok:true,note:'but this list is empty'};
+      renderCode();
+      setStatus('✅','It compiles: the types match. Running it on an empty list would still fail, but that is a run-time problem, not a type problem.','success');
+    }
+  }
+  function emptyList(){
+    items=[];last=null;render();
+    setStatus('🧹','List emptied. The type stays <code>'+(T?esc(T):'E')+'</code>.');
+  }
+
+  $('c-Integer').onclick=function(){setType('Integer')};
+  $('c-String').onclick=function(){setType('String')};
+  $('c-int').onclick=prim;
+  $('back').onclick=back;
+  $('empty').onclick=emptyList;
+  $('rdI').onclick=function(){read('Integer')};
+  $('rdS').onclick=function(){read('String')};
+  $('pred').onclick=function(){predict=!predict;this.textContent='Predict first: '+(predict?'on':'off');this.setAttribute('aria-pressed',predict)};
+
+  var lid=$('lid');
+  lid.ondragover=function(e){e.preventDefault();e.dataTransfer.dropEffect='copy'};
+  lid.ondrop=function(e){
+    e.preventDefault();
+    var p=(e.dataTransfer.getData('text/plain')||'').split('|');
+    if(p.length===2)tryAdd(p[0],p[1]);
+  };
+  mkBlocks();render();
+})();
+</script>
+</body>
+</html>
