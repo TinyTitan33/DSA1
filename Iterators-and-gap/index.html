@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iterators and the gap</title>
+<style>
+  :root{
+    color-scheme: light;
+    --paper:#f6f3ec; --card:#fffdf8; --ink:#1c1b1a; --mute:#6e6a62; --line:#d9d3c6; --work:#d9381e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:16px;background:var(--paper);color:var(--ink);
+    font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+  .wrap{max-width:760px;margin:0 auto}
+  h1{font-size:1.15rem;margin:0 0 4px}
+  .sub{margin:0 0 16px;color:var(--mute);font-size:.92rem}
+  
+  /* Moved to top, styling inverted to have a bottom border instead of top */
+  .idea{margin-bottom:18px;font-weight:600;border-bottom:1.5px solid var(--ink);padding-bottom:14px}
+  
+  .stage{background:var(--card);border:1.5px solid var(--ink);border-radius:6px;padding:28px 12px 34px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .row{display:flex;align-items:center;justify-content:center;min-height:84px;width:max-content;min-width:100%}
+  .slot{width:18px;height:68px;display:flex;justify-content:center;align-items:center;flex:none}
+  .slot.on::before{content:"";width:3px;height:64px;background:var(--work);border-radius:2px;animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .tile{position:relative;width:58px;height:68px;flex:none;display:flex;align-items:center;justify-content:center;
+    font:600 2rem ui-monospace,"SF Mono",Menlo,Consolas,monospace;border:1.5px solid var(--ink);border-radius:5px;
+    background:#fff;transition:background .15s}
+  .tile.flash{background:var(--work);color:#fff;border-color:var(--work)}
+  .tile.ins{animation:pop .35s ease-out}
+  .tile.target::after{content:"";position:absolute;left:-2px;right:-2px;bottom:-14px;height:9px;
+    border:2.5px solid var(--work);border-top:none}
+  @keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+  .tag{position:absolute;top:-24px;left:50%;transform:translateX(-50%);font:600 .72rem ui-monospace,Menlo,monospace;
+    color:var(--work);white-space:nowrap;animation:rise .9s ease-out forwards}
+  @keyframes rise{0%{opacity:0;top:-14px}20%{opacity:1;top:-24px}80%{opacity:1}100%{opacity:0}}
+  .empty{color:var(--mute);font-style:italic;padding:0 10px}
+  .readout{margin-top:18px;text-align:center;font:.9rem ui-monospace,Menlo,monospace;color:var(--mute);min-height:1.4em}
+  .readout b{color:var(--ink)}
+  .edge{margin-top:2px;text-align:center;font:.82rem ui-monospace,Menlo,monospace;color:var(--work);min-height:1.3em}
+  .controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
+  
+  /* Increased padding and added min-height/touch-action for touch screens */
+  button{font:600 .95rem ui-monospace,Menlo,monospace;padding:11px 16px;min-height:44px;border:1.5px solid var(--ink);border-radius:5px;
+    background:var(--card);color:var(--ink);cursor:pointer;touch-action:manipulation}
+  button:hover:not([disabled]):not([aria-disabled="true"]){background:var(--ink);color:var(--paper)}
+  button:focus-visible,input:focus-visible{outline:3px solid var(--work);outline-offset:2px}
+  button[disabled]{opacity:.35;cursor:not-allowed}
+  button[aria-disabled="true"]{opacity:.4;border-style:dashed}
+  .addgrp{display:flex;align-items:center;gap:6px}
+  .addgrp input{width:48px;height:44px;text-align:center;font:600 1rem ui-monospace,Menlo,monospace;padding:8px 4px;
+    border:1.5px solid var(--ink);border-radius:5px;background:#fff;color:var(--ink)}
+  .reset{margin-left:auto;border-color:var(--line);color:var(--mute);font-weight:500}
+  
+  .link{border:none;background:none;padding:8px 0;font:500 .85rem system-ui,sans-serif;color:var(--mute);
+    text-decoration:underline;margin-top:8px}
+  .link:hover:not([disabled]){background:none;color:var(--work)}
+  .msg{margin-top:12px;padding:10px 12px;border-left:4px solid var(--line);background:var(--card);font-size:.93rem;min-height:2.9em}
+  .msg.err{border-left-color:var(--work)}
+  .msg code{font-family:ui-monospace,Menlo,monospace;color:var(--work)}
+  .log{margin-top:12px;background:var(--ink);color:#e9e5da;border-radius:6px;padding:10px 14px;
+    font:.85rem/1.6 ui-monospace,Menlo,Consolas,monospace;min-height:7.6em}
+  .log .c{color:#9c978a}
+  .log .x{color:#ff8a73}
+  .chal{margin-top:16px;background:var(--card);border:1.5px solid var(--ink);border-radius:6px;padding:12px 14px}
+  .chal h2{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;margin:0 0 6px;color:var(--mute)}
+  .chal ol{margin:0;padding-left:0;list-style:none}
+  .chal li{padding:4px 0 4px 30px;position:relative;color:var(--mute);font-size:.93rem}
+  .chal li::before{content:attr(data-n);position:absolute;left:0;top:4px;width:22px;height:22px;border:1.5px solid var(--line);
+    border-radius:50%;text-align:center;font:600 .75rem/19px ui-monospace,Menlo,monospace}
+  .chal li.cur{color:var(--ink);font-weight:600}
+  .chal li.cur::before{border-color:var(--work);color:var(--work)}
+  .chal li.done{text-decoration:line-through}
+  .chal li.done::before{background:var(--ink);border-color:var(--ink);color:var(--paper);content:"\2713"}
+  .chal .fb{margin-top:8px;font-size:.9rem;min-height:1.3em;color:var(--work)}
+  .peek{margin-top:12px;border:1.5px dashed var(--line);border-radius:6px;padding:10px 14px;font-size:.88rem;color:var(--mute)}
+  .peek .nums{display:flex;gap:20px;flex-wrap:wrap;font:600 .9rem ui-monospace,Menlo,monospace;color:var(--ink);margin-top:4px}
+  .peek .nums span em{font-style:normal;color:var(--work)}
+  
+  @media (prefers-reduced-motion:reduce){.slot.on::before{animation:none}.tag,.tile.ins{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Iterators and the gap</h1>
+  <p class="sub">Press the buttons and watch the cursor. Try <b>remove()</b> at different moments to find its rule. Arrow keys and Delete work too.</p>
+
+  <div class="idea">An iterator lives between elements. remove() acts on whatever it just passed.</div>
+
+  <div class="stage"><div class="row" id="row" role="img" aria-label="List with iterator cursor"></div></div>
+  <div class="readout" id="readout"></div>
+  <div class="edge" id="edge"></div>
+
+  <div class="controls">
+    <button id="prev">previous()</button>
+    <button id="next">next()</button>
+    <span class="addgrp"><button id="add">add(</button><input id="x" maxlength="1" aria-label="letter to add" value="F"><span>)</span></span>
+    <button id="rem" aria-disabled="true">remove()</button>
+    <button class="reset" id="reset">reset</button>
+  </div>
+  <button class="link" id="hint"></button>
+
+  <div class="msg" id="msg" aria-live="polite"></div>
+  <div class="log" id="log" aria-label="Method calls so far"></div>
+
+  <div class="chal">
+    <h2>Try this</h2>
+    <ol id="chal"></ol>
+    <div class="fb" id="fb" aria-live="polite"></div>
+  </div>
+
+  <div class="peek">
+    A peek ahead to next page. Every hop you make costs the iterator one step, wherever it is. A <code>get(i)</code> would start from the front each time.
+    <div class="nums"><span>iterator: <em id="pi">0</em> steps</span><span>get(i) from the front: <em id="pg">0</em> steps</span></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var START=["A","B","C","D","E"];
+  var items,pos,last,why,log,flashIdx,flashTag,insIdx,nextLetter,nrem,nadd,hopIter,hopGet,lastRemDir;
+  var remTries=0, showTarget=false, chIdx=0, dir1=null, fbText="";
+  var CH=[
+    "Turn A B C D E into A B D E using one remove().",
+    "Reset, then get A B D E again, hopping in the opposite direction this time.",
+    "Reset, then replace C with X: A B X D E. (Type X in the box.)"
+  ];
+  var $=function(id){return document.getElementById(id)};
+  var row=$("row"),msg=$("msg"),logEl=$("log"),readout=$("readout"),remBtn=$("rem"),flashTimer;
+
+  function reset(){
+    items=START.slice();pos=0;last=null;why="start";log=[];flashIdx=-1;insIdx=-1;
+    nrem=0;nadd=0;hopIter=0;hopGet=0;nextLetter="F";$("x").value=nextLetter;
+    setMsg("The cursor starts before the first letter, in the gap.");
+    render();
+  }
+  function setMsg(t,err){msg.innerHTML=t;msg.className="msg"+(err?" err":"");}
+  function push(h){log.push(h);if(log.length>5)log.shift();}
+  function is(s){return items.join("")===s;}
+
+  function render(){
+    row.innerHTML="";
+    function slot(i){var s=document.createElement("div");s.className="slot"+(i===pos?" on":"");row.appendChild(s);}
+    slot(0);
+    if(!items.length){var e=document.createElement("div");e.className="empty";e.textContent="(empty list)";row.appendChild(e);}
+    items.forEach(function(v,i){
+      var t=document.createElement("div");
+      t.className="tile"+(i===flashIdx?" flash":"")+(i===insIdx?" ins":"")+(showTarget&&last&&i===last.idx?" target":"");
+      t.textContent=v;
+      if(i===flashIdx&&flashTag){var g=document.createElement("span");g.className="tag";g.textContent=flashTag;t.appendChild(g);}
+      row.appendChild(t);slot(i+1);
+    });
+    $("prev").disabled=pos===0;
+    $("next").disabled=pos===items.length;
+    remBtn.setAttribute("aria-disabled",last?"false":"true");
+    var left=pos===0?"(start)":items[pos-1],right=pos===items.length?"(end)":items[pos];
+    readout.innerHTML="cursor is between <b>"+left+"</b> and <b>"+right+"</b>";
+    var edge="";
+    if(!items.length)edge="hasNext() and hasPrevious() are both false: the list is empty.";
+    else if(pos===0)edge="hasPrevious() is false: the cursor is in the first gap.";
+    else if(pos===items.length)edge="hasNext() is false: the cursor is in the last gap.";
+    $("edge").textContent=edge;
+    logEl.innerHTML=log.length?log.join("<br>"):'<span class="c">// calls will appear here</span>';
+    $("hint").textContent=showTarget?"Hide the hint":"Show me what remove() would delete";
+    $("pi").textContent=hopIter;$("pg").textContent=hopGet;
+    var ol=$("chal");ol.innerHTML="";
+    CH.forEach(function(t,i){var li=document.createElement("li");li.setAttribute("data-n",i+1);
+      li.className=i<chIdx?"done":(i===chIdx?"cur":"");li.textContent=t;ol.appendChild(li);});
+    $("fb").textContent=fbText;
+  }
+
+  function flash(i,tag,ins){
+    flashIdx=ins?-1:i;insIdx=ins?i:-1;flashTag=tag;
+    clearTimeout(flashTimer);flashTimer=setTimeout(function(){flashIdx=-1;insIdx=-1;render();},750);
+  }
+
+  function check(){
+    if(chIdx>=CH.length)return;
+    if(chIdx===0&&is("ABDE")&&nrem===1&&nadd===0){
+      dir1=lastRemDir;chIdx=1;fbText="Done. You hopped "+(dir1==="next"?"right with next()":"left with previous()")+". Now reset and solve it the other way.";
+    }else if(chIdx===1&&is("ABDE")&&nrem===1&&nadd===0){
+      if(lastRemDir!==dir1){chIdx=2;fbText="Same result from the opposite side. remove() hit the letter you had just passed, only the side changed.";}
+      else fbText="That's the same direction as before. Reset and hop the other way.";
+    }else if(chIdx===2&&is("ABXDE")&&nrem===1&&nadd===1){
+      chIdx=3;fbText="A replace is remove() then add(). The new letter lands in the gap the old one left.";
+    }
+  }
+
+  $("next").onclick=function(){
+    if(pos>=items.length)return;
+    var v=items[pos];pos++;last={idx:pos-1,dir:"next"};why="hop";hopIter++;hopGet+=pos;
+    push('it.next() <span class="c">// returns "'+v+'"</span>');
+    setMsg("next() hopped right over <b>"+v+"</b> and returned it.");
+    flash(pos-1,'returned "'+v+'"');render();
+  };
+  $("prev").onclick=function(){
+    if(pos<=0)return;
+    pos--;var v=items[pos];last={idx:pos,dir:"previous"};why="hop";hopIter++;hopGet+=pos+1;
+    push('it.previous() <span class="c">// returns "'+v+'"</span>');
+    setMsg("previous() hopped left over <b>"+v+"</b> and returned it.");
+    flash(pos,'returned "'+v+'"');render();
+  };
+  $("add").onclick=function(){
+    var inp=$("x"),v=(inp.value||"").trim().toUpperCase().slice(0,1);
+    if(!v){setMsg("Type one letter to add first.",true);inp.focus();return;}
+    items.splice(pos,0,v);pos++;last=null;why="add";nadd++;
+    push('it.add("'+v+'")');
+    setMsg("add() put <b>"+v+"</b> at the cursor. The cursor sits just after it.");
+    insIdx=pos-1;flashIdx=-1;flashTag=null;
+    var c=v.charCodeAt(0);nextLetter=String.fromCharCode(c<90?c+1:65);inp.value=nextLetter;
+    clearTimeout(flashTimer);flashTimer=setTimeout(function(){insIdx=-1;render();},500);
+    check();render();
+  };
+  remBtn.onclick=function(){
+    remTries++;
+    var auto="";
+    if(remTries>=2&&!showTarget){showTarget=true;auto=" A red bracket now marks the letter remove() would hit.";}
+    if(!last){
+      push('it.remove() <span class="x">// IllegalStateException</span>');
+      var t=why==="add"
+        ?"This would throw <code>IllegalStateException</code>. add() just ran, so there is no &ldquo;last returned&rdquo; letter. Hop with next() or previous() first."
+        :why==="remove"
+        ?"This would throw <code>IllegalStateException</code>. That letter is already gone. Hop again before the next remove()."
+        :"This would throw <code>IllegalStateException</code>. The cursor hasn't passed over anything yet. Hop with next() or previous() first.";
+      setMsg(t+auto,true);render();return;
+    }
+    var i=last.idx,v=items[i];
+    lastRemDir=last.dir;
+    items.splice(i,1);if(i<pos)pos--;
+    last=null;why="remove";flashIdx=-1;nrem++;
+    push('it.remove() <span class="c">// deletes "'+v+'"</span>');
+    setMsg("remove() deleted <b>"+v+"</b>, the letter the cursor last passed over."+auto);
+    check();render();
+  };
+  $("reset").onclick=function(){fbText=chIdx>=CH.length?fbText:"";reset();};
+  $("hint").onclick=function(){showTarget=!showTarget;render();};
+  $("x").addEventListener("keydown",function(e){if(e.key==="Enter")$("add").click();});
+  document.addEventListener("keydown",function(e){
+    if(e.target&&e.target.tagName==="INPUT")return;
+    if(e.key==="ArrowRight"){e.preventDefault();$("next").click();}
+    else if(e.key==="ArrowLeft"){e.preventDefault();$("prev").click();}
+    else if(e.key==="Delete"||e.key==="Backspace"){e.preventDefault();remBtn.click();}
+  });
+
+  reset();
+})();
+</script>
+</body>
+</html>
