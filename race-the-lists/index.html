@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Race the lists</title>
+<style>
+:root{--paper:#f8f7f3;--ink:#1b1b1b;--mute:#6b6b66;--rule:#d9d6cc;--work:#d8431f;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 Georgia,"Times New Roman",serif}
+main{max-width:720px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.6rem;margin:0 0 12px;font-weight:700;border-bottom:2px solid var(--ink);padding-bottom:8px}
+h2{font-size:1.05rem;margin:28px 0 8px;font-weight:700}
+p{margin:0 0 8px}
+.sub,.hint{color:var(--mute);font-size:.92rem}
+code,.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.92rem}
+button{font:inherit;color:var(--ink);background:var(--paper);border:1.5px solid var(--ink);border-radius:3px;padding:6px 12px;cursor:pointer}
+button:hover:not(:disabled){background:var(--ink);color:var(--paper)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button:focus-visible{outline:3px solid var(--work);outline-offset:2px}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
+.row{display:flex;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--rule)}
+.row:last-of-type{border-bottom:1px solid var(--rule)}
+.row .mono{flex:1}
+.step{display:flex;align-items:center;gap:10px}
+.step button{width:34px;padding:4px 0;font-size:1.1rem;line-height:1}
+.step output{min-width:1.6em;text-align:center;font-weight:700}
+.left{margin:8px 0 0;font-size:.92rem}
+.pred{display:flex;flex-wrap:wrap;gap:8px}
+.pred button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
+.go{margin-top:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.go button{background:var(--work);border-color:var(--work);color:#fff;font-weight:700;padding:9px 20px}
+.go button:hover:not(:disabled){background:var(--ink);border-color:var(--ink)}
+#race{display:none}
+.order{font-size:.9rem;color:var(--mute);margin-bottom:10px}
+.lane{margin:14px 0}
+.lh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+.lh b{font-weight:700}
+.cnt{font-variant-numeric:tabular-nums}
+.bar{height:34px;border-left:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink)}
+.track{display:flex;height:100%;gap:2px;overflow:hidden}
+.g{display:flex;height:100%}
+.f{height:100%;min-width:3px;background:repeating-linear-gradient(45deg,var(--ink) 0 1.5px,var(--paper) 1.5px 5px);border:1.5px solid var(--ink)}
+.x{height:100%;min-width:3px;background:var(--work)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:.9rem;margin:6px 0 0}
+.sw{display:inline-block;width:26px;height:12px;vertical-align:-1px;margin-right:6px}
+.sw.f{border:1.5px solid var(--ink)}
+.verdict{margin-top:18px;border:1.5px solid var(--ink);padding:12px 14px}
+.verdict b{display:block;font-size:1.05rem;margin-bottom:2px}
+#tease{display:none;margin-top:18px;border-top:1px solid var(--rule);padding-top:14px}
+.sw-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(216, 67, 31, 0.5); }
+  50% { box-shadow: 0 0 14px rgba(216, 67, 31, 0.9); }
+}
+
+.toggle{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 16px;
+  min-height: 44px;
+  animation: pulse-glow 2s infinite;
+}
+.toggle i{width:34px;height:18px;border:1.5px solid currentColor;border-radius:10px;position:relative;display:inline-block}
+.toggle i::after{content:"";position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;background:currentColor;transition:left .15s}
+.toggle[aria-checked=true] i::after{left:19px}
+.toggle[aria-checked=true]{
+  background:var(--ink);
+  color:var(--paper);
+  animation: none;
+  box-shadow: none;
+}
+@media (prefers-reduced-motion:reduce){
+  .toggle i::after{transition:none}
+  .toggle { animation: none; }
+}
+</style>
+</head>
+<body>
+<main>
+<h1>Race the lists</h1>
+<p style="margin: 0 0 20px; font-weight: bold; color: var(--ink);">We have 2 lists each holding 1,000 items. Pick 10 jobs, predict the winner, then run them and see which one wins.</p>
+
+<h2>1. Build a workload</h2>
+<div class="presets" id="presets"></div>
+<p style="margin: 24px 0 12px; font-weight: bold; color: var(--ink);">or choose your own custom workload</p>
+<div id="rows"></div>
+<p class="left" id="left"></p>
+
+<h2>2. Predict</h2>
+<div class="pred" id="pred">
+  <button type="button" data-p="AL" aria-pressed="false">ArrayList wins</button>
+  <button type="button" data-p="LL" aria-pressed="false">LinkedList wins</button>
+  <button type="button" data-p="EQ" aria-pressed="false">About equal</button>
+</div>
+
+<div class="go">
+  <button type="button" id="run" disabled>Run the race</button>
+  <span class="hint" id="why">Use all 10 jobs and make a prediction.</span>
+</div>
+
+<section id="race" aria-live="polite">
+  <h2>3. Result</h2>
+  <p class="order" id="order"></p>
+  <div class="lane"><div class="lh"><b>ArrayList</b><span class="cnt" id="cA">0 steps</span></div><div class="bar"><div class="track" id="tA"></div></div></div>
+  <div class="lane"><div class="lh"><b>LinkedList</b><span class="cnt" id="cL">0 steps</span></div><div class="bar"><div class="track" id="tL"></div></div></div>
+  <p class="legend">
+    <span><span class="sw f"></span>Find: reach the position</span>
+    <span><span class="sw x"></span>Fix: change the list</span>
+  </p>
+  <div class="verdict" id="verdict" hidden></div>
+  <div id="tease">
+    <div class="sw-row">
+      <button type="button" class="toggle" id="hold" role="switch" aria-checked="false"><i></i>I already hold the position</button>
+    </div>
+    <p class="hint" id="holdTxt" style="margin-top:12px; line-height: 1.6;"></p>
+  </div>
+</section>
+</main>
+
+<script>
+const N = 1000;
+const OPS = [
+  {k:'get',  name:'get(i)'},
+  {k:'end',  name:'add at end'},
+  {k:'front',name:'add at front'},
+  {k:'mid',  name:'remove from middle'}
+];
+const PRESETS = [
+  {n:'Scroll a playlist',   c:{get:8,end:2,front:0,mid:0}},
+  {n:'Newest-first feed',   c:{get:0,end:2,front:8,mid:0}},
+  {n:'Log appender',        c:{get:0,end:10,front:0,mid:0}},
+  {n:'Edit in the middle',  c:{get:0,end:0,front:0,mid:10}}
+];
+const MAX = 10;
+const state = {c:{get:0,end:0,front:0,mid:0}, pred:null, held:false, scale:1, ran:false};
+
+function cost(k, list, held){
+  if(k==='get')   return list==='AL' ? {find:1,fix:0} : {find:N/4,fix:0};
+  if(k==='end')   return {find:0,fix:1};
+  if(k==='front') return list==='AL' ? {find:0,fix:N} : {find:0,fix:1};
+  if(k==='mid')   return list==='AL' ? {find:1,fix:N/2}
+                                      : {find:held?0:N/2,fix:1};
+}
+function groups(list, held){
+  return OPS.filter(o=>state.c[o.k]>0).map(o=>{
+    const x = cost(o.k,list,held), n = state.c[o.k];
+    return {k:o.k, name:o.name, n, find:x.find*n, fix:x.fix*n};
+  });
+}
+const sum = gs => gs.reduce((s,g)=>s+g.find+g.fix,0);
+const fmt = v => Math.round(v).toLocaleString('en');
+const $ = id => document.getElementById(id);
+
+/* ---- workload controls ---- */
+function used(){ return Object.values(state.c).reduce((a,b)=>a+b,0); }
+function drawRows(){
+  $('rows').innerHTML = OPS.map(o=>`
+    <div class="row">
+      <span class="mono">${o.name}</span>
+      <span class="step">
+        <button type="button" data-k="${o.k}" data-d="-1" aria-label="Fewer ${o.name}" style="min-height: 44px; min-width: 44px;">&minus;</button>
+        <output>${state.c[o.k]}</output>
+        <button type="button" data-k="${o.k}" data-d="1" aria-label="More ${o.name}" style="min-height: 44px; min-width: 44px;">+</button>
+      </span>
+    </div>`).join('');
+  const u = used();
+  $('left').textContent = u===MAX ? 'All 10 jobs placed.' : `Jobs left to place: ${MAX-u}`;
+  document.querySelectorAll('#rows button').forEach(b=>{
+    const k=b.dataset.k, d=+b.dataset.d;
+    b.disabled = d<0 ? state.c[k]===0 : u>=MAX;
+  });
+  gate();
+}
+function gate(){
+  const ok = used()===MAX && state.pred;
+  $('run').disabled = !ok;
+  $('why').textContent = ok ? '' : (used()!==MAX ? 'Use all 10 jobs and make a prediction.' : 'Make a prediction to unlock the race.');
+}
+$('presets').innerHTML = PRESETS.map((p,i)=>`<button type="button" data-i="${i}" style="min-height: 44px;">${p.n}</button>`).join('');
+$('presets').onclick = e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  state.c = {...PRESETS[+b.dataset.i].c}; drawRows();
+};
+$('rows').onclick = e=>{
+  const b=e.target.closest('button'); if(!b||b.disabled) return;
+  state.c[b.dataset.k] += +b.dataset.d; drawRows();
+};
+$('pred').onclick = e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  state.pred = b.dataset.p;
+  document.querySelectorAll('#pred button').forEach(x=>x.setAttribute('aria-pressed', x===b));
+  gate();
+};
+
+/* ---- lanes ---- */
+function drawLane(el, gs, scale){
+  const total = sum(gs);
+  el.style.width = Math.max(total/scale*100, 0.8)+'%';
+  el.innerHTML = gs.map(g=>{
+    const t = g.find+g.fix;
+    const tip = `${g.name} x${g.n}: ${fmt(t)} steps (find ${fmt(g.find)}, fix ${fmt(g.fix)})`;
+    return `<div class="g" style="flex:${t} 1 0" title="${tip}">`+
+      (g.find>0?`<div class="f" style="flex:${g.find} 1 0"></div>`:'')+
+      (g.fix>0?`<div class="x" style="flex:${g.fix} 1 0"></div>`:'')+`</div>`;
+  }).join('');
+}
+function biggest(gs){ return gs.slice().sort((a,b)=>(b.find+b.fix)-(a.find+a.fix))[0]; }
+const REASON = {
+  AL:{front:'ArrayList shifts every element right for each add at the front.',
+      mid:'ArrayList shifts the elements after the gap for each removal.'},
+  LL:{get:'LinkedList walks about 250 links to reach each index.',
+      mid:'LinkedList walks about 500 links to reach the middle for each removal.'}
+};
+function verdict(tA,tL,gA,gL){
+  const lo=Math.min(tA,tL), hi=Math.max(tA,tL);
+  let head, why;
+  if(lo/hi>0.85){
+    head=`About equal: ${fmt(tA)} vs ${fmt(tL)} steps.`;
+    why = state.c.mid>=5
+      ? 'Same total, opposite shapes: ArrayList pays to fix, LinkedList pays to find.'
+      : 'Both lists do each of these jobs in about the same number of steps.';
+  } else {
+    const winA = tA<tL, W=winA?'ArrayList':'LinkedList';
+    head=`${W} wins: ${fmt(lo)} vs ${fmt(hi)} steps.`;
+    const lg = biggest(winA?gL:gA), loser=winA?'LL':'AL';
+    why = (REASON[loser][lg.k]) || 'The slower list spends most steps on its biggest job.';
+  }
+  const real = state.pred===(lo/hi>0.85?'EQ':(tA<tL?'AL':'LL'));
+  const was = {AL:'ArrayList wins',LL:'LinkedList wins',EQ:'About equal'}[state.pred];
+  $('verdict').hidden=false;
+  $('verdict').innerHTML = `<b>${head}</b><p>${why}</p><p class="hint">You predicted: ${was}. ${real?'Your prediction held.':'Not what you predicted.'}</p>`;
+}
+
+/* ---- run ---- */
+let raf;
+$('run').onclick = ()=>{
+  state.held=false; state.ran=true;
+  const gA=groups('AL',false), gL=groups('LL',false);
+  const tA=sum(gA), tL=sum(gL);
+  state.scale=Math.max(tA,tL);
+  $('race').style.display='block';
+  $('order').textContent='Jobs run in this order: '+OPS.filter(o=>state.c[o.k]>0).map(o=>`${o.name} x${state.c[o.k]}`).join(', ')+'. Hover a block for its cost.';
+  drawLane($('tA'),gA,state.scale); drawLane($('tL'),gL,state.scale);
+  $('verdict').hidden=true; $('tease').style.display='none';
+  resetHold();
+  const reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
+  cancelAnimationFrame(raf);
+  const dur=3000, t0=performance.now();
+  const clip=(el,f)=>el.style.clipPath=`inset(0 ${(1-f)*100}% 0 0)`;
+  function tick(now){
+    const prog = reduce ? 1 : Math.min(1,(now-t0)/dur);
+    const s = prog*state.scale, a=Math.min(tA,s), l=Math.min(tL,s);
+    clip($('tA'),a/tA); clip($('tL'),l/tL);
+    $('cA').textContent=fmt(a)+' steps'; $('cL').textContent=fmt(l)+' steps';
+    if(prog<1) raf=requestAnimationFrame(tick); else finish(tA,tL,gA,gL);
+  }
+  raf=requestAnimationFrame(tick);
+  $('race').scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'});
+};
+function finish(tA,tL,gA,gL){
+  verdict(tA,tL,gA,gL);
+  if(state.c.mid>0){ $('tease').style.display='block'; resetHold(); }
+}
+
+/* ---- teaser ---- */
+function resetHold(){
+  state.held=false;
+  $('hold').setAttribute('aria-checked','false');
+  $('holdTxt').textContent='Off: removing from the middle makes LinkedList walk to the spot first.';
+}
+$('hold').onclick = ()=>{
+  state.held=!state.held;
+  $('hold').setAttribute('aria-checked',state.held);
+  const gL=groups('LL',state.held), tL=sum(gL);
+  drawLane($('tL'),gL,state.scale);
+  $('tL').style.clipPath='none';
+  $('cL').textContent=fmt(tL)+' steps';
+  const per = fmt(cost('mid','LL',state.held).find+cost('mid','LL',state.held).fix);
+  $('holdTxt').textContent = state.held
+    ? `On: with the position in hand, each removal only unlinks (${per} step). (Hint: In Java, an Iterator is exactly what holds this spot for you!)`
+    : 'Off: removing from the middle makes LinkedList walk to the spot first.';
+};
+
+// Also standardizing prediction buttons and minus/plus buttons for touchscreen sizes.
+document.querySelectorAll('.pred button, .go button').forEach(btn => {
+  btn.style.minHeight = '44px';
+});
+
+drawRows();
+</script>
+</body>
+</html>
