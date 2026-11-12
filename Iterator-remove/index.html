@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Build the Loop</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-subtle: #f1f5f9;
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --text: #0f172a;
+      --muted: #64748b;
+
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+
+      --cursor: #f59e0b;
+      --returned-bg: #fffbeb;
+      --returned-border: #f59e0b;
+      --returned-text: #92400e;
+
+      --success-bg: #f0fdf4;
+      --success-border: #86efac;
+      --success-text: #166534;
+
+      --error-bg: #fef2f2;
+      --error-border: #fecaca;
+      --error-text: #991b1b;
+
+      --warn-bg: #fffbeb;
+      --warn-border: #fde68a;
+      --warn-text: #92400e;
+
+      --editor-bg: #0f172a;
+      --editor-slot: #1e293b;
+      --editor-border: #334155;
+      --editor-text: #f8fafc;
+
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: "JetBrains Mono", "Fira Code", Consolas, "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      touch-action: manipulation;
+    }
+
+    body {
+      margin: 0;
+      padding: 28px 16px 48px;
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    /* --- Header --- */
+    header {
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      font-size: 1.55rem;
+      font-weight: 700;
+      margin: 0 0 4px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    /* --- Visual Stage + Integrated Status Bar --- */
+    .stage-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+      margin-bottom: 20px;
+    }
+
+    .list-viewport {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 156px;
+      padding: 34px 20px 38px;
+      background: var(--surface);
+      overflow-x: auto;
+    }
+
+    .letters-row {
+      display: inline-flex;
+      align-items: center;
+      position: relative;
+      padding: 0 12px;
+      margin: 0 auto;
+      min-width: max-content;
+    }
+
+    /* Persistent Sliding Iterator Cursor */
+    .cursor-widget {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      transform: translateY(-50%) translateX(0px);
+      width: 6px;
+      height: 68px;
+      pointer-events: none;
+      z-index: 10;
+      transition: transform 0.36s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .cursor-bar {
+      width: 4px;
+      height: 66px;
+      margin: 0 auto;
+      border-radius: 4px;
+      background: var(--cursor);
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+      animation: blink 1.05s infinite ease-in-out;
+    }
+
+    .cursor-tag {
+      position: absolute;
+      top: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--returned-text);
+      background: #fef3c7;
+      border: 1px solid var(--cursor);
+      padding: 1px 6px;
+      border-radius: 5px;
+      white-space: nowrap;
+    }
+
+    .cursor-widget.error-state .cursor-bar {
+      background: #dc2626;
+      box-shadow: 0 0 12px rgba(220, 38, 38, 0.75);
+      animation: shake 0.38s ease;
+    }
+
+    .cursor-widget.error-state .cursor-tag {
+      color: #991b1b;
+      background: #fef2f2;
+      border-color: #f87171;
+    }
+
+    .cursor-callout {
+      display: none;
+      position: absolute;
+      bottom: -32px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #ffffff;
+      background: #dc2626;
+      padding: 3px 9px;
+      border-radius: 6px;
+      white-space: nowrap;
+      box-shadow: 0 4px 10px rgba(220, 38, 38, 0.35);
+    }
+
+    .cursor-widget.error-state .cursor-callout.visible {
+      display: block;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
+    }
+
+    /* Gaps & Letter Tiles */
+    .gap-slot {
+      width: 24px;
+      height: 68px;
+      flex-shrink: 0;
+      transition: width 0.36s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .gap-slot.collapsed {
+      width: 0 !important;
+    }
+
+    .letter-cell {
+      display: inline-flex;
+      align-items: center;
+      position: relative;
+      flex-shrink: 0;
+      width: 64px;
+      transition: width 0.36s cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity 0.26s ease,
+                  transform 0.26s ease;
+    }
+
+    .letter-cell.collapsing {
+      width: 0 !important;
+      opacity: 0;
+      transform: scale(0.35) translateY(-10px);
+      pointer-events: none;
+    }
+
+    .letter-tile {
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 2px solid var(--border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text);
+      box-shadow: 0 2px 5px rgba(15, 23, 42, 0.05);
+      transition: transform 0.25s ease,
+                  border-color 0.25s ease,
+                  background-color 0.25s ease,
+                  box-shadow 0.25s ease,
+                  color 0.25s ease;
+      position: relative;
+      user-select: none;
+    }
+
+    .letter-tile.is-a {
+      color: #1d4ed8;
+      border-color: #93c5fd;
+      background: #eff6ff;
+    }
+
+    .letter-tile.returned-active {
+      border-color: var(--returned-border);
+      background: var(--returned-bg);
+      color: #b45309;
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.22), 0 6px 12px rgba(245, 158, 11, 0.14);
+      transform: translateY(-4px);
+    }
+
+    .returned-tag {
+      position: absolute;
+      bottom: -27px;
+      left: 50%;
+      transform: translateX(-50%) translateY(4px);
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 700;
+      background: #fef3c7;
+      color: var(--returned-text);
+      border: 1px solid var(--returned-border);
+      padding: 1px 6px;
+      border-radius: 5px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.24s ease, transform 0.24s ease;
+      z-index: 6;
+    }
+
+    .letter-tile.returned-active .returned-tag {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .letter-tile.returned-fading .returned-tag {
+      opacity: 0;
+      transform: translateX(-50%) translateY(5px);
+    }
+
+    .letter-tile.crash {
+      border-color: #dc2626 !important;
+      background: #fef2f2 !important;
+      color: #dc2626 !important;
+      animation: shake 0.38s ease;
+    }
+
+    /* Ghost tile left behind in the Double-Remove Demo so students see what 2nd remove() tries to delete */
+    .letter-tile.ghost-deleted {
+      border: 2px dashed #94a3b8 !important;
+      background: #f8fafc !important;
+      color: #94a3b8 !important;
+      box-shadow: none !important;
+      transform: scale(0.92);
+    }
+
+    .letter-tile.ghost-deleted .returned-tag {
+      opacity: 1 !important;
+      transform: translateX(-50%) translateY(0) !important;
+      background: #f1f5f9;
+      color: #475569;
+      border-color: #94a3b8;
+    }
+
+    .letter-tile.ghost-crash {
+      border: 2.5px dashed #dc2626 !important;
+      background: #fef2f2 !important;
+      color: #dc2626 !important;
+      box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.2) !important;
+      animation: shake 0.42s ease;
+    }
+
+    .letter-tile.ghost-crash .returned-tag {
+      opacity: 1 !important;
+      transform: translateX(-50%) translateY(0) !important;
+      background: #dc2626;
+      color: #ffffff;
+      border-color: #dc2626;
+    }
+
+    /* Prominent Double-Remove Breakdown inside the status banner */
+    .status-banner.double-remove-spotlight {
+      background: #fff1f2;
+      border-top: 2px solid #f43f5e;
+      color: #881337;
+      padding: 16px 20px;
+    }
+
+    .double-remove-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .double-remove-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #9f1239;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .double-remove-steps {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+    }
+
+    .dr-step {
+      padding: 5px 10px;
+      border-radius: 7px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dr-step.ok {
+      background: #dcfce7;
+      border: 1px solid #86efac;
+      color: #166534;
+    }
+
+    .dr-step.fail {
+      background: #ffe4e6;
+      border: 1.5px solid #f43f5e;
+      color: #9f1239;
+      font-weight: 700;
+    }
+
+    .dr-arrow {
+      color: #94a3b8;
+      font-weight: 700;
+    }
+
+    .double-remove-rule {
+      font-size: 0.92rem;
+      color: #881337;
+      margin-top: 2px;
+    }
+
+    .inline-row-badge {
+      font-family: var(--font-sans);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 5px;
+      margin-left: 8px;
+      white-space: nowrap;
+    }
+
+    .inline-row-badge.ok {
+      background: rgba(22, 163, 74, 0.25);
+      color: #86efac;
+      border: 1px solid rgba(134, 239, 172, 0.45);
+    }
+
+    .inline-row-badge.fail {
+      background: rgba(220, 38, 38, 0.35);
+      color: #fecaca;
+      border: 1px solid #f87171;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    /* Fixed-place Status Banner (never causes layout shift) */
+    .status-banner {
+      border-top: 1px solid var(--border);
+      background: var(--surface-subtle);
+      padding: 12px 20px;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 0.92rem;
+      color: var(--muted);
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .status-banner.error {
+      background: var(--error-bg);
+      border-top-color: var(--error-border);
+      color: var(--error-text);
+    }
+
+    .status-banner.warn {
+      background: var(--warn-bg);
+      border-top-color: var(--warn-border);
+      color: var(--warn-text);
+    }
+
+    .status-banner.success {
+      background: var(--success-bg);
+      border-top-color: var(--success-border);
+      color: var(--success-text);
+    }
+
+    .status-main {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex: 1;
+      min-width: 240px;
+    }
+
+    .status-text {
+      line-height: 1.45;
+    }
+
+    .exception-badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 4px;
+      background: rgba(15, 23, 42, 0.06);
+      margin-left: 8px;
+      white-space: nowrap;
+    }
+
+    .btn-what-if {
+      background: #fffbeb;
+      color: #92400e;
+      border: 1.5px solid #f59e0b;
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
+      animation: whatIfGlow 1.8s infinite ease-in-out;
+      transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+    }
+
+    @keyframes whatIfGlow {
+      0%, 100% {
+        box-shadow: 0 0 6px rgba(245, 158, 11, 0.45), 0 0 0 0 rgba(245, 158, 11, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 18px rgba(245, 158, 11, 0.75), 0 0 0 5px rgba(245, 158, 11, 0);
+      }
+    }
+
+    .btn-what-if:hover:not(:disabled) {
+      background: #fef3c7;
+      border-color: #d97706;
+      transform: translateY(-1px);
+    }
+
+    /* --- Workspace: Code Area (Left) + Pile (Right) --- */
+    .workspace {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    @media (max-width: 780px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 12px;
+      gap: 8px;
+    }
+
+    .panel-title {
+      font-weight: 700;
+      font-size: 0.98rem;
+      margin: 0;
+    }
+
+    .panel-hint {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    /* Code Editor Frame */
+    .code-frame {
+      background: var(--editor-bg);
+      color: var(--editor-text);
+      border-radius: 12px;
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      flex: 1;
+    }
+
+    .code-row {
+      display: flex;
+      align-items: center;
+      min-height: 42px;
+      margin-bottom: 6px;
+      border-radius: 8px;
+      padding: 2px 6px;
+      transition: background-color 0.16s ease;
+    }
+
+    .code-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .code-row.active-step {
+      background: rgba(245, 158, 11, 0.2);
+      outline: 1.5px solid rgba(245, 158, 11, 0.65);
+    }
+
+    .code-row.error-step {
+      background: rgba(239, 68, 68, 0.25);
+      outline: 1.5px solid #ef4444;
+    }
+
+    .indent-1 { padding-left: 24px; }
+    .indent-2 { padding-left: 48px; }
+
+    .fixed-brace {
+      color: #94a3b8;
+      font-weight: 600;
+      user-select: none;
+      padding: 2px 8px;
+    }
+
+    .drop-slot {
+      flex: 1;
+      min-height: 38px;
+      background: var(--editor-slot);
+      border: 1.5px dashed var(--editor-border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+      cursor: pointer;
+    }
+
+    .drop-slot:focus-visible {
+      outline: 2px solid #60a5fa;
+      outline-offset: 1px;
+    }
+
+    .drop-slot.drag-over {
+      border-color: #60a5fa;
+      background: rgba(59, 130, 246, 0.18);
+    }
+
+    .drop-slot.filled {
+      border-style: solid;
+      border-color: transparent;
+      padding: 0;
+      background: transparent;
+    }
+
+    .slot-placeholder {
+      color: #64748b;
+      font-size: 0.78rem;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    /* Extra row shown only during the "What if we call remove() twice?" demo */
+    .stacked-demo-row {
+      display: none;
+    }
+
+    .stacked-demo-row.visible {
+      display: flex;
+    }
+
+    .stacked-badge {
+      font-family: var(--font-sans);
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: rgba(245, 158, 11, 0.2);
+      color: #fcd34d;
+      border: 1px solid rgba(245, 158, 11, 0.45);
+      padding: 1px 7px;
+      border-radius: 4px;
+      margin-left: 8px;
+      white-space: nowrap;
+    }
+
+    /* Code Pile & Chips */
+    .pile-list {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      flex: 1;
+      min-height: 250px;
+      padding: 12px;
+      background: var(--surface-subtle);
+      border: 1.5px dashed var(--border-strong);
+      border-radius: 12px;
+    }
+
+    .pile-list.drag-over {
+      border-color: var(--accent);
+      background: #eff6ff;
+    }
+
+    .code-chip {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      cursor: grab;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      width: 100%;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+      transition: border-color 0.12s ease, background-color 0.12s ease;
+    }
+
+    .code-chip:hover {
+      border-color: #93c5fd;
+      background: #26354d;
+    }
+
+    .code-chip:focus-visible {
+      outline: 2px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    .code-chip.dragging {
+      opacity: 0.35;
+    }
+
+    .touch-drag-ghost {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 9999;
+      pointer-events: none;
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.38);
+      opacity: 0.95;
+      transition: none !important;
+    }
+
+    .chip-grip {
+      color: #64748b;
+      font-size: 0.82rem;
+    }
+
+    .chip-text {
+      flex: 1;
+      text-align: left;
+    }
+
+    .chip-remove-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 2px 6px;
+      border-radius: 4px;
+      display: none;
+    }
+
+    .drop-slot .chip-remove-btn {
+      display: inline-block;
+    }
+
+    .drop-slot .chip-remove-btn:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    /* Syntax colors */
+    .kw { color: #93c5fd; }
+    .type { color: #5eead4; }
+    .str { color: #fde047; }
+    .fn { color: #c4b5fd; }
+
+    /* Controls */
+    .controls-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button.btn {
+      font-family: var(--font-sans);
+      font-size: 0.92rem;
+      font-weight: 600;
+      padding: 9px 18px;
+      border-radius: 9px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: background-color 0.15s ease, opacity 0.15s ease;
+    }
+
+    button.btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-run {
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    .btn-run:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background: var(--surface-subtle);
+      color: var(--text);
+      border-color: var(--border-strong);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #e2e8f0;
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 16px 10px 36px; }
+      .panel-box { padding: 14px; }
+      .letter-cell, .letter-tile { width: 48px; height: 50px; font-size: 1.3rem; }
+      .gap-slot { width: 16px; height: 54px; }
+      .cursor-bar, .cursor-widget { height: 52px; }
+      .indent-1 { padding-left: 14px; }
+      .indent-2 { padding-left: 28px; }
+      .code-chip, .code-frame { font-size: 0.8rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Build the Loop</h1>
+      <p class="subtitle">Order the five lines so the iterator hops across the list and removes every <code>"A"</code>.</p>
+    </header>
+
+    <!-- Visual List & Integrated Status Bar -->
+    <section class="stage-card" aria-label="List visualization">
+      <div class="list-viewport">
+        <div class="letters-row" id="letters-row">
+          <div class="cursor-widget" id="cursor-widget">
+            <div class="cursor-bar"></div>
+            <div class="cursor-tag">it</div>
+          </div>
+          <div id="tiles-container" style="display: inline-flex; align-items: center;"></div>
+        </div>
+      </div>
+
+      <div class="status-banner" id="status-banner" role="status" aria-live="polite">
+        <div class="status-main">
+          <div class="status-text" id="status-text">
+            Place 5 lines into the code frame below, then click <strong>Run</strong>.
+          </div>
+        </div>
+        <button class="btn-what-if" id="btn-double-remove" type="button" style="display: none;">
+          What if we call it.remove() twice?
+        </button>
+      </div>
+    </section>
+
+    <!-- Code Frame (Left) + Code Pile (Right) -->
+    <section class="workspace">
+      <div class="panel-box">
+        <div class="panel-header">
+          <h2 class="panel-title">Your Code</h2>
+          <span class="panel-hint">Braces stay fixed</span>
+        </div>
+
+        <div class="code-frame" id="code-frame">
+          <div class="code-row" data-row="0">
+            <div class="drop-slot" data-slot="0" tabindex="0" role="button" aria-label="Line 1"></div>
+          </div>
+
+          <div class="code-row" data-row="1">
+            <div class="drop-slot" data-slot="1" tabindex="0" role="button" aria-label="Line 2"></div>
+            <span class="fixed-brace">{</span>
+          </div>
+
+          <div class="code-row indent-1" data-row="2">
+            <div class="drop-slot" data-slot="2" tabindex="0" role="button" aria-label="Line 3"></div>
+          </div>
+
+          <div class="code-row indent-1" data-row="3">
+            <div class="drop-slot" data-slot="3" tabindex="0" role="button" aria-label="Line 4"></div>
+            <span class="fixed-brace">{</span>
+          </div>
+
+          <div class="code-row indent-2" data-row="4">
+            <div class="drop-slot" data-slot="4" tabindex="0" role="button" aria-label="Line 5"></div>
+            <span class="inline-row-badge ok" id="row4-demo-badge" style="display: none;">&#10003; 1st call: deleted "A"</span>
+          </div>
+
+          <!-- Shown only when the student clicks "What if we call it.remove() twice?" -->
+          <div class="code-row indent-2 stacked-demo-row" id="stacked-demo-row">
+            <div class="code-chip" style="cursor: default;">
+              <span class="chip-text">it.<span class="fn">remove</span>();</span>
+              <span class="stacked-badge" id="stacked-demo-badge">2nd call in a row</span>
+            </div>
+          </div>
+
+          <div class="code-row indent-1">
+            <span class="fixed-brace">}</span>
+          </div>
+          <div class="code-row">
+            <span class="fixed-brace">}</span>
+          </div>
+        </div>
+
+        <div class="controls-bar">
+          <button class="btn btn-run" id="btn-run" type="button">&#9654; Run</button>
+          <button class="btn btn-secondary" id="btn-reset-list" type="button">Reset List</button>
+          <button class="btn btn-secondary" id="btn-clear-code" type="button">Clear Lines</button>
+        </div>
+      </div>
+
+      <div class="panel-box">
+        <div class="panel-header">
+          <h2 class="panel-title">Code Pile</h2>
+          <span class="panel-hint">Click or drag to place (one line doesn't belong)</span>
+        </div>
+        <div class="pile-list" id="pile-list"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      const INITIAL_LETTERS = ["A", "B", "A", "C", "A"];
+
+      const CODE_LINES = [
+        {
+          id: "init",
+          code: 'Iterator<String> it = list.iterator();',
+          html: '<span class="type">Iterator</span>&lt;<span class="type">String</span>&gt; it = list.<span class="fn">iterator</span>();'
+        },
+        {
+          id: "while",
+          code: 'while (it.hasNext())',
+          html: '<span class="kw">while</span> (it.<span class="fn">hasNext</span>())'
+        },
+        {
+          id: "next",
+          code: 'String s = it.next();',
+          html: '<span class="type">String</span> s = it.<span class="fn">next</span>();'
+        },
+        {
+          id: "if",
+          code: 'if (s.equals("A"))',
+          html: '<span class="kw">if</span> (s.<span class="fn">equals</span>(<span class="str">"A"</span>))'
+        },
+        {
+          id: "itRemove",
+          code: 'it.remove();',
+          html: 'it.<span class="fn">remove</span>();'
+        },
+        {
+          id: "listRemove",
+          code: 'list.remove(s);',
+          html: 'list.<span class="fn">remove</span>(s);'
+        }
+      ];
+
+      const PILE_ORDER = ["itRemove", "while", "listRemove", "init", "if", "next"];
+
+      let slots = [null, null, null, null, null];
+      let cursorIndex = 0;
+      let isAnimating = false;
+      let draggedLineId = null;
+
+      // DOM Elements
+      const lettersRowEl = document.getElementById("letters-row");
+      const tilesContainer = document.getElementById("tiles-container");
+      const cursorWidget = document.getElementById("cursor-widget");
+      const statusBanner = document.getElementById("status-banner");
+      const statusText = document.getElementById("status-text");
+      const btnDoubleRemove = document.getElementById("btn-double-remove");
+      const stackedDemoRow = document.getElementById("stacked-demo-row");
+      const slotEls = Array.from(document.querySelectorAll(".drop-slot"));
+      const rowEls = Array.from(document.querySelectorAll(".code-row[data-row]"));
+      const pileListEl = document.getElementById("pile-list");
+      const btnRun = document.getElementById("btn-run");
+      const btnResetList = document.getElementById("btn-reset-list");
+      const btnClearCode = document.getElementById("btn-clear-code");
+
+      // Build persistent DOM nodes for letters and gaps
+      function initListDOM() {
+        tilesContainer.innerHTML = "";
+        cursorIndex = 0;
+        cursorWidget.classList.remove("error-state");
+
+        const firstGap = document.createElement("div");
+        firstGap.className = "gap-slot";
+        firstGap.dataset.gap = "0";
+        tilesContainer.appendChild(firstGap);
+
+        INITIAL_LETTERS.forEach((ch, idx) => {
+          const cell = document.createElement("div");
+          cell.className = "letter-cell";
+          cell.dataset.char = ch;
+          cell.dataset.activeIdx = String(idx);
+
+          const tile = document.createElement("div");
+          tile.className = "letter-tile" + (ch === "A" ? " is-a" : "");
+          tile.textContent = ch;
+
+          const tag = document.createElement("span");
+          tag.className = "returned-tag";
+          tag.textContent = "returned by next()";
+          tile.appendChild(tag);
+
+          cell.appendChild(tile);
+          tilesContainer.appendChild(cell);
+
+          const gap = document.createElement("div");
+          gap.className = "gap-slot";
+          gap.dataset.gap = String(idx + 1);
+          tilesContainer.appendChild(gap);
+        });
+
+        requestAnimationFrame(() => updateCursorPosition(0, false));
+      }
+
+      function getActiveCells() {
+        return Array.from(tilesContainer.querySelectorAll(".letter-cell:not(.collapsing)"));
+      }
+
+      function getActiveGaps() {
+        return Array.from(tilesContainer.querySelectorAll(".gap-slot:not(.collapsed)"));
+      }
+
+      function updateCursorPosition(targetGapIndex, smooth = true) {
+        cursorIndex = targetGapIndex;
+        const activeGaps = getActiveGaps();
+        if (activeGaps.length === 0) return;
+
+        const safeIdx = Math.max(0, Math.min(targetGapIndex, activeGaps.length - 1));
+        const gapEl = activeGaps[safeIdx];
+        const rowRect = lettersRowEl.getBoundingClientRect();
+        const gapRect = gapEl.getBoundingClientRect();
+        const xOffset = (gapRect.left - rowRect.left) + (gapRect.width / 2) - 3;
+
+        cursorWidget.style.transition = smooth ? "transform 0.36s cubic-bezier(0.4, 0, 0.2, 1)" : "none";
+        cursorWidget.style.transform = `translateY(-50%) translateX(${xOffset}px)`;
+      }
+
+      window.addEventListener("resize", () => {
+        if (!isAnimating) updateCursorPosition(cursorIndex, false);
+      });
+
+      function setStatus(type, htmlContent, exceptionName = null, showWhatIf = false) {
+        statusBanner.className = "status-banner" + (type ? ` ${type}` : "");
+        const badgeHtml = exceptionName ? `<span class="exception-badge">${exceptionName}</span>` : "";
+        statusText.innerHTML = htmlContent + badgeHtml;
+        btnDoubleRemove.style.display = showWhatIf ? "inline-block" : "none";
+      }
+
+      const row4DemoBadge = document.getElementById("row4-demo-badge");
+      const stackedDemoBadge = document.getElementById("stacked-demo-badge");
+
+      function resetStatus() {
+        stackedDemoRow.classList.remove("visible", "active-step", "error-step");
+        if (row4DemoBadge) row4DemoBadge.style.display = "none";
+        if (stackedDemoBadge) {
+          stackedDemoBadge.className = "stacked-badge";
+          stackedDemoBadge.textContent = "2nd call in a row";
+        }
+        clearRowHighlights();
+        cursorWidget.classList.remove("error-state");
+        setStatus("", 'Place 5 lines into the code frame below, then click <strong>Run</strong>.');
+      }
+
+      function createChipElement(lineObj, inSlotIndex = null) {
+        const chip = document.createElement("div");
+        chip.className = "code-chip";
+        chip.draggable = !isAnimating;
+        chip.dataset.lineId = lineObj.id;
+        chip.tabIndex = 0;
+        chip.role = "button";
+        chip.setAttribute("aria-label", lineObj.code);
+
+        chip.innerHTML = `
+          <span class="chip-grip">&#8942;&#8942;</span>
+          <span class="chip-text">${lineObj.html}</span>
+          <button class="chip-remove-btn" type="button" title="Remove line" aria-label="Remove line">&times;</button>
+        `;
+
+        // Pointer drag (supports smooth finger drag on touchscreens + mouse drag)
+        let startX = 0, startY = 0;
+        let isPointerDragging = false;
+        let dragGhost = null;
+        let suppressClick = false;
+
+        chip.addEventListener("pointerdown", (e) => {
+          if (isAnimating || e.button !== 0 || e.target.closest(".chip-remove-btn")) return;
+
+          startX = e.clientX;
+          startY = e.clientY;
+          isPointerDragging = false;
+
+          const onMove = (moveEvt) => {
+            const dx = moveEvt.clientX - startX;
+            const dy = moveEvt.clientY - startY;
+            if (!isPointerDragging && (Math.abs(dx) > 7 || Math.abs(dy) > 7)) {
+              isPointerDragging = true;
+              dragGhost = chip.cloneNode(true);
+              dragGhost.className = "code-chip touch-drag-ghost";
+              dragGhost.style.width = `${chip.offsetWidth}px`;
+              document.body.appendChild(dragGhost);
+              chip.classList.add("dragging");
+            }
+
+            if (isPointerDragging && dragGhost) {
+              dragGhost.style.transform = `translate3d(${moveEvt.clientX - chip.offsetWidth / 2}px, ${moveEvt.clientY - 22}px, 0)`;
+              const elUnder = document.elementFromPoint(moveEvt.clientX, moveEvt.clientY);
+              const slotUnder = elUnder ? elUnder.closest(".drop-slot") : null;
+              slotEls.forEach((s) => s.classList.remove("drag-over"));
+              if (slotUnder) slotUnder.classList.add("drag-over");
+            }
+          };
+
+          const onUp = (upEvt) => {
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+            window.removeEventListener("pointercancel", onUp);
+
+            if (isPointerDragging) {
+              suppressClick = true;
+              setTimeout(() => { suppressClick = false; }, 60);
+              chip.classList.remove("dragging");
+              slotEls.forEach((s) => s.classList.remove("drag-over"));
+
+              const elUnder = document.elementFromPoint(upEvt.clientX, upEvt.clientY);
+              const slotUnder = elUnder ? elUnder.closest(".drop-slot") : null;
+              const pileUnder = elUnder ? elUnder.closest(".pile-list") : null;
+
+              if (dragGhost) {
+                dragGhost.remove();
+                dragGhost = null;
+              }
+
+              if (slotUnder) {
+                placeLineInSlot(lineObj.id, parseInt(slotUnder.dataset.slot, 10));
+              } else if (pileUnder && inSlotIndex !== null) {
+                slots[inSlotIndex] = null;
+                resetStatus();
+                renderWorkspace();
+              }
+              isPointerDragging = false;
+            }
+          };
+
+          window.addEventListener("pointermove", onMove);
+          window.addEventListener("pointerup", onUp);
+          window.addEventListener("pointercancel", onUp);
+        });
+
+        // Native HTML5 Drag fallback
+        chip.addEventListener("dragstart", (e) => {
+          if (isAnimating) {
+            e.preventDefault();
+            return;
+          }
+          draggedLineId = lineObj.id;
+          chip.classList.add("dragging");
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", lineObj.id);
+        });
+
+        chip.addEventListener("dragend", () => {
+          chip.classList.remove("dragging");
+          draggedLineId = null;
+        });
+
+        // Click / Tap: if in pile, place in first open slot; if in slot, return to pile
+        chip.addEventListener("click", () => {
+          if (isAnimating || suppressClick) return;
+          if (inSlotIndex !== null) {
+            slots[inSlotIndex] = null;
+            resetStatus();
+            renderWorkspace();
+          } else {
+            const emptyIdx = slots.findIndex((s) => s === null);
+            if (emptyIdx !== -1) {
+              placeLineInSlot(lineObj.id, emptyIdx);
+            }
+          }
+        });
+
+        chip.addEventListener("keydown", (e) => {
+          if (isAnimating) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            chip.click();
+          }
+        });
+
+        return chip;
+      }
+
+      function renderWorkspace() {
+        slotEls.forEach((slotEl, idx) => {
+          const lineId = slots[idx];
+          slotEl.innerHTML = "";
+          if (lineId) {
+            slotEl.classList.add("filled");
+            const lineObj = CODE_LINES.find((l) => l.id === lineId);
+            if (lineObj) slotEl.appendChild(createChipElement(lineObj, idx));
+          } else {
+            slotEl.classList.remove("filled");
+            const placeholder = document.createElement("span");
+            placeholder.className = "slot-placeholder";
+            placeholder.textContent = `Line ${idx + 1}`;
+            slotEl.appendChild(placeholder);
+          }
+        });
+
+        pileListEl.innerHTML = "";
+        const used = new Set(slots.filter(Boolean));
+        PILE_ORDER.forEach((id) => {
+          if (!used.has(id)) {
+            const lineObj = CODE_LINES.find((l) => l.id === id);
+            if (lineObj) pileListEl.appendChild(createChipElement(lineObj, null));
+          }
+        });
+      }
+
+      function placeLineInSlot(lineId, targetSlotIdx) {
+        const sourceSlotIdx = slots.indexOf(lineId);
+        const existing = slots[targetSlotIdx];
+        if (sourceSlotIdx !== -1) {
+          slots[sourceSlotIdx] = existing;
+        }
+        slots[targetSlotIdx] = lineId;
+        resetStatus();
+        renderWorkspace();
+      }
+
+      slotEls.forEach((slotEl, targetSlotIdx) => {
+        slotEl.addEventListener("dragover", (e) => {
+          if (isAnimating) return;
+          e.preventDefault();
+          slotEl.classList.add("drag-over");
+        });
+        slotEl.addEventListener("dragleave", () => slotEl.classList.remove("drag-over"));
+        slotEl.addEventListener("drop", (e) => {
+          if (isAnimating) return;
+          e.preventDefault();
+          slotEl.classList.remove("drag-over");
+          const lineId = draggedLineId || e.dataTransfer.getData("text/plain");
+          if (lineId) placeLineInSlot(lineId, targetSlotIdx);
+        });
+      });
+
+      pileListEl.addEventListener("dragover", (e) => {
+        if (isAnimating) return;
+        e.preventDefault();
+        pileListEl.classList.add("drag-over");
+      });
+      pileListEl.addEventListener("dragleave", () => pileListEl.classList.remove("drag-over"));
+      pileListEl.addEventListener("drop", (e) => {
+        if (isAnimating) return;
+        e.preventDefault();
+        pileListEl.classList.remove("drag-over");
+        const lineId = draggedLineId || e.dataTransfer.getData("text/plain");
+        const sourceIdx = slots.indexOf(lineId);
+        if (sourceIdx !== -1) {
+          slots[sourceIdx] = null;
+          resetStatus();
+          renderWorkspace();
+        }
+      });
+
+      function clearRowHighlights() {
+        rowEls.forEach((r) => r.classList.remove("active-step", "error-step"));
+        stackedDemoRow.classList.remove("active-step", "error-step");
+      }
+
+      function highlightRow(rowIdx, isError = false) {
+        clearRowHighlights();
+        const row = rowEls[rowIdx];
+        if (row) row.classList.add(isError ? "error-step" : "active-step");
+      }
+
+      function setControlsDisabled(disabled) {
+        btnRun.disabled = disabled;
+        btnResetList.disabled = disabled;
+        btnClearCode.disabled = disabled;
+        btnDoubleRemove.disabled = disabled;
+      }
+
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      // --- Main Run Handler ---
+      btnRun.addEventListener("click", async () => {
+        if (isAnimating) return;
+        resetStatus();
+        initListDOM();
+
+        if (slots.some((s) => s === null)) {
+          setStatus("warn", "Fill all 5 code slots before running the loop.");
+          return;
+        }
+
+        const itRemoveIdx = slots.indexOf("itRemove");
+        const nextIdx = slots.indexOf("next");
+        const listRemoveIdx = slots.indexOf("listRemove");
+        const ifIdx = slots.indexOf("if");
+
+        // 1. it.remove() before it.next()
+        if (itRemoveIdx !== -1 && (nextIdx === -1 || itRemoveIdx < nextIdx)) {
+          await animateRemoveBeforeNext(itRemoveIdx);
+          return;
+        }
+
+        // 2. Decoy list.remove(s)
+        if (listRemoveIdx !== -1) {
+          await animateDecoyCrash(listRemoveIdx);
+          return;
+        }
+
+        // 3. Unconditional it.remove() before if
+        if (ifIdx === -1 || itRemoveIdx < ifIdx) {
+          await animateUnconditionalRemove();
+          return;
+        }
+
+        // 4. Other structural checks
+        if (slots[0] !== "init") {
+          highlightRow(0, true);
+          setStatus("warn", "Create the iterator before the loop starts: <code>Iterator&lt;String&gt; it = list.iterator();</code>");
+          return;
+        }
+        if (slots[1] !== "while") {
+          highlightRow(1, true);
+          setStatus("warn", "Line 2 opens the loop block — place <code>while (it.hasNext())</code> there.");
+          return;
+        }
+        if (slots[2] !== "next") {
+          highlightRow(2, true);
+          setStatus("warn", "Call <code>String s = it.next();</code> first inside the loop so an element is returned before you check it.");
+          return;
+        }
+        if (slots[3] !== "if" || slots[4] !== "itRemove") {
+          highlightRow(3, true);
+          setStatus("warn", 'Check <code>if (s.equals("A"))</code> first, then call <code>it.remove();</code> inside the if block.');
+          return;
+        }
+
+        // 5. Correct order
+        await animateCorrectLoop();
+      });
+
+      async function animateRemoveBeforeNext(failRowIdx) {
+        isAnimating = true;
+        setControlsDisabled(true);
+
+        highlightRow(0);
+        await sleep(380);
+        highlightRow(1);
+        await sleep(380);
+
+        highlightRow(failRowIdx, true);
+        cursorWidget.classList.add("error-state");
+        setStatus(
+          "error",
+          "<strong>remove()</strong> deletes the element <strong>next()</strong> just returned, but nothing has been returned yet.",
+          "IllegalStateException"
+        );
+
+        isAnimating = false;
+        setControlsDisabled(false);
+      }
+
+      async function animateDecoyCrash(listRemoveIdx) {
+        isAnimating = true;
+        setControlsDisabled(true);
+
+        highlightRow(0);
+        await sleep(380);
+        highlightRow(1);
+        await sleep(380);
+
+        // Hop over first "A"
+        highlightRow(2);
+        updateCursorPosition(1, true);
+        const activeCells = getActiveCells();
+        const firstTile = activeCells[0].querySelector(".letter-tile");
+        firstTile.classList.add("returned-active");
+        await sleep(680);
+
+        highlightRow(3);
+        await sleep(380);
+
+        // list.remove(s) modifies list behind iterator's back
+        highlightRow(listRemoveIdx, true);
+        firstTile.classList.remove("returned-active");
+        activeCells[0].classList.add("collapsing");
+        const gap = tilesContainer.querySelector('.gap-slot[data-gap="1"]');
+        if (gap) gap.classList.add("collapsed");
+        await sleep(400);
+
+        updateCursorPosition(0, true);
+        await sleep(380);
+
+        // Next turn catches the modification
+        highlightRow(1);
+        await sleep(360);
+        highlightRow(2, true);
+        cursorWidget.classList.add("error-state");
+
+        const remaining = getActiveCells();
+        if (remaining.length > 0) {
+          remaining[0].querySelector(".letter-tile").classList.add("crash");
+        }
+
+        setStatus(
+          "error",
+          "The list changed behind the iterator’s back, so Java stops the loop with an error.",
+          "ConcurrentModificationException"
+        );
+
+        isAnimating = false;
+        setControlsDisabled(false);
+      }
+
+      async function animateUnconditionalRemove() {
+        isAnimating = true;
+        setControlsDisabled(true);
+
+        highlightRow(0);
+        await sleep(380);
+
+        while (true) {
+          const cells = getActiveCells();
+          if (cells.length === 0) break;
+
+          highlightRow(1);
+          await sleep(320);
+
+          highlightRow(2);
+          updateCursorPosition(1, true);
+          const cell = cells[0];
+          cell.querySelector(".letter-tile").classList.add("returned-active");
+          await sleep(520);
+
+          highlightRow(slots.indexOf("itRemove"));
+          cell.classList.add("collapsing");
+          const gap = tilesContainer.querySelector(`.gap-slot[data-gap="${parseInt(cell.dataset.activeIdx, 10) + 1}"]`);
+          if (gap) gap.classList.add("collapsed");
+          await sleep(380);
+
+          updateCursorPosition(0, true);
+          await sleep(220);
+        }
+
+        clearRowHighlights();
+        setStatus(
+          "warn",
+          'Every letter was deleted! Without <code>if (s.equals("A"))</code> guarding <code>it.remove()</code>, every element returned by <code>next()</code> gets removed.'
+        );
+
+        isAnimating = false;
+        setControlsDisabled(false);
+      }
+
+      async function animateCorrectLoop() {
+        isAnimating = true;
+        setControlsDisabled(true);
+
+        setStatus("", "Running loop...");
+        highlightRow(0);
+        await sleep(450);
+
+        let logicalCursor = 0;
+
+        while (true) {
+          const activeCells = getActiveCells();
+          if (logicalCursor >= activeCells.length) {
+            highlightRow(1);
+            await sleep(380);
+            break;
+          }
+
+          highlightRow(1);
+          await sleep(380);
+
+          // String s = it.next()
+          highlightRow(2);
+          const targetCell = activeCells[logicalCursor];
+          const tile = targetCell.querySelector(".letter-tile");
+          const char = targetCell.dataset.char;
+
+          updateCursorPosition(logicalCursor + 1, true);
+          tile.classList.add("returned-active");
+          await sleep(720);
+
+          // if (s.equals("A"))
+          highlightRow(3);
+          await sleep(420);
+
+          if (char === "A") {
+            // it.remove()
+            highlightRow(4);
+            tile.classList.remove("returned-active");
+            targetCell.classList.add("collapsing");
+
+            const cellIdx = parseInt(targetCell.dataset.activeIdx, 10);
+            const gapToCollapse = tilesContainer.querySelector(`.gap-slot[data-gap="${cellIdx + 1}"]`);
+            if (gapToCollapse) gapToCollapse.classList.add("collapsed");
+
+            await sleep(400);
+            updateCursorPosition(logicalCursor, true);
+            await sleep(420);
+          } else {
+            tile.classList.remove("returned-active");
+            tile.classList.add("returned-fading");
+            await sleep(320);
+            tile.classList.remove("returned-fading");
+            logicalCursor += 1;
+          }
+        }
+
+        clearRowHighlights();
+        setStatus(
+          "success",
+          '<strong>Every "A" removed!</strong> The one idea: remove through the iterator, right after <code>next()</code> returns the element.',
+          null,
+          true
+        );
+
+        isAnimating = false;
+        setControlsDisabled(false);
+      }
+
+      // Inline "What if we call it.remove() twice?" demonstration (no re-dragging needed)
+      btnDoubleRemove.addEventListener("click", async () => {
+        if (isAnimating) return;
+        isAnimating = true;
+        setControlsDisabled(true);
+
+        initListDOM();
+        if (row4DemoBadge) row4DemoBadge.style.display = "none";
+        if (stackedDemoBadge) {
+          stackedDemoBadge.className = "stacked-badge";
+          stackedDemoBadge.textContent = "2nd call in a row";
+        }
+        stackedDemoRow.classList.remove("active-step", "error-step");
+        stackedDemoRow.classList.add("visible");
+        setStatus("", "Testing a stacked 2nd <code>it.remove()</code> call right after the first...");
+        await sleep(450);
+
+        highlightRow(0);
+        await sleep(380);
+        highlightRow(1);
+        await sleep(380);
+
+        // Hop over first "A"
+        highlightRow(2);
+        const firstCell = getActiveCells()[0];
+        const tile = firstCell.querySelector(".letter-tile");
+        const tag = tile.querySelector(".returned-tag");
+        updateCursorPosition(1, true);
+        tile.classList.add("returned-active");
+        await sleep(720);
+
+        highlightRow(3);
+        await sleep(380);
+
+        // First it.remove() deletes "A" -> leave a ghost outline so students see it's already gone
+        highlightRow(4);
+        tile.classList.remove("returned-active");
+        tile.classList.add("ghost-deleted");
+        if (tag) tag.textContent = "already deleted!";
+        if (row4DemoBadge) row4DemoBadge.style.display = "inline-block";
+        await sleep(750);
+
+        // Stacked 2nd it.remove() tries to delete the same element again -> CRASH!
+        clearRowHighlights();
+        stackedDemoRow.classList.add("error-step");
+        cursorWidget.classList.add("error-state");
+        tile.classList.remove("ghost-deleted");
+        tile.classList.add("ghost-crash");
+        if (tag) tag.textContent = "✕ Already gone!";
+        if (stackedDemoBadge) {
+          stackedDemoBadge.className = "inline-row-badge fail";
+          stackedDemoBadge.textContent = '✕ Crashes! "A" is already gone';
+        }
+        await sleep(250);
+
+        statusBanner.className = "status-banner double-remove-spotlight";
+        btnDoubleRemove.style.display = "none";
+        statusText.innerHTML = `
+          <div class="double-remove-grid">
+            <div class="double-remove-title">
+              <span>Why calling <code>it.remove()</code> twice in a row crashes</span>
+              <span class="exception-badge" style="background:#ffe4e6;color:#9f1239;border:1px solid #f43f5e;">IllegalStateException</span>
+            </div>
+            <div class="double-remove-steps">
+              <span class="dr-step ok">1. it.next() &rarr; returns "A"</span>
+              <span class="dr-arrow">&rarr;</span>
+              <span class="dr-step ok">2. 1st it.remove() &rarr; &#10003; deletes "A"</span>
+              <span class="dr-arrow">&rarr;</span>
+              <span class="dr-step fail">3. 2nd it.remove() &rarr; &#10005; "A" is already gone!</span>
+            </div>
+            <div class="double-remove-rule">
+              <strong>The Rule:</strong> You can only call <code>remove()</code> <strong>once</strong> per <code>next()</code> call. To delete another element, the iterator must call <code>next()</code> again first.
+            </div>
+          </div>
+        `;
+
+        isAnimating = false;
+        setControlsDisabled(false);
+      });
+
+      btnResetList.addEventListener("click", () => {
+        if (isAnimating) return;
+        resetStatus();
+        initListDOM();
+      });
+
+      btnClearCode.addEventListener("click", () => {
+        if (isAnimating) return;
+        slots = [null, null, null, null, null];
+        resetStatus();
+        initListDOM();
+        renderWorkspace();
+      });
+
+      initListDOM();
+      renderWorkspace();
+    })();
+  </script>
+</body>
+</html>
