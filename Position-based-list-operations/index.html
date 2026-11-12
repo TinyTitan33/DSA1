@@ -1,0 +1,1817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Linked List Basics — Position-Based Operations</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-soft: #f1f5f9;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #475569;
+      --soft: #64748b;
+
+      --indigo: #4f46e5;
+      --indigo-dark: #4338ca;
+      --indigo-light: #eef2ff;
+      --indigo-border: #c7d2fe;
+
+      --sky: #0284c7;
+      --sky-light: #e0f2fe;
+      --sky-border: #bae6fd;
+
+      --emerald: #059669;
+      --emerald-dark: #047857;
+      --emerald-light: #ecfdf5;
+
+      --red: #dc2626;
+      --red-dark: #b91c1c;
+      --red-light: #fef2f2;
+
+      --amber: #d97706;
+      --amber-light: #fef3c7;
+
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 24px auto;
+      padding: 0 max(16px, env(safe-area-inset-right)) 28px max(16px, env(safe-area-inset-left));
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Top Header & Progressive Step Tabs */
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .header-title {
+      flex: 1 1 280px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: clamp(1.15rem, 2.5vw, 1.4rem);
+      font-weight: 750;
+      letter-spacing: -0.02em;
+    }
+
+    .header p {
+      margin: 3px 0 0;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .tabs {
+      display: inline-flex;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      border: 1.5px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      font-weight: 650;
+      min-height: 40px;
+      padding: 8px 14px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+      white-space: nowrap;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    .tab-btn.active {
+      background: var(--surface);
+      color: var(--indigo);
+      border-color: transparent;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    }
+
+    .tab-btn.spotlight-insert {
+      background: #ecfdf5;
+      color: #047857;
+      border-color: #10b981;
+      font-weight: 700;
+      animation: tabGlowInsert 2s ease-in-out infinite;
+    }
+
+    .tab-btn.spotlight-remove {
+      background: #fef2f2;
+      color: #b91c1c;
+      border-color: #ef4444;
+      font-weight: 700;
+      animation: tabGlowRemove 2s ease-in-out infinite;
+    }
+
+    @keyframes tabGlowInsert {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.22), 0 1px 3px rgba(15, 23, 42, 0.06); }
+      50% { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.24), 0 3px 10px rgba(5, 150, 105, 0.25); }
+    }
+
+    @keyframes tabGlowRemove {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.2), 0 1px 3px rgba(15, 23, 42, 0.06); }
+      50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.22), 0 3px 10px rgba(220, 38, 38, 0.24); }
+    }
+
+    /* Main Diagram Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+      overflow: hidden;
+    }
+
+    /* Animation Box (live explainer + SVG canvas) */
+    .canvas-stage {
+      background: radial-gradient(#e2e8f0 1px, transparent 1px);
+      background-size: 22px 22px;
+      background-color: #fcfdff;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .canvas-explainer {
+      margin: 12px 16px 2px;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--indigo);
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 46px;
+      transition: border-color 0.2s ease, background-color 0.2s ease;
+    }
+
+    .canvas-explainer.tone-insert {
+      border-left-color: var(--emerald);
+      background: rgba(236, 253, 245, 0.95);
+    }
+
+    .canvas-explainer.tone-remove {
+      border-left-color: var(--red);
+      background: rgba(254, 242, 242, 0.95);
+    }
+
+    .canvas-explainer.tone-traverse {
+      border-left-color: var(--amber);
+      background: rgba(254, 243, 199, 0.92);
+    }
+
+    .canvas-explainer.tone-value {
+      border-left-color: var(--sky);
+      background: rgba(224, 242, 254, 0.94);
+    }
+
+    .exp-badge {
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--indigo-light);
+      color: var(--indigo-dark);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .canvas-explainer.tone-insert .exp-badge {
+      background: #d1fae5;
+      color: var(--emerald-dark);
+    }
+
+    .canvas-explainer.tone-remove .exp-badge {
+      background: #fee2e2;
+      color: var(--red-dark);
+    }
+
+    .canvas-explainer.tone-traverse .exp-badge {
+      background: #fde68a;
+      color: #92400e;
+    }
+
+    .canvas-explainer.tone-value .exp-badge {
+      background: #bae6fd;
+      color: #0369a1;
+    }
+
+    .exp-text {
+      font-size: 0.92rem;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1.4;
+    }
+
+    .canvas-wrap {
+      width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x pan-y;
+    }
+
+    svg#canvas {
+      display: block;
+      height: 272px;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: pan-x pan-y;
+    }
+
+    /* Pulsing glow & hover affordances on tappable node halves */
+    @keyframes pillGlowVal {
+      0%, 100% {
+        filter: drop-shadow(0 0 1.5px rgba(2, 132, 199, 0.3));
+        opacity: 0.92;
+      }
+      50% {
+        filter: drop-shadow(0 0 6px rgba(2, 132, 199, 0.9));
+        opacity: 1;
+      }
+    }
+
+    @keyframes pillGlowNext {
+      0%, 100% {
+        filter: drop-shadow(0 0 1.5px rgba(79, 70, 229, 0.3));
+        opacity: 0.92;
+      }
+      50% {
+        filter: drop-shadow(0 0 6px rgba(79, 70, 229, 0.9));
+        opacity: 1;
+      }
+    }
+
+    .pill-glow-val {
+      animation: pillGlowVal 2.1s ease-in-out infinite;
+    }
+
+    .pill-glow-next {
+      animation: pillGlowNext 2.1s ease-in-out infinite;
+    }
+
+    @media (hover: hover) {
+      .part-hover-val:hover .pill-bg-val {
+        fill: #bae6fd;
+        stroke: #0284c7;
+      }
+      .part-hover-next:hover .pill-bg-next {
+        fill: #c7d2fe;
+        stroke: #4f46e5;
+      }
+    }
+
+    /* Integrated Value vs Pointer Chips + Hint Strip inside Animation Card */
+    .canvas-footer {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 16px;
+      background: var(--surface);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 38px;
+      padding: 5px 12px 5px 8px;
+      border-radius: 999px;
+      border: 1px solid #cbd5e1;
+      background: var(--surface);
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      cursor: pointer;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+      transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    .chip-q {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 19px;
+      height: 19px;
+      border-radius: 50%;
+      font-size: 0.72rem;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .chip-val .chip-q {
+      background: var(--sky-light);
+      color: var(--sky);
+    }
+
+    .chip-next .chip-q {
+      background: var(--indigo-light);
+      color: var(--indigo);
+    }
+
+    .chip strong {
+      color: var(--text);
+      font-weight: 750;
+    }
+
+    .chip:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .chip:disabled {
+      opacity: 0.55;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .chip.chip-val.active {
+      background: var(--sky-light);
+      border-color: var(--sky);
+      color: #0369a1;
+      box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.16);
+    }
+    .chip.chip-val.active .chip-q {
+      background: var(--sky);
+      color: #ffffff;
+    }
+    .chip.chip-val.active strong {
+      color: #0c4a6e;
+    }
+
+    .chip.chip-next.active {
+      background: var(--indigo-light);
+      border-color: var(--indigo);
+      color: var(--indigo-dark);
+      box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.16);
+    }
+    .chip.chip-next.active .chip-q {
+      background: var(--indigo);
+      color: #ffffff;
+    }
+    .chip.chip-next.active strong {
+      color: var(--indigo-dark);
+    }
+
+    @keyframes chipPulse {
+      0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.35); background: var(--indigo-light); border-color: var(--indigo); }
+      100% { box-shadow: 0 0 0 6px rgba(79, 70, 229, 0); }
+    }
+
+    @keyframes chipGlowVal {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.14), 0 1px 2px rgba(15, 23, 42, 0.05); border-color: #7dd3fc; }
+      50% { box-shadow: 0 0 9px 2px rgba(2, 132, 199, 0.32); border-color: #0284c7; }
+    }
+
+    @keyframes chipGlowNext {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.14), 0 1px 2px rgba(15, 23, 42, 0.05); border-color: #a5b4fc; }
+      50% { box-shadow: 0 0 9px 2px rgba(79, 70, 229, 0.32); border-color: #4f46e5; }
+    }
+
+    .chip.chip-val.glow {
+      animation: chipGlowVal 2.1s ease-in-out infinite;
+    }
+
+    .chip.chip-next.glow {
+      animation: chipGlowNext 2.1s ease-in-out infinite;
+    }
+
+    .chip.pulse {
+      animation: chipPulse 0.65s ease-out;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .pill-glow-val { animation: none; filter: drop-shadow(0 0 4px rgba(2, 132, 199, 0.65)); }
+      .pill-glow-next { animation: none; filter: drop-shadow(0 0 4px rgba(79, 70, 229, 0.65)); }
+      .chip.chip-val.glow { animation: none; box-shadow: 0 0 6px 1px rgba(2, 132, 199, 0.25); border-color: #0284c7; }
+      .chip.chip-next.glow { animation: none; box-shadow: 0 0 6px 1px rgba(79, 70, 229, 0.25); border-color: #4f46e5; }
+      .tab-btn.spotlight-insert { animation: none; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.28); }
+      .tab-btn.spotlight-remove { animation: none; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.26); }
+    }
+
+    .footer-hints {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.78rem;
+      color: var(--soft);
+    }
+
+    .swipe-hint {
+      display: none;
+      color: var(--indigo);
+      font-weight: 650;
+    }
+
+    .swipe-hint.visible {
+      display: inline;
+    }
+
+    /* Controls Bar */
+    .controls {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .val-box {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      min-height: 44px;
+      padding: 4px 8px 4px 12px;
+    }
+
+    .val-box label {
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .val-box input {
+      width: 66px;
+      min-height: 34px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      padding: 4px 8px;
+      font-family: var(--font-mono);
+      font-size: 16px; /* Prevents iOS Safari zoom on focus */
+      font-weight: 700;
+      text-align: center;
+      color: var(--text);
+      background: var(--surface);
+    }
+
+    .val-box input:focus {
+      outline: 2px solid var(--indigo-border);
+      border-color: var(--indigo);
+    }
+
+    .btn {
+      border: 1px solid transparent;
+      border-radius: 10px;
+      min-height: 44px;
+      padding: 10px 16px;
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      font-weight: 650;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.08s ease, opacity 0.15s ease;
+      white-space: nowrap;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    .btn:active:not(:disabled) { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .mono { font-family: var(--font-mono); }
+
+    .btn-next {
+      background: var(--indigo);
+      color: #fff;
+    }
+
+    .btn-insert {
+      background: var(--emerald);
+      color: #fff;
+    }
+
+    .btn-remove {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .btn-ghost {
+      background: var(--surface-soft);
+      color: var(--text);
+      border-color: var(--border);
+    }
+
+    @media (hover: hover) {
+      .tab-btn:hover { color: var(--text); }
+      .tab-btn.spotlight-insert:hover { background: #d1fae5; color: #065f46; }
+      .tab-btn.spotlight-remove:hover { background: #fee2e2; color: #991b1b; }
+      .chip.chip-val:hover:not(:disabled) { border-color: var(--sky); background: #f0f9ff; }
+      .chip.chip-next:hover:not(:disabled) { border-color: var(--indigo); background: #f5f7ff; }
+      .btn-next:hover:not(:disabled) { background: var(--indigo-dark); }
+      .btn-insert:hover:not(:disabled) { background: var(--emerald-dark); }
+      .btn-remove:hover:not(:disabled) { background: var(--red-dark); }
+      .btn-ghost:hover:not(:disabled) { background: #e2e8f0; }
+    }
+
+    .hidden { display: none !important; }
+    .clickable {
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.88em;
+      background: rgba(148, 163, 184, 0.16);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    /* Tablet & Mobile Responsive Breakpoints */
+    @media (max-width: 720px) {
+      .container {
+        margin: 12px auto;
+        gap: 12px;
+      }
+
+      .tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        width: 100%;
+      }
+
+      .tab-btn {
+        min-height: 44px;
+        padding: 8px 6px;
+        font-size: 0.8rem;
+        white-space: normal;
+        line-height: 1.2;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .canvas-explainer {
+        margin: 10px 10px 0;
+        padding: 9px 11px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+      }
+
+      .exp-text {
+        font-size: 0.86rem;
+      }
+
+      .canvas-footer {
+        padding: 10px 12px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+
+      .chips {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .chip {
+        min-height: 42px;
+        justify-content: center;
+        font-size: 0.77rem;
+        padding: 6px 8px;
+      }
+
+      .footer-hints {
+        justify-content: space-between;
+        font-size: 0.74rem;
+      }
+
+      .controls {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px;
+        gap: 10px;
+      }
+
+      .btn-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .val-box {
+        grid-column: 1 / -1;
+        justify-content: space-between;
+      }
+
+      .val-box input {
+        width: 84px;
+      }
+
+      #btnReset {
+        grid-column: 1 / -1;
+      }
+
+      .btn {
+        width: 100%;
+        padding: 10px 10px;
+        font-size: 0.84rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header + Lesson Progression -->
+    <header class="header">
+      <div class="header-title">
+        <h1>Singly Linked List: Position <code>p</code></h1>
+        <p id="stageSubtitle">Part 1 : Learn how <code>head</code>, node values, and <code>next</code> pointers work before changing the list.</p>
+      </div>
+      <nav class="tabs" aria-label="Lesson Parts">
+        <button id="tab1" type="button" class="tab-btn active" onclick="setStage(1)">1. Head &amp; Next</button>
+        <button id="tab2" type="button" class="tab-btn" onclick="setStage(2)">2. Insert After p</button>
+        <button id="tab3" type="button" class="tab-btn" onclick="setStage(3)">3. Remove p</button>
+      </nav>
+    </header>
+
+    <!-- Animation Box (Live Explainer + Nodes/Arrows + Value/Pointer Chips) -->
+    <section class="card" aria-label="Linked List Animation Box">
+      <div class="canvas-stage">
+        <div id="explainerBox" class="canvas-explainer" aria-live="polite">
+          <span id="explainerBadge" class="exp-badge">Part 1</span>
+          <span id="explainerText" class="exp-text"><code>head</code> points to the first node. Tap <code>next(p)</code> to follow links step by step, or tap any node to place <code>p</code>.</span>
+        </div>
+
+        <div class="canvas-wrap" id="canvasWrap">
+          <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+      </div>
+
+      <div class="canvas-footer">
+        <div class="chips" role="group" aria-label="Inspect Value vs Pointer">
+          <button id="chipValue" type="button" class="chip chip-val" onclick="toggleInspect('value')">
+            <span class="chip-q">?</span><span>p.value: <strong>"A"</strong></span>
+          </button>
+          <button id="chipNext" type="button" class="chip chip-next" onclick="toggleInspect('next')">
+            <span class="chip-q">?</span><span>p.next → <strong>node("B")</strong></span>
+          </button>
+        </div>
+        <div class="footer-hints">
+          <span> </span>
+          <span id="swipeHint" class="swipe-hint">Swipe ↔</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Controls Bar -->
+    <section class="controls" aria-label="Controls">
+      <div class="btn-group">
+        <div id="valWrap" class="val-box hidden">
+          <label for="valInput">New value:</label>
+          <input id="valInput" type="text" maxlength="4" value="E" enterkeyhint="done" />
+        </div>
+
+        <button id="btnInsert" type="button" class="btn btn-insert mono hidden" onclick="onInsertAfter()">
+          + insertAfter(p)
+        </button>
+
+        <button id="btnRemove" type="button" class="btn btn-remove mono hidden" onclick="onRemove()">
+          × remove(p)
+        </button>
+
+        <button id="btnNext" type="button" class="btn btn-next mono" onclick="onNext()">
+          → next(p)
+        </button>
+
+        <button id="btnBackHead" type="button" class="btn btn-ghost mono" onclick="onBackToHead()">
+          ↺ p = head
+        </button>
+      </div>
+
+      <div class="btn-group">
+        <button id="btnReset" type="button" class="btn btn-ghost" onclick="resetList()">Reset [A, B, C, D]</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // =========================================================================
+    // Layout & State (Strictly Singly Linked List)
+    // =========================================================================
+    const NODE_W = 132;
+    const NODE_H = 66;
+    const DATA_W = 82;   // left compartment: value
+    const GAP_X = 60;
+    const STRIDE_X = NODE_W + GAP_X;
+    const ROW_Y = 66;
+    const STAGE_Y = 172;
+
+    let stage = 1; // 1: Head & Next, 2: Insert After p, 3: Remove p
+    let visitedStages = new Set([1]);
+    let partsSpotlightReady = false;
+    let partsSpotlightTimer = null;
+    let part1StartAt = Date.now();
+    let nextId = 1;
+    let nextCharCode = 'E'.charCodeAt(0);
+
+    let nodes = [];     // { id, val, x, y, targetX, targetY, opacity, targetOpacity, state }
+    let pId = null;     // current position p
+    let qId = null;     // newly created node during insert
+    let prevScanId = null; // predecessor walker during remove
+    let headOverride = null; // null | nodeId | 'NULL'
+    let inspectPart = null; // null | 'value' | 'next'
+
+    // customLinks: { fromId, toId, style: 'normal'|'new'|'old', arc?: number, dashed?: boolean, label?: string }
+    let customLinks = [];
+    let hideNormalNext = new Set();
+    let nullArrowForId = null; // optional green -> NULL arrow for a specific node during animation
+
+    let busy = false;
+    let timers = [];
+    let animFrame = null;
+
+    const svg = document.getElementById('canvas');
+    const canvasWrap = document.getElementById('canvasWrap');
+
+    // =========================================================================
+    // Responsive Geometry & Touch-Friendly Event Delegation
+    // =========================================================================
+    function getLayoutMetrics() {
+      const wrapW = canvasWrap.clientWidth || 360;
+      const count = Math.max(nodes.length, 1);
+      const rawContentW = (count - 1) * STRIDE_X + NODE_W + 78;
+      const pad = wrapW < 520 ? 26 : 44;
+      const fits = rawContentW + pad * 2 <= wrapW;
+      const baseLeft = fits ? Math.round((wrapW - rawContentW) / 2) : pad;
+      const svgW = fits ? wrapW : rawContentW + pad * 2;
+      return { wrapW, baseLeft, svgW, fits };
+    }
+
+    function slotX(i) {
+      return getLayoutMetrics().baseLeft + i * STRIDE_X;
+    }
+
+    function syncRowTargets(exclude = new Set()) {
+      let col = 0;
+      for (const n of nodes) {
+        if (!exclude.has(n.id)) {
+          n.targetX = slotX(col);
+          n.targetY = ROW_Y;
+          col++;
+        }
+      }
+    }
+
+    function scrollNodeIntoView(id) {
+      const n = byId(id);
+      if (!n) return;
+      requestAnimationFrame(() => {
+        if (canvasWrap.scrollWidth <= canvasWrap.clientWidth + 2) return;
+        const centerX = n.targetX + NODE_W / 2;
+        const targetScroll = Math.max(0, centerX - canvasWrap.clientWidth / 2);
+        canvasWrap.scrollTo({ left: targetScroll, behavior: 'smooth' });
+      });
+    }
+
+    function updateSwipeHint() {
+      const scrollable = canvasWrap.scrollWidth > canvasWrap.clientWidth + 4;
+      document.getElementById('swipeHint').classList.toggle('visible', scrollable);
+    }
+
+    // Event delegation on SVG: tap unselected node to move p, or tap p's halves to inspect
+    svg.addEventListener('click', (e) => {
+      const nodeGroup = e.target.closest('[data-node-id]');
+      if (!nodeGroup) return;
+      const id = Number(nodeGroup.getAttribute('data-node-id'));
+      const partEl = e.target.closest('[data-part]');
+      const part = partEl ? partEl.getAttribute('data-part') : null;
+      if (id) handleNodeTap(id, part);
+    });
+
+    // Submit value input with Enter / Done key on mobile keyboards
+    document.getElementById('valInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && stage >= 2 && !busy) {
+        e.preventDefault();
+        e.target.blur();
+        onInsertAfter();
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      if (!busy) {
+        syncRowTargets();
+        for (const n of nodes) {
+          n.x = n.targetX;
+          n.y = n.targetY;
+        }
+      }
+      render();
+    });
+
+    // =========================================================================
+    // Helpers
+    // =========================================================================
+    function makeNode(val, x, y, state = 'normal') {
+      return {
+        id: nextId++,
+        val: String(val),
+        x, y,
+        targetX: x,
+        targetY: y,
+        opacity: state === 'new' ? 0 : 1,
+        targetOpacity: 1,
+        state
+      };
+    }
+
+    function byId(id) {
+      return nodes.find(n => n.id === id) || null;
+    }
+
+    function idxOf(id) {
+      return nodes.findIndex(n => n.id === id);
+    }
+
+    function clearAllTimers() {
+      for (const t of timers) clearTimeout(t);
+      timers = [];
+    }
+
+    function schedule(fn, ms) {
+      const id = setTimeout(fn, ms);
+      timers.push(id);
+    }
+
+    function explain(html, tone = 'idle', badge = 'Ready') {
+      const box = document.getElementById('explainerBox');
+      box.className = 'canvas-explainer' + (tone !== 'idle' ? ' tone-' + tone : '');
+      document.getElementById('explainerBadge').textContent = badge;
+      document.getElementById('explainerText').innerHTML = html;
+    }
+
+    function pulseChip(id) {
+      const el = document.getElementById(id);
+      el.classList.remove('pulse');
+      void el.offsetWidth;
+      el.classList.add('pulse');
+    }
+
+    function esc(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function consumeInputValue() {
+      const inp = document.getElementById('valInput');
+      let v = inp.value.trim();
+      if (!v) {
+        v = String.fromCharCode(nextCharCode);
+      }
+      nextCharCode = nextCharCode >= 'Z'.charCodeAt(0) ? 'A'.charCodeAt(0) : nextCharCode + 1;
+      inp.value = String.fromCharCode(nextCharCode);
+      return v;
+    }
+
+    // =========================================================================
+    // Stage Switching, Inspection & UI Updates
+    // =========================================================================
+    function schedulePartsSpotlight(delayMs) {
+      if (partsSpotlightReady) return;
+      if (visitedStages.has(2) && visitedStages.has(3)) {
+        partsSpotlightReady = true;
+        return;
+      }
+      if (partsSpotlightTimer) {
+        clearTimeout(partsSpotlightTimer);
+      }
+      partsSpotlightTimer = setTimeout(() => {
+        partsSpotlightTimer = null;
+        partsSpotlightReady = true;
+        updateUI();
+      }, delayMs);
+    }
+
+    function recordPart1Activity(atEnd = false) {
+      if (stage !== 1 || partsSpotlightReady) return;
+      if (atEnd) {
+        schedulePartsSpotlight(1200);
+        return;
+      }
+      const elapsed = Date.now() - part1StartAt;
+      const delay = elapsed >= 5000 ? 600 : Math.min(2500, Math.max(800, 5000 - elapsed));
+      schedulePartsSpotlight(delay);
+    }
+
+    function setStage(s) {
+      if (busy) return;
+      const enteringPart1 = s === 1 && stage !== 1;
+      stage = s;
+      visitedStages.add(s);
+      if (!partsSpotlightReady && (!partsSpotlightTimer || enteringPart1)) {
+        if (s === 1) part1StartAt = Date.now();
+        schedulePartsSpotlight(5000);
+      }
+      inspectPart = null;
+      document.getElementById('tab1').classList.toggle('active', s === 1);
+      document.getElementById('tab2').classList.toggle('active', s === 2);
+      document.getElementById('tab3').classList.toggle('active', s === 3);
+
+      const sub = document.getElementById('stageSubtitle');
+      const isEmpty = nodes.length === 0;
+      if (s === 1) {
+        sub.innerHTML = 'Part 1 — Learn how <code>head</code>, node values, and <code>next</code> pointers work before changing the list.';
+        explain(
+          isEmpty
+            ? 'The list is empty (<code>head = NULL</code>). Tap <code>Reset [A, B, C, D]</code> or switch to Part 2 to add a node.'
+            : '<code>head</code> points to the first node. Tap <code>next(p)</code> to follow links step by step, or tap any node to place <code>p</code>.',
+          'idle',
+          'Part 1'
+        );
+      } else if (s === 2) {
+        sub.innerHTML = 'Part 2 : Watch how <code>insertAfter(p)</code> creates a node and connects <code>next</code> pointers without losing the tail.';
+        explain(
+          isEmpty
+            ? 'List is empty (<code>head = NULL</code>). Tap <code>+ insertFirst</code> to create the first node.'
+            : 'Place <code>p</code> on any node, then tap <code>+ insertAfter(p)</code> to watch how pointers connect.',
+          'idle',
+          'Part 2'
+        );
+      } else {
+        sub.innerHTML = 'Part 3 : Practice all three operations: <code>insertAfter(p)</code>, <code>remove(p)</code>, and <code>next(p)</code>.';
+        explain(
+          isEmpty
+            ? 'List is empty (<code>head = NULL</code>). Tap <code>+ insertFirst</code> to add a node, or reset to <code>[A, B, C, D]</code>.'
+            : 'Move <code>p</code> to any node and tap <code>× remove(p)</code> to see how <code>head</code> or <code>prev.next</code> updates.',
+          'idle',
+          'Part 3'
+        );
+      }
+
+      updateUI();
+      render();
+    }
+
+    function toggleInspect(part) {
+      if (busy || !pId) return;
+      const p = byId(pId);
+      if (!p) return;
+
+      inspectPart = inspectPart === part ? null : part;
+      const i = idxOf(p.id);
+      const nxt = i + 1 < nodes.length ? nodes[i + 1] : null;
+
+      if (inspectPart === 'value') {
+        explain(
+          `<strong>Data inside box:</strong> <code>"${esc(p.val)}"</code> is the value stored in this node. Moving <code>p</code> or changing arrows never alters <code>"${esc(p.val)}"</code>.`,
+          'value',
+          'p.value'
+        );
+      } else if (inspectPart === 'next') {
+        explain(
+          nxt
+            ? `<strong>Pointer field:</strong> <code>next</code> does not store <code>"${esc(nxt.val)}"</code> — it holds an arrow pointing to where <code>node("${esc(nxt.val)}")</code> lives.`
+            : `<strong>Pointer field:</strong> <code>next</code> is <code>NULL</code>, meaning no node comes after <code>"${esc(p.val)}"</code>.`,
+          'idle',
+          'p.next'
+        );
+      } else {
+        explain(
+          `<code>p</code> points to <code>node("${esc(p.val)}")</code>. Tap <code>next(p)</code> or tap another node to continue.`,
+          'idle',
+          'Position p'
+        );
+      }
+
+      if (inspectPart) {
+        recordPart1Activity(false);
+      }
+      updateUI();
+      render();
+    }
+
+    function handleNodeTap(id, part) {
+      if (busy) return;
+      const n = byId(id);
+      if (!n) return;
+
+      if (id === pId && part) {
+        toggleInspect(part);
+        return;
+      }
+
+      pId = id;
+      inspectPart = null;
+      recordPart1Activity(false);
+      explain(`<code>p</code> moved to <code>node("${esc(n.val)}")</code>. Notice the stored values and arrows didn't change — only <code>p</code> moved.`, 'idle', 'Position p');
+      updateUI();
+      render();
+      scrollNodeIntoView(pId);
+    }
+
+    function updateUI() {
+      const showInsert = stage >= 2;
+      const showRemove = stage >= 3;
+
+      const tab2 = document.getElementById('tab2');
+      const tab3 = document.getElementById('tab3');
+      tab2.classList.toggle('spotlight-insert', partsSpotlightReady && stage !== 2 && !visitedStages.has(2));
+      tab3.classList.toggle('spotlight-remove', partsSpotlightReady && stage !== 3 && !visitedStages.has(3));
+
+      document.getElementById('valWrap').classList.toggle('hidden', !showInsert);
+      document.getElementById('btnInsert').classList.toggle('hidden', !showInsert);
+      document.getElementById('btnRemove').classList.toggle('hidden', !showRemove);
+      document.getElementById('btnBackHead').classList.toggle('hidden', stage === 3);
+
+      const btnInsert = document.getElementById('btnInsert');
+      btnInsert.textContent = nodes.length === 0 ? '+ insertFirst' : '+ insertAfter(p)';
+
+      const p = byId(pId);
+      btnInsert.disabled = busy;
+      document.getElementById('btnRemove').disabled = busy || !p;
+      document.getElementById('btnNext').disabled = busy || !p;
+      document.getElementById('btnBackHead').disabled = busy || nodes.length === 0;
+
+      // Update interactive Value & Pointer chips inside the animation card
+      const chipVal = document.getElementById('chipValue');
+      const chipNext = document.getElementById('chipNext');
+      chipVal.disabled = busy || !p;
+      chipNext.disabled = busy || !p;
+      chipVal.classList.toggle('active', !busy && inspectPart === 'value');
+      chipNext.classList.toggle('active', !busy && inspectPart === 'next');
+      const shouldGlow = !busy && !!p && !inspectPart;
+      chipVal.classList.toggle('glow', shouldGlow);
+      chipNext.classList.toggle('glow', shouldGlow);
+
+      if (p) {
+        const i = idxOf(p.id);
+        const nxt = i + 1 < nodes.length ? nodes[i + 1] : null;
+        chipVal.innerHTML = `<span class="chip-q">?</span><span>p.value: <strong>"${esc(p.val)}"</strong></span>`;
+        chipNext.innerHTML = nxt
+          ? `<span class="chip-q">?</span><span>p.next → <strong>node("${esc(nxt.val)}")</strong></span>`
+          : `<span class="chip-q">?</span><span>p.next → <strong>NULL</strong></span>`;
+      } else {
+        chipVal.innerHTML = `<span class="chip-q">?</span><span>p.value: <strong>—</strong></span>`;
+        chipNext.innerHTML = `<span class="chip-q">?</span><span>p → <strong>NULL</strong></span>`;
+      }
+    }
+
+    function resetList() {
+      clearAllTimers();
+      busy = false;
+      inspectPart = null;
+      nextId = 1;
+      nextCharCode = 'E'.charCodeAt(0);
+      document.getElementById('valInput').value = 'E';
+      customLinks = [];
+      hideNormalNext.clear();
+      nullArrowForId = null;
+      qId = null;
+      prevScanId = null;
+      headOverride = null;
+
+      nodes = ['A', 'B', 'C', 'D'].map(v => makeNode(v, 0, ROW_Y, 'normal'));
+      syncRowTargets();
+      for (const n of nodes) {
+        n.x = n.targetX;
+        n.y = n.targetY;
+      }
+      pId = nodes[0].id;
+
+      explain('List reset to <code>[A, B, C, D]</code>. Both <code>head</code> and <code>p</code> point to the first node.', 'idle', 'Reset');
+      updateUI();
+      render();
+      scrollNodeIntoView(pId);
+    }
+
+    // =========================================================================
+    // Smooth Animation Loop
+    // =========================================================================
+    function startLerp() {
+      if (animFrame) return;
+      const loop = () => {
+        let moving = false;
+        for (const n of nodes) {
+          const dx = n.targetX - n.x;
+          const dy = n.targetY - n.y;
+          const dop = n.targetOpacity - n.opacity;
+          if (Math.abs(dx) > 0.4 || Math.abs(dy) > 0.4 || Math.abs(dop) > 0.01) {
+            n.x += dx * 0.2;
+            n.y += dy * 0.2;
+            n.opacity += dop * 0.2;
+            moving = true;
+          } else {
+            n.x = n.targetX;
+            n.y = n.targetY;
+            n.opacity = n.targetOpacity;
+          }
+        }
+        render();
+        if (moving || busy) {
+          animFrame = requestAnimationFrame(loop);
+        } else {
+          animFrame = null;
+        }
+      };
+      animFrame = requestAnimationFrame(loop);
+    }
+
+    // =========================================================================
+    // Operations: next(p), insertAfter(p), remove(p)
+    // =========================================================================
+    function onBackToHead() {
+      if (busy || nodes.length === 0) return;
+      inspectPart = null;
+      pId = nodes[0].id;
+      explain(`<code>p = head</code> — jumped <code>p</code> back to the first node (<code>"${esc(nodes[0].val)}"</code>).`, 'traverse', 'p = head');
+      recordPart1Activity(false);
+      updateUI();
+      render();
+      pulseChip('chipNext');
+      scrollNodeIntoView(pId);
+    }
+
+    function onNext() {
+      if (busy || !pId) return;
+      inspectPart = null;
+      const p = byId(pId);
+      const i = idxOf(pId);
+      const nxt = i + 1 < nodes.length ? nodes[i + 1] : null;
+
+      if (!nxt) {
+        explain(`<code>p.next</code> is <code>NULL</code> — <code>"${esc(p.val)}"</code> is the last node, so <code>p</code> cannot advance further.`, 'traverse', 'End of List');
+        recordPart1Activity(true);
+        updateUI();
+        render();
+        return;
+      }
+
+      busy = true;
+      updateUI();
+      startLerp();
+
+      hideNormalNext.add(p.id);
+      customLinks = [{ fromId: p.id, toId: nxt.id, style: 'new', label: 'p.next' }];
+      explain(`Following <code>p.next</code> from <code>"${esc(p.val)}"</code> to <code>"${esc(nxt.val)}"</code>...`, 'traverse', 'next(p)');
+      scrollNodeIntoView(nxt.id);
+
+      schedule(() => {
+        pId = nxt.id;
+        customLinks = [];
+        hideNormalNext.clear();
+        busy = false;
+        explain(`Moved <code>p = p.next</code> to <code>node("${esc(nxt.val)}")</code>. The boxes and values didn't move — only pointer <code>p</code> changed!`, 'idle', 'Moved p');
+        recordPart1Activity(idxOf(nxt.id) === nodes.length - 1);
+        updateUI();
+        render();
+        pulseChip('chipNext');
+      }, 680);
+    }
+
+    function onInsertAfter() {
+      if (busy) return;
+      inspectPart = null;
+      const val = consumeInputValue();
+
+      // Empty list case
+      if (nodes.length === 0) {
+        busy = true;
+        updateUI();
+        startLerp();
+
+        const startX = getLayoutMetrics().baseLeft;
+        const q = makeNode(val, startX, STAGE_Y, 'new');
+        qId = q.id;
+        nodes.push(q);
+        q.targetOpacity = 1;
+        headOverride = 'NULL';
+        nullArrowForId = q.id;
+        explain(`Create a new node holding <code>"${esc(val)}"</code> with <code>next = NULL</code>. <code>head</code> is still <code>NULL</code>.`, 'insert', 'Step 1/2');
+
+        schedule(() => {
+          q.targetY = ROW_Y;
+          q.state = 'normal';
+          pId = q.id;
+          headOverride = q.id;
+          nullArrowForId = null;
+          explain(`The list was empty, so point both <code>head</code> and <code>p</code> to <code>node("${esc(val)}")</code>.`, 'insert', 'Step 2/2');
+        }, 900);
+
+        schedule(() => {
+          qId = null;
+          headOverride = null;
+          busy = false;
+          explain(`Inserted <code>"${esc(val)}"</code> as the first node in the list.`, 'idle', 'Inserted');
+          updateUI();
+          render();
+          pulseChip('chipNext');
+        }, 1650);
+        return;
+      }
+
+      const p = byId(pId);
+      if (!p) return;
+      const pIdx = idxOf(pId);
+      const afterNode = pIdx + 1 < nodes.length ? nodes[pIdx + 1] : null;
+
+      busy = true;
+      updateUI();
+      startLerp();
+
+      const startX = afterNode ? (p.x + afterNode.x) / 2 : p.x + STRIDE_X * 0.7;
+      const q = makeNode(val, startX, STAGE_Y, 'new');
+      qId = q.id;
+
+      nodes.splice(pIdx + 1, 0, q);
+      syncRowTargets(new Set([q.id]));
+      q.targetX = (slotX(pIdx) + slotX(pIdx + 1)) / 2;
+      q.targetY = STAGE_Y;
+      scrollNodeIntoView(q.id);
+
+      // Step 1: Allocate node below the gap
+      q.targetOpacity = 1;
+      if (afterNode) {
+        hideNormalNext.add(p.id);
+        customLinks = [{ fromId: p.id, toId: afterNode.id, style: 'normal' }];
+      }
+      explain(`Create a new node holding <code>"${esc(val)}"</code>. Existing list arrows are still untouched.`, 'insert', 'Step 1/3');
+
+      // Step 2: Connect q.next -> p.next FIRST
+      schedule(() => {
+        if (afterNode) {
+          customLinks.push({ fromId: q.id, toId: afterNode.id, style: 'new', label: 'newNode.next' });
+          explain(`Point <code>newNode.next</code> to <code>"${esc(afterNode.val)}"</code> <strong>first</strong> — before changing <code>p.next</code> — so we don't lose the rest of the list!`, 'insert', 'Step 2/3');
+        } else {
+          nullArrowForId = q.id;
+          explain(`Since <code>"${esc(p.val)}"</code> was the last node, point <code>newNode.next</code> to <code>NULL</code>.`, 'insert', 'Step 2/3');
+        }
+      }, 1050);
+
+      // Step 3: Swing p.next -> q
+      schedule(() => {
+        hideNormalNext.add(p.id);
+        if (afterNode) {
+          customLinks = customLinks.filter(l => !(l.fromId === p.id && l.style === 'normal'));
+          customLinks.push({ fromId: p.id, toId: afterNode.id, style: 'old', dashed: true });
+        }
+        customLinks = customLinks.map(l => ({ ...l, label: '' }));
+        customLinks.push({ fromId: p.id, toId: q.id, style: 'new', label: 'p.next' });
+        explain(`Now swing <code>p.next</code> to <code>newNode</code>. Notice <code>p</code> stays on <code>"${esc(p.val)}"</code>!`, 'insert', 'Step 3/3');
+      }, 2200);
+
+      // Settle smoothly into row
+      schedule(() => {
+        customLinks = [];
+        hideNormalNext.clear();
+        nullArrowForId = null;
+        q.state = 'normal';
+        syncRowTargets();
+      }, 3200);
+
+      schedule(() => {
+        qId = null;
+        busy = false;
+        explain(`Done! Inserted <code>"${esc(val)}"</code> right after <code>p</code> (<code>"${esc(p.val)}"</code>).`, 'idle', 'Inserted');
+        updateUI();
+        render();
+        pulseChip('chipNext');
+        scrollNodeIntoView(pId);
+      }, 3800);
+    }
+
+    function onRemove() {
+      if (busy || !pId) return;
+      inspectPart = null;
+      const p = byId(pId);
+      const pIdx = idxOf(pId);
+      const prevNode = pIdx > 0 ? nodes[pIdx - 1] : null;
+      const nextNode = pIdx + 1 < nodes.length ? nodes[pIdx + 1] : null;
+      const nextCursor = nextNode || prevNode || null;
+
+      busy = true;
+      updateUI();
+      startLerp();
+
+      // Case A: Removing head
+      if (!prevNode) {
+        p.state = 'removing';
+        p.targetY = STAGE_Y;
+        scrollNodeIntoView(p.id);
+        explain(`<code>p</code> is at <code>head</code> (the first node), so there is no previous node to update.`, 'remove', 'Step 1/3');
+
+        schedule(() => {
+          headOverride = nextNode ? nextNode.id : 'NULL';
+          explain(
+            nextNode
+              ? `Move <code>head</code> forward to <code>"${esc(nextNode.val)}"</code> first so the rest of the list stays reachable.`
+              : `Set <code>head = NULL</code> because <code>"${esc(p.val)}"</code> was the only node.`,
+            'remove',
+            'Step 2/3'
+          );
+        }, 1050);
+
+        schedule(() => {
+          p.targetOpacity = 0;
+          hideNormalNext.add(p.id);
+          explain(`Remove <code>"${esc(p.val)}"</code> and close the gap.`, 'remove', 'Step 3/3');
+        }, 2100);
+
+        schedule(() => {
+          nodes.splice(pIdx, 1);
+          pId = nextCursor ? nextCursor.id : null;
+          headOverride = null;
+          hideNormalNext.clear();
+          syncRowTargets();
+        }, 2750);
+
+        schedule(() => {
+          busy = false;
+          explain(
+            nextCursor
+              ? `Removed <code>"${esc(p.val)}"</code>. <code>p</code> now points to the new <code>head</code> (<code>node("${esc(nextCursor.val)}")</code>).`
+              : `Removed <code>"${esc(p.val)}"</code>. The list is now empty (<code>head = NULL</code>, <code>p = NULL</code>).`,
+            'idle',
+            'Removed'
+          );
+          updateUI();
+          render();
+          if (pId) scrollNodeIntoView(pId);
+        }, 3300);
+        return;
+      }
+
+      // Case B: Removing non-head -> walk prev from head so student sees why singly linked needs prev
+      let delay = 0;
+      for (let i = 0; i < pIdx; i++) {
+        const stepNode = nodes[i];
+        const foundPrev = i === pIdx - 1;
+        schedule(() => {
+          prevScanId = stepNode.id;
+          scrollNodeIntoView(stepNode.id);
+          explain(
+            foundPrev
+              ? `Walk from <code>head</code>: <code>node("${esc(stepNode.val)}").next</code> points to <code>p</code> — found <code>prev</code>!`
+              : `Singly linked lists only point forward! Check <code>node("${esc(stepNode.val)}").next</code> — not <code>p</code>, step forward.`,
+            'traverse',
+            'Step 1/3'
+          );
+        }, delay);
+        delay += 680;
+      }
+
+      // Isolate p & bypass
+      schedule(() => {
+        p.state = 'removing';
+        p.targetY = STAGE_Y;
+        scrollNodeIntoView(p.id);
+        hideNormalNext.add(prevNode.id);
+        customLinks.push({ fromId: prevNode.id, toId: p.id, style: 'old', dashed: true });
+        if (nextNode) {
+          customLinks.push({ fromId: prevNode.id, toId: nextNode.id, style: 'new', arc: -44, label: 'prev.next = p.next' });
+          explain(`Found <code>prev</code> (<code>"${esc(prevNode.val)}"</code>)! Bypass <code>p</code> by pointing <code>prev.next</code> directly to <code>"${esc(nextNode.val)}"</code>.`, 'remove', 'Step 2/3');
+        } else {
+          nullArrowForId = prevNode.id;
+          explain(`Found <code>prev</code> (<code>"${esc(prevNode.val)}"</code>)! Since <code>"${esc(p.val)}"</code> was last, set <code>prev.next = NULL</code>.`, 'remove', 'Step 2/3');
+        }
+      }, delay + 150);
+
+      // Fade out p
+      schedule(() => {
+        prevScanId = null;
+        p.targetOpacity = 0;
+        hideNormalNext.add(p.id);
+        customLinks = customLinks.filter(l => l.toId !== p.id);
+        explain(`Remove the unlinked node <code>"${esc(p.val)}"</code> and slide the remaining nodes together.`, 'remove', 'Step 3/3');
+      }, delay + 1350);
+
+      // Splice & slide
+      schedule(() => {
+        nodes.splice(pIdx, 1);
+        pId = nextCursor ? nextCursor.id : null;
+        customLinks = [];
+        hideNormalNext.clear();
+        nullArrowForId = null;
+        syncRowTargets();
+      }, delay + 1950);
+
+      schedule(() => {
+        busy = false;
+        explain(
+          nextNode
+            ? `Removed <code>"${esc(p.val)}"</code>. <code>p</code> now points to <code>node("${esc(nextNode.val)}")</code>.`
+            : (prevNode
+                ? `Removed <code>"${esc(p.val)}"</code>. <code>p</code> now points to the new last node (<code>node("${esc(prevNode.val)}")</code>).`
+                : `Removed <code>"${esc(p.val)}"</code>. The list is now empty (<code>head = NULL</code>, <code>p = NULL</code>).`),
+          'idle',
+          'Removed'
+        );
+        updateUI();
+        render();
+        if (pId) scrollNodeIntoView(pId);
+      }, delay + 2550);
+    }
+
+    // =========================================================================
+    // SVG Rendering
+    // =========================================================================
+    function render() {
+      const { wrapW, svgW } = getLayoutMetrics();
+      svg.setAttribute('viewBox', `0 0 ${svgW} 272`);
+      svg.style.width = svgW + 'px';
+
+      const out = [];
+      out.push(`
+        <defs>
+          <marker id="arr-normal" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+            <path d="M0,1 L7,4 L0,7 Z" fill="#334155" />
+          </marker>
+          <marker id="arr-new" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto">
+            <path d="M0,1 L8,4.5 L0,8 Z" fill="#059669" />
+          </marker>
+          <marker id="arr-old" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+            <path d="M0,1 L7,4 L0,7 Z" fill="#dc2626" />
+          </marker>
+          <marker id="arr-focus" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto">
+            <path d="M0,1 L8,4.5 L0,8 Z" fill="#4f46e5" />
+          </marker>
+          <marker id="arr-head" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <path d="M0,0.8 L6,3.5 L0,6.2 Z" fill="#0284c7" />
+          </marker>
+          <marker id="arr-p" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <path d="M0,0.8 L6,3.5 L0,6.2 Z" fill="#4f46e5" />
+          </marker>
+          <marker id="arr-prev" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <path d="M0,0.8 L6,3.5 L0,6.2 Z" fill="#d97706" />
+          </marker>
+        </defs>
+      `);
+
+      // Empty list centered horizontally
+      if (nodes.length === 0) {
+        const ex = Math.max(24, Math.round((wrapW - 202) / 2));
+        out.push(`
+          <g transform="translate(${ex}, 88)">
+            <rect x="0" y="0" width="76" height="34" rx="8" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.6"/>
+            <text x="38" y="22" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" font-weight="700" fill="#0369a1">head</text>
+            <line x1="76" y1="17" x2="132" y2="17" stroke="#334155" stroke-width="2" marker-end="url(#arr-normal)"/>
+            <rect x="138" y="1" width="64" height="32" rx="7" fill="#f1f5f9" stroke="#cbd5e1" stroke-dasharray="4 3"/>
+            <text x="170" y="21" text-anchor="middle" font-family="ui-monospace, monospace" font-size="12" font-weight="700" fill="#64748b">NULL</text>
+          </g>
+        `);
+        svg.innerHTML = out.join('');
+        updateSwipeHint();
+        return;
+      }
+
+      const chain = nodes.filter(n => n.state !== 'new');
+      const headNode = headOverride === 'NULL'
+        ? null
+        : (headOverride ? byId(headOverride) : (chain[0] || nodes[0]));
+
+      // 1) Normal next arrows along main chain (spotlight p.next if inspecting 'next')
+      for (let i = 0; i < chain.length - 1; i++) {
+        const a = chain[i];
+        const b = chain[i + 1];
+        if (!hideNormalNext.has(a.id)) {
+          const isInspectedNext = !busy && inspectPart === 'next' && a.id === pId;
+          out.push(drawNextArrow(a, b, isInspectedNext ? 'focus' : 'normal', 0, false, ''));
+        }
+      }
+
+      // 2) NULL terminator after last node in chain (unless hidden during bypass)
+      const tailNode = chain[chain.length - 1];
+      if (tailNode && !hideNormalNext.has(tailNode.id)) {
+        const isInspectedNull = !busy && inspectPart === 'next' && tailNode.id === pId;
+        const sx = tailNode.x + DATA_W + (NODE_W - DATA_W) / 2;
+        const sy = tailNode.y + 24;
+        const nx = tailNode.x + NODE_W + 46;
+        out.push(`
+          <g opacity="${tailNode.opacity.toFixed(2)}">
+            <line x1="${sx}" y1="${sy}" x2="${nx - 24}" y2="${sy}" stroke="${isInspectedNull ? '#4f46e5' : '#334155'}" stroke-width="${isInspectedNull ? '2.8' : '2'}" marker-end="url(#${isInspectedNull ? 'arr-focus' : 'arr-normal'})" />
+            <rect x="${nx - 18}" y="${sy - 13}" width="46" height="26" rx="6" fill="${isInspectedNull ? '#eef2ff' : '#f1f5f9'}" stroke="${isInspectedNull ? '#4f46e5' : '#cbd5e1'}" stroke-dasharray="3 2" />
+            <text x="${nx + 5}" y="${sy + 4}" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="${isInspectedNull ? '#4338ca' : '#64748b'}">NULL</text>
+          </g>
+        `);
+      }
+
+      // Optional animated new -> NULL terminator (tail insert / tail delete)
+      if (nullArrowForId && byId(nullArrowForId)) {
+        const tn = byId(nullArrowForId);
+        const sx = tn.x + DATA_W + (NODE_W - DATA_W) / 2;
+        const sy = tn.y + 24;
+        const nx = tn.x + NODE_W + 46;
+        out.push(`
+          <g opacity="${tn.opacity.toFixed(2)}">
+            <line x1="${sx}" y1="${sy}" x2="${nx - 24}" y2="${sy}" stroke="#059669" stroke-width="2.5" marker-end="url(#arr-new)" />
+            <rect x="${nx - 18}" y="${sy - 13}" width="46" height="26" rx="6" fill="#ecfdf5" stroke="#059669" stroke-dasharray="3 2" />
+            <text x="${nx + 5}" y="${sy + 4}" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="#047857">NULL</text>
+          </g>
+        `);
+      }
+
+      // 3) Custom animating arrows
+      for (const l of customLinks) {
+        const a = byId(l.fromId);
+        const b = byId(l.toId);
+        if (a && b) {
+          out.push(drawNextArrow(a, b, l.style, l.arc || 0, !!l.dashed, l.label || ''));
+        }
+      }
+
+      // 4) Draw Nodes: clean two-part box [ value | next dot ] + clear interactive cues on p
+      for (const n of nodes) {
+        const isP = n.id === pId;
+        const isQ = n.id === qId;
+        const isRem = n.state === 'removing';
+        const isPrev = n.id === prevScanId;
+
+        const showCues = isP && !busy;
+        const spotVal = showCues && inspectPart === 'value';
+        const spotNext = showCues && inspectPart === 'next';
+
+        let border = '#94a3b8';
+        let fill = '#ffffff';
+        let nextBg = '#f8fafc';
+        let sw = 1.6;
+
+        if (isRem) {
+          border = '#dc2626';
+          fill = '#fef2f2';
+          nextBg = '#fee2e2';
+          sw = 2.4;
+        } else if (isQ) {
+          border = '#059669';
+          fill = '#ecfdf5';
+          nextBg = '#d1fae5';
+          sw = 2.4;
+        } else if (isP) {
+          border = '#4f46e5';
+          fill = spotVal ? '#e0f2fe' : '#ffffff';
+          nextBg = spotNext ? '#e0e7ff' : '#eef2ff';
+          sw = 2.5;
+        } else if (isPrev) {
+          border = '#d97706';
+          nextBg = '#fef3c7';
+          sw = 2.2;
+        }
+
+        const dotX = DATA_W + (NODE_W - DATA_W) / 2;
+        const dotY = 24;
+
+        // Bottom labels: plain subtle labels on other nodes, glowing tappable "? value" / "? next" pills on active p node
+        const shouldGlow = showCues && !inspectPart;
+        const valBottomMarkup = showCues
+          ? `
+            <g class="${shouldGlow ? 'pill-glow-val' : ''}">
+              <rect class="pill-bg-val" x="9" y="42" width="${DATA_W - 18}" height="18" rx="5"
+                fill="${spotVal ? '#0284c7' : '#e0f2fe'}"
+                stroke="${spotVal ? '#0284c7' : '#38bdf8'}"
+                stroke-width="1.3" />
+              <text x="${DATA_W / 2}" y="54" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9.5" font-weight="700" fill="${spotVal ? '#ffffff' : '#0369a1'}">? value</text>
+            </g>
+          `
+          : `<text x="${DATA_W / 2}" y="54" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9.5" font-weight="600" fill="#94a3b8">value</text>`;
+
+        const nextBottomMarkup = showCues
+          ? `
+            <g class="${shouldGlow ? 'pill-glow-next' : ''}">
+              <rect class="pill-bg-next" x="${DATA_W + 4}" y="42" width="${NODE_W - DATA_W - 8}" height="18" rx="5"
+                fill="${spotNext ? '#4f46e5' : '#e0e7ff'}"
+                stroke="${spotNext ? '#4f46e5' : '#818cf8'}"
+                stroke-width="1.3" />
+              <text x="${dotX}" y="54" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9.5" font-weight="700" fill="${spotNext ? '#ffffff' : '#4338ca'}">? next</text>
+            </g>
+          `
+          : `<text x="${dotX}" y="54" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9.5" font-weight="600" fill="#94a3b8">next</text>`;
+
+        out.push(`
+          <g class="clickable" data-node-id="${n.id}" transform="translate(${n.x.toFixed(1)}, ${n.y.toFixed(1)})" opacity="${n.opacity.toFixed(2)}">
+            ${isP ? `<rect x="-4" y="-4" width="${NODE_W + 8}" height="${NODE_H + 8}" rx="13" fill="none" stroke="#c7d2fe" stroke-width="4" />` : ''}
+            <rect x="0" y="0" width="${NODE_W}" height="${NODE_H}" rx="10" fill="${fill}" stroke="${border}" stroke-width="${sw}" />
+            <path d="M ${DATA_W} 1 L ${NODE_W - 10} 1 Q ${NODE_W - 1} 1 ${NODE_W - 1} 10 L ${NODE_W - 1} ${NODE_H - 10} Q ${NODE_W - 1} ${NODE_H - 1} ${NODE_W - 10} ${NODE_H - 1} L ${DATA_W} ${NODE_H - 1} Z" fill="${nextBg}" />
+            <line x1="${DATA_W}" y1="0" x2="${DATA_W}" y2="${NODE_H}" stroke="${border}" stroke-width="1.2" />
+
+            ${spotVal ? `<rect x="2" y="2" width="${DATA_W - 4}" height="${NODE_H - 4}" rx="8" fill="none" stroke="#0284c7" stroke-width="2.2" />` : ''}
+            ${spotNext ? `<rect x="${DATA_W + 2}" y="2" width="${NODE_W - DATA_W - 4}" height="${NODE_H - 4}" rx="8" fill="none" stroke="#4f46e5" stroke-width="2.2" />` : ''}
+
+            <!-- Value compartment -->
+            <text x="${DATA_W / 2}" y="30" text-anchor="middle" font-family="ui-monospace, monospace" font-size="19" font-weight="800" fill="${spotVal ? '#0369a1' : '#0f172a'}">${esc(n.val)}</text>
+
+            <!-- Next pointer compartment -->
+            <circle cx="${dotX}" cy="${dotY}" r="4.5" fill="${isRem ? '#dc2626' : (isQ ? '#059669' : (spotNext ? '#4f46e5' : '#334155'))}" />
+
+            <!-- Interactive split hit targets (with hover & glow affordances on active p node) -->
+            <g class="${showCues ? 'part-hover-val' : ''}" data-part="value">
+              ${valBottomMarkup}
+              <rect x="-8" y="-10" width="${DATA_W + 8}" height="${NODE_H + 20}" fill="transparent" />
+            </g>
+            <g class="${showCues ? 'part-hover-next' : ''}" data-part="next">
+              ${nextBottomMarkup}
+              <rect x="${DATA_W}" y="-10" width="${NODE_W - DATA_W + 8}" height="${NODE_H + 20}" fill="transparent" />
+            </g>
+          </g>
+        `);
+      }
+
+      // 5) Draw Pointer Badges (head, p, prev) above nodes without overlap
+      const badges = new Map();
+      const pushBadge = (id, label, bg, fg, stroke, marker) => {
+        if (!id || !byId(id)) return;
+        if (!badges.has(id)) badges.set(id, []);
+        badges.get(id).push({ label, bg, fg, stroke, marker });
+      };
+
+      if (headNode) {
+        pushBadge(headNode.id, 'head', '#e0f2fe', '#0369a1', '#0284c7', 'arr-head');
+      } else if (headOverride === 'NULL') {
+        const hx = Math.max(24, Math.round((wrapW - 202) / 2));
+        out.push(`
+          <g transform="translate(${hx}, 88)">
+            <rect x="0" y="0" width="76" height="34" rx="8" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.6"/>
+            <text x="38" y="22" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" font-weight="700" fill="#0369a1">head</text>
+            <line x1="76" y1="17" x2="132" y2="17" stroke="#0284c7" stroke-width="2.2" marker-end="url(#arr-head)"/>
+            <rect x="138" y="1" width="64" height="32" rx="7" fill="#f1f5f9" stroke="#cbd5e1" stroke-dasharray="4 3"/>
+            <text x="170" y="21" text-anchor="middle" font-family="ui-monospace, monospace" font-size="12" font-weight="700" fill="#64748b">NULL</text>
+          </g>
+        `);
+      }
+      if (pId) pushBadge(pId, 'p', '#4f46e5', '#ffffff', '#4f46e5', 'arr-p');
+      if (prevScanId) pushBadge(prevScanId, 'prev', '#fef3c7', '#b45309', '#d97706', 'arr-prev');
+
+      for (const [id, list] of badges.entries()) {
+        const n = byId(id);
+        if (!n) continue;
+        const widths = list.map(b => Math.max(30, b.label.length * 8 + 18));
+        const totalW = widths.reduce((a, b) => a + b, 0) + (list.length - 1) * 6;
+        let cx = n.x + NODE_W / 2 - totalW / 2;
+        const by = n.y - 46;
+
+        list.forEach((b, idx) => {
+          const bw = widths[idx];
+          const mid = cx + bw / 2;
+          out.push(`
+            <g opacity="${n.opacity.toFixed(2)}">
+              <rect x="${cx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="22" rx="6" fill="${b.bg}" stroke="${b.stroke}" stroke-width="1.3" />
+              <text x="${mid.toFixed(1)}" y="${(by + 15).toFixed(1)}" text-anchor="middle" font-family="ui-monospace, monospace" font-size="12" font-weight="800" fill="${b.fg}">${b.label}</text>
+              <line x1="${mid.toFixed(1)}" y1="${(by + 22).toFixed(1)}" x2="${mid.toFixed(1)}" y2="${(n.y - 5).toFixed(1)}" stroke="${b.stroke}" stroke-width="2" marker-end="url(#${b.marker})" />
+            </g>
+          `);
+          cx += bw + 6;
+        });
+      }
+
+      // Label below newly staged node
+      if (qId && byId(qId) && byId(qId).state === 'new') {
+        const q = byId(qId);
+        out.push(`
+          <g transform="translate(${(q.x + NODE_W / 2).toFixed(1)}, ${(q.y + NODE_H + 8).toFixed(1)})" opacity="${q.opacity.toFixed(2)}">
+            <rect x="-36" y="0" width="72" height="20" rx="6" fill="#059669" />
+            <text x="0" y="13.5" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="#ffffff">newNode</text>
+          </g>
+        `);
+      }
+
+      svg.innerHTML = out.join('');
+      updateSwipeHint();
+    }
+
+    function drawArrowPill(x, y, text) {
+      if (!text) return '';
+      const w = text.length * 6.8 + 14;
+      return `
+        <g transform="translate(${x.toFixed(1)}, ${y.toFixed(1)})">
+          <rect x="${(-w / 2).toFixed(1)}" y="-10" width="${w.toFixed(1)}" height="18" rx="5" fill="#ecfdf5" stroke="#059669" stroke-width="1.2" />
+          <text x="0" y="2.5" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10.5" font-weight="700" fill="#047857">${esc(text)}</text>
+        </g>
+      `;
+    }
+
+    function drawNextArrow(fromN, toN, style, arc, dashed, label) {
+      let stroke = '#334155';
+      let marker = 'arr-normal';
+      let sw = 2;
+      if (style === 'new') {
+        stroke = '#059669';
+        marker = 'arr-new';
+        sw = 2.6;
+      } else if (style === 'old') {
+        stroke = '#dc2626';
+        marker = 'arr-old';
+        sw = 2;
+      } else if (style === 'focus') {
+        stroke = '#4f46e5';
+        marker = 'arr-focus';
+        sw = 2.8;
+      }
+
+      const dotX = fromN.x + DATA_W + (NODE_W - DATA_W) / 2;
+      const dotY = fromN.y + 24;
+
+      let x1 = dotX;
+      let y1 = dotY;
+      let x2 = toN.x - 3;
+      let y2 = toN.y + 24;
+
+      // Clean connection when one node is staged below the main row
+      if (Math.abs(fromN.y - toN.y) > 30) {
+        if (fromN.y > toN.y) {
+          x1 = dotX;
+          y1 = fromN.y + 24;
+          x2 = toN.x + 24;
+          y2 = toN.y + NODE_H + 4;
+        } else {
+          x1 = dotX;
+          y1 = fromN.y + 24;
+          x2 = toN.x + 24;
+          y2 = toN.y - 4;
+        }
+      }
+
+      const dashAttr = dashed ? 'stroke-dasharray="5 4"' : '';
+      const op = Math.min(fromN.opacity, toN.opacity).toFixed(2);
+
+      if (arc !== 0) {
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2 + arc;
+        const peakY = 0.25 * y1 + 0.5 * my + 0.25 * y2;
+        return `<path d="M ${x1.toFixed(1)} ${y1.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}" fill="none" stroke="${stroke}" stroke-width="${sw}" ${dashAttr} opacity="${op}" marker-end="url(#${marker})" />`
+          + (label ? drawArrowPill(mx, peakY - 14, label) : '');
+      }
+
+      // Smooth curve for staged vertical links
+      if (Math.abs(fromN.y - toN.y) > 30) {
+        const mx = Math.max(x1, x2) + 26;
+        const my = (y1 + y2) / 2;
+        const midX = 0.25 * x1 + 0.5 * mx + 0.25 * x2;
+        const labelX = midX + (fromN.y > toN.y ? 38 : 34);
+        const labelY = fromN.y > toN.y ? my - 12 : my + 16;
+        return `<path d="M ${x1.toFixed(1)} ${y1.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}" fill="none" stroke="${stroke}" stroke-width="${sw}" ${dashAttr} opacity="${op}" marker-end="url(#${marker})" />`
+          + (label ? drawArrowPill(labelX, labelY, label) : '');
+      }
+
+      const lx = (fromN.x + NODE_W + toN.x) / 2;
+      const ly = y1 - 16;
+      return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${stroke}" stroke-width="${sw}" ${dashAttr} opacity="${op}" marker-end="url(#${marker})" />`
+        + (label ? drawArrowPill(lx, ly, label) : '');
+    }
+
+    // Initialize
+    resetList();
+    setStage(1);
+  </script>
+</body>
+</html>
