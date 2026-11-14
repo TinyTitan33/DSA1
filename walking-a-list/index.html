@@ -37,6 +37,18 @@
 
     * {
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button,
+    .btn-ghost,
+    .btn-primary,
+    .tab-btn,
+    .subtab-btn,
+    .mcq-btn,
+    .op-btn,
+    button.node-box {
+      touch-action: manipulation;
     }
 
     body {
@@ -89,7 +101,7 @@
       font-size: 0.76rem;
       font-weight: 600;
       padding: 4px 8px;
-      min-height: 32px;
+      min-height: 44px;
       display: inline-flex;
       align-items: center;
       color: var(--muted);
@@ -107,7 +119,7 @@
     .btn-ghost {
       font-size: 0.8rem;
       font-weight: 600;
-      min-height: 40px;
+      min-height: 44px;
       padding: 6px 12px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
@@ -117,10 +129,6 @@
       transition: background 0.12s ease, border-color 0.12s ease;
     }
 
-    .btn-ghost:hover:not(:disabled) {
-      background: var(--surface);
-      border-color: var(--blue);
-    }
 
     .btn-ghost:disabled {
       opacity: 0.45;
@@ -130,7 +138,7 @@
     .btn-primary {
       font-size: 0.8rem;
       font-weight: 600;
-      min-height: 40px;
+      min-height: 44px;
       padding: 6px 14px;
       border-radius: var(--radius);
       border: 1px solid var(--blue);
@@ -140,9 +148,6 @@
       transition: opacity 0.12s ease;
     }
 
-    .btn-primary:hover:not(:disabled) {
-      opacity: 0.9;
-    }
 
     .btn-primary:disabled {
       opacity: 0.45;
@@ -156,12 +161,15 @@
       gap: 4px;
       border-bottom: 1px solid var(--border);
       margin-bottom: 10px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x;
     }
 
     .tab-btn {
       font-size: 0.82rem;
       font-weight: 600;
-      min-height: 40px;
+      min-height: 44px;
       padding: 8px 12px;
       border: none;
       border-bottom: 2px solid transparent;
@@ -175,9 +183,6 @@
       transition: color 0.12s ease, border-color 0.12s ease;
     }
 
-    .tab-btn:hover {
-      color: var(--text);
-    }
 
     .tab-btn[aria-selected="true"] {
       border-bottom-color: var(--blue);
@@ -224,7 +229,7 @@
     .subtab-btn {
       font-size: 0.78rem;
       font-weight: 600;
-      min-height: 40px;
+      min-height: 44px;
       padding: 5px 11px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
@@ -250,9 +255,136 @@
       margin-bottom: 12px;
     }
 
+        @media (hover: hover) and (pointer: fine) {
+      .btn-ghost:hover:not(:disabled) {
+        background: var(--surface);
+        border-color: var(--blue);
+      }
+      .btn-primary:hover:not(:disabled) {
+        opacity: 0.9;
+      }
+      .tab-btn:hover {
+        color: var(--text);
+      }
+      .mcq-btn:hover:not(:disabled) {
+        border-color: var(--blue);
+        background: var(--blue-soft);
+      }
+      button.node-box.clickable:hover {
+        transform: translateY(-1px);
+        border-color: var(--blue);
+        background: var(--blue-soft);
+      }
+      .op-btn:hover:not(:disabled) {
+        border-color: var(--blue);
+        background: var(--blue-soft);
+      }
+    }
+
+    button:active:not(:disabled),
+    .btn-ghost:active:not(:disabled),
+    .btn-primary:active:not(:disabled),
+    .tab-btn:active,
+    .subtab-btn:active,
+    .mcq-btn:active:not(:disabled),
+    .op-btn:active:not(:disabled),
+    button.node-box.clickable:active {
+      transform: scale(0.97);
+      transition: transform 0.06s ease;
+    }
+
     @media (max-width: 680px) {
       .lesson-grid {
         grid-template-columns: 1fr;
+      }
+      .topbar {
+        gap: 8px;
+      }
+      .group-label {
+        min-width: 76px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 10px 8px;
+      }
+      .widget {
+        padding: 0 0 12px;
+      }
+      .title-group h1 {
+        font-size: 1.05rem;
+      }
+      .topbar {
+        margin-bottom: 8px;
+      }
+      .tabs {
+        flex-wrap: nowrap;
+        white-space: nowrap;
+        padding-bottom: 2px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .tab-btn {
+        padding: 6px 10px;
+        font-size: 0.78rem;
+        flex-shrink: 0;
+      }
+      .subtabs {
+        gap: 4px;
+      }
+      .subtab-btn {
+        font-size: 0.74rem;
+        padding: 4px 8px;
+      }
+      .code-card {
+        padding: 10px 10px;
+        font-size: 0.77rem;
+      }
+      .prompt-card {
+        padding: 10px 10px;
+        gap: 8px;
+      }
+      .question-text {
+        font-size: 0.86rem;
+      }
+      .action-guide {
+        font-size: 0.76rem;
+      }
+      .stage {
+        padding: 10px 8px;
+      }
+      .canvas-wrap {
+        min-height: 150px;
+        padding-top: 48px;
+        padding-bottom: 22px;
+      }
+      .nodes-row {
+        gap: 28px;
+        padding: 0 10px;
+      }
+      button.node-box {
+        min-width: 54px;
+        height: 48px;
+        font-size: 0.92rem;
+      }
+      .group-label {
+        width: 100%;
+        margin-bottom: 2px;
+      }
+      .op-group {
+        gap: 5px;
+      }
+      .feedback {
+        font-size: 0.8rem;
+      }
+      .feedback.ok, .feedback.warn, .feedback.err {
+        padding: 8px 10px;
+      }
+      .prompt-actions {
+        width: 100%;
+      }
+      .prompt-actions button {
+        flex: 1 1 auto;
       }
     }
 
@@ -266,6 +398,8 @@
       font-size: 0.81rem;
       line-height: 1.55;
       overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -396,7 +530,7 @@
     .mcq-btn {
       font-size: 0.8rem;
       font-weight: 600;
-      min-height: 40px;
+      min-height: 44px;
       padding: 6px 11px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
@@ -406,10 +540,6 @@
       transition: all 0.12s ease;
     }
 
-    .mcq-btn:hover:not(:disabled) {
-      border-color: var(--blue);
-      background: var(--blue-soft);
-    }
 
     .mcq-btn[aria-pressed="true"] {
       border-color: var(--blue);
@@ -477,6 +607,9 @@
       padding: 14px 16px;
       margin-bottom: 10px;
       overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x;
+      overscroll-behavior-x: contain;
     }
 
     .canvas-wrap {
@@ -547,11 +680,6 @@
       cursor: pointer;
     }
 
-    button.node-box.clickable:hover {
-      transform: translateY(-1px);
-      border-color: var(--blue);
-      background: var(--blue-soft);
-    }
 
     button.node-box.selected-node {
       border-style: solid;
@@ -776,7 +904,7 @@
     .op-btn {
       font-size: 0.8rem;
       font-weight: 600;
-      min-height: 40px;
+      min-height: 44px;
       padding: 6px 11px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
@@ -789,10 +917,6 @@
       transition: all 0.12s ease;
     }
 
-    .op-btn:hover:not(:disabled) {
-      border-color: var(--blue);
-      background: var(--blue-soft);
-    }
 
     .op-btn:disabled {
       opacity: 0.45;
@@ -1798,6 +1922,7 @@
       tipTag: document.getElementById('tip-tag'),
       tryMsg: document.getElementById('try-msg'),
       nextTipBtn: document.getElementById('next-tip-btn'),
+      stage: document.getElementById('stage'),
       canvasWrap: document.getElementById('canvas-wrap'),
       linksSvg: document.getElementById('links-svg'),
       ptrStatus: document.getElementById('ptr-status'),
@@ -2878,6 +3003,8 @@
     });
 
     el.insertBtn.addEventListener('mouseenter', () => showInsertPreview(true));
+    el.insertBtn.addEventListener('touchstart', () => showInsertPreview(true), { passive: true });
+    el.insertBtn.addEventListener('touchend', () => setTimeout(() => showInsertPreview(false), 800), { passive: true });
     el.insertBtn.addEventListener('mouseleave', () => showInsertPreview(false));
     el.insertBtn.addEventListener('focus', () => showInsertPreview(true));
     el.insertBtn.addEventListener('blur', () => showInsertPreview(false));
@@ -2896,8 +3023,16 @@
       renderAll();
     });
 
+    el.stage.addEventListener('scroll', () => {
+      requestAnimationFrame(layoutArrowsAndPointers);
+    }, { passive: true });
+
     window.addEventListener('resize', () => {
       requestAnimationFrame(layoutArrowsAndPointers);
+    });
+
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => requestAnimationFrame(layoutArrowsAndPointers), 100);
     });
 
     renderAll();
