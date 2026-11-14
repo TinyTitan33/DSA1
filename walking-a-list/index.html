@@ -1,0 +1,2906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Walking a Node List</title>
+  <style>
+    :root {
+      --bg: #faf7f2;
+      --surface: #f2ede4;
+      --surface-alt: #e8e1d5;
+      --card: #ffffff;
+      --border: #d4cbbd;
+      --border-soft: #e3dcd0;
+      --text: #1f1e1b;
+      --muted: #666055;
+      --blue: #185a4f;
+      --blue-soft: #ebf4f2;
+      --blue-border: #94bfb7;
+      --green: #26633a;
+      --green-soft: #eef6f0;
+      --green-border: #9ec9ab;
+      --red: #a12828;
+      --red-soft: #fdf1f1;
+      --red-border: #e5a8a8;
+      --amber: #9e4a1e;
+      --amber-soft: #fbf2ec;
+      --amber-border: #e2b89e;
+      --violet: #6b3861;
+      --violet-soft: #f6eff4;
+      --violet-border: #cfb0c9;
+      --radius: 6px;
+      --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 18px 16px;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    .widget {
+      max-width: 840px;
+      margin: 0 auto;
+      background: transparent;
+      padding: 4px 0 16px;
+    }
+
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .title-group h1 {
+      margin: 0;
+      font-family: var(--serif);
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text);
+    }
+
+    .title-group p {
+      display: none;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .score-pill {
+      font-family: var(--mono);
+      font-size: 0.76rem;
+      font-weight: 600;
+      padding: 4px 8px;
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      color: var(--muted);
+    }
+
+    button {
+      font-family: var(--font);
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--blue);
+      outline-offset: 2px;
+    }
+
+    .btn-ghost {
+      font-size: 0.8rem;
+      font-weight: 600;
+      min-height: 40px;
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease;
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--surface);
+      border-color: var(--blue);
+    }
+
+    .btn-ghost:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      font-size: 0.8rem;
+      font-weight: 600;
+      min-height: 40px;
+      padding: 6px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--blue);
+      background: var(--blue);
+      color: #ffffff;
+      cursor: pointer;
+      transition: opacity 0.12s ease;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    /* Stage Tabs: clean underline strip instead of pill boxes */
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+
+    .tab-btn {
+      font-size: 0.82rem;
+      font-weight: 600;
+      min-height: 40px;
+      padding: 8px 12px;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.12s ease, border-color 0.12s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+    }
+
+    .tab-btn[aria-selected="true"] {
+      border-bottom-color: var(--blue);
+      color: var(--blue);
+    }
+
+    .tab-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .tab-badge.mastered {
+      color: var(--green);
+    }
+
+    .tab-badge.partial {
+      color: var(--muted);
+    }
+
+    /* Stage Guide Row: quiet single-line caption, no box */
+    .goal-row {
+      padding: 0 2px;
+      margin-bottom: 10px;
+    }
+
+    .stage-goal {
+      font-size: 0.82rem;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    /* Sub-case selector inside Loop Stage */
+    .subtabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .subtab-btn {
+      font-size: 0.78rem;
+      font-weight: 600;
+      min-height: 40px;
+      padding: 5px 11px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .subtab-btn.active {
+      background: var(--blue-soft);
+      border-color: var(--blue-border);
+      color: var(--blue);
+    }
+
+    /* Workspace Split: Code + Prompt */
+    .lesson-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    @media (max-width: 680px) {
+      .lesson-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .code-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      padding: 12px 14px;
+      font-family: var(--mono);
+      font-size: 0.81rem;
+      line-height: 1.55;
+      overflow-x: auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .code-lines {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .code-line {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      border-left: 2px solid transparent;
+      white-space: pre;
+    }
+
+    .code-line.hl {
+      background: rgba(24, 90, 79, 0.11);
+      border-left-color: var(--blue);
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .code-line.crash {
+      background: rgba(161, 40, 40, 0.13);
+      border-left-color: var(--red);
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    .line-num {
+      color: #8c8579;
+      min-width: 14px;
+      user-select: none;
+    }
+
+    .line-arrow {
+      color: var(--blue);
+      min-width: 12px;
+      user-select: none;
+      font-weight: 700;
+    }
+
+    .code-line.crash .line-arrow {
+      color: var(--red);
+    }
+
+    .watch-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding-top: 6px;
+      border-top: 1px solid var(--border);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .watch-chip {
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    /* Prompt Card: clean white panel, no nested inner box */
+    .prompt-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: var(--radius);
+    }
+
+    .prompt-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .step-badge {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--blue);
+    }
+
+    .attempt-pill {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .attempt-pill.used {
+      color: var(--amber);
+    }
+
+    .question-text {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .action-guide {
+      font-size: 0.79rem;
+      line-height: 1.4;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .mcq-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .mcq-btn {
+      font-size: 0.8rem;
+      font-weight: 600;
+      min-height: 40px;
+      padding: 6px 11px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.12s ease;
+    }
+
+    .mcq-btn:hover:not(:disabled) {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .mcq-btn[aria-pressed="true"] {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #ffffff;
+    }
+
+    .mcq-btn:disabled {
+      opacity: 0.65;
+      cursor: default;
+    }
+
+    .mcq-btn.correct-choice {
+      border-color: var(--green);
+      background: var(--green-soft);
+      color: var(--green);
+      font-weight: 700;
+      opacity: 1;
+    }
+
+    .prompt-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Sandbox Try-This Bar */
+    .try-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 10px;
+    }
+
+    .try-left {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex: 1 1 360px;
+      font-size: 0.82rem;
+      color: var(--text);
+    }
+
+    .tip-tag {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--amber);
+      white-space: nowrap;
+    }
+
+    /* Node Stage */
+    .stage {
+      position: relative;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      overflow-x: auto;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      min-width: max-content;
+      min-height: 164px;
+      padding-top: 56px;
+      padding-bottom: 30px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .links-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .nodes-row {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 40px;
+      padding: 0 18px;
+      z-index: 2;
+    }
+
+    button.node-box {
+      position: relative;
+      min-width: 60px;
+      height: 50px;
+      padding: 0 10px;
+      margin: 0;
+      border-radius: var(--radius);
+      border: 1.5px solid #8c8478;
+      background: var(--bg);
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text);
+      user-select: none;
+      transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease;
+    }
+
+    button.node-box:disabled {
+      opacity: 1;
+      cursor: default;
+    }
+
+    button.node-box.eol {
+      border-style: dashed;
+      border-color: var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.8rem;
+    }
+
+    button.node-box.clickable {
+      border-color: var(--blue);
+      cursor: pointer;
+    }
+
+    button.node-box.clickable:hover {
+      transform: translateY(-1px);
+      border-color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    button.node-box.selected-node {
+      border-style: solid;
+      border-color: var(--blue);
+      background: var(--blue-soft);
+      box-shadow: 0 0 0 2px rgba(24, 90, 79, 0.22);
+    }
+
+    button.node-box.active-p {
+      border-style: solid;
+      border-color: var(--blue);
+      background: var(--blue-soft);
+      box-shadow: 0 0 0 2px rgba(24, 90, 79, 0.14);
+    }
+
+    button.node-box.active-q {
+      border-style: solid;
+      border-color: var(--violet);
+    }
+
+    button.node-box.active-r {
+      border-style: solid;
+      border-color: #5c574f;
+    }
+
+    button.node-box.correct-flash {
+      border-style: solid;
+      border-color: var(--green);
+      background: var(--green-soft);
+    }
+
+    button.node-box.wrong-flash {
+      border-color: var(--red);
+      background: var(--red-soft);
+      animation: shake 0.26s ease;
+    }
+
+    button.node-box.read-pulse {
+      box-shadow: 0 0 0 4px rgba(38, 99, 58, 0.24);
+      border-color: var(--green);
+    }
+
+    button.node-box.ghost {
+      border-style: dashed;
+      border-color: var(--amber-border);
+      background: var(--amber-soft);
+      color: var(--muted);
+      opacity: 0.65;
+    }
+
+    .ghost-label {
+      text-decoration: line-through;
+    }
+
+    .removed-badge {
+      position: absolute;
+      bottom: -9px;
+      font-family: var(--mono);
+      font-size: 0.6rem;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: var(--amber);
+      color: #ffffff;
+    }
+
+    .new-badge {
+      position: absolute;
+      bottom: -9px;
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: var(--green);
+      color: #ffffff;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
+
+    /* Floating Pointers */
+    .ptr {
+      position: absolute;
+      top: 6px;
+      left: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+      transform: translateX(-50%);
+      transition: left 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease;
+      z-index: 4;
+    }
+
+    .ptr-label {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 1px 7px;
+      border-radius: 4px;
+      background: var(--blue);
+      color: #ffffff;
+      margin-bottom: 1px;
+    }
+
+    .ptr-label.crash {
+      background: var(--red);
+    }
+
+    .ptr-r {
+      top: 8px;
+      z-index: 3;
+    }
+
+    .ptr-r .ptr-label {
+      background: #5c574f;
+      font-size: 0.71rem;
+    }
+
+    .ptr-q {
+      top: 8px;
+      z-index: 3;
+    }
+
+    .ptr-q .ptr-label {
+      background: var(--violet);
+      font-size: 0.71rem;
+    }
+
+    .ptr-status {
+      position: absolute;
+      top: 8px;
+      left: 12px;
+      font-family: var(--mono);
+      font-size: 0.74rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      color: var(--muted);
+      z-index: 4;
+    }
+
+    .ptr-status.invalid {
+      background: var(--amber-soft);
+      border-color: var(--amber-border);
+      color: var(--amber);
+    }
+
+    .ptr-status.crash {
+      background: var(--red-soft);
+      border-color: var(--red-border);
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    .insert-hint {
+      position: absolute;
+      top: 20px;
+      left: 0;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: var(--green);
+      font-family: var(--mono);
+      font-size: 0.73rem;
+      font-weight: 700;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.14s ease, left 0.14s ease;
+      z-index: 5;
+    }
+
+    .insert-hint.visible {
+      opacity: 1;
+    }
+
+    .sandbox-guide {
+      font-size: 0.8rem;
+      line-height: 1.4;
+      color: var(--muted);
+      padding: 2px 0 4px;
+    }
+
+    .sandbox-guide.warn {
+      color: var(--amber);
+      font-weight: 600;
+    }
+
+    /* Sandbox Controls */
+    .sandbox-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+      margin-bottom: 10px;
+    }
+
+    .op-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .group-label {
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--muted);
+      min-width: 88px;
+    }
+
+    .op-btn {
+      font-size: 0.8rem;
+      font-weight: 600;
+      min-height: 40px;
+      padding: 6px 11px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.12s ease;
+    }
+
+    .op-btn:hover:not(:disabled) {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .op-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .op-btn.boundary {
+      border-style: dashed;
+      border-color: var(--amber-border);
+      background: var(--amber-soft);
+      color: var(--muted);
+    }
+
+    .op-btn.ready-highlight {
+      border-color: var(--green);
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .op-code {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    /* Feedback + Rule Box: subtle in neutral state, clear callout when active */
+    .feedback {
+      font-size: 0.83rem;
+      padding: 6px 4px;
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 36px;
+    }
+
+    .feedback.ok {
+      padding: 9px 12px;
+      border-color: var(--green-border);
+      border-left: 3px solid var(--green);
+      background: var(--green-soft);
+      color: var(--text);
+    }
+
+    .feedback.warn {
+      padding: 9px 12px;
+      border-color: var(--amber-border);
+      border-left: 3px solid var(--amber);
+      background: var(--amber-soft);
+      color: var(--text);
+    }
+
+    .feedback.err {
+      padding: 9px 12px;
+      border-color: var(--red-border);
+      border-left: 3px solid var(--red);
+      background: var(--red-soft);
+      color: var(--text);
+    }
+
+    .feedback-content {
+      flex: 1 1 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .rule-callout {
+      font-size: 0.8rem;
+      color: var(--muted);
+      padding-top: 2px;
+    }
+
+    /* Sandbox History Trail */
+    .trail {
+      margin-top: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.74rem;
+      color: var(--muted);
+    }
+
+    .trail-chip {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="widget">
+    <div class="topbar">
+      <div class="title-group">
+        <h1>Walking a Node List</h1>
+        <p>Predict pointer positions, trace <code>while</code> loops, and avoid common insert/remove traps.</p>
+      </div>
+      <div class="top-actions">
+        <span id="score-pill" class="score-pill" aria-label="Formative practice score (first-try before reveal or reset)" title="Formative self-check: tracks first-try answers before reveal or reset">First-try: 0/0</span>
+        <button id="reset-btn" class="btn-ghost" type="button" title="Clear this stage's progress to practice again from scratch">Reset stage</button>
+      </div>
+    </div>
+
+    <div id="tabs" class="tabs" role="tablist" aria-label="Learning stages"></div>
+
+    <div class="goal-row">
+      <div id="stage-goal" class="stage-goal"></div>
+    </div>
+
+    <div id="subtabs" class="subtabs hidden" role="group" aria-label="Loop variants"></div>
+
+    <div id="lesson-grid" class="lesson-grid">
+      <div id="code-card" class="code-card">
+        <div id="code-lines" class="code-lines"></div>
+        <div id="watch-bar" class="watch-bar hidden"></div>
+      </div>
+
+      <div id="prompt-card" class="prompt-card">
+        <div>
+          <div class="prompt-meta">
+            <span id="step-badge" class="step-badge"></span>
+            <span id="attempt-pill" class="attempt-pill">1st attempt eligible</span>
+          </div>
+          <div id="question-text" class="question-text" style="margin-top: 8px;"></div>
+          <div id="action-guide" class="action-guide"></div>
+        </div>
+        <div id="mcq-row" class="mcq-row hidden"></div>
+        <div class="prompt-actions">
+          <button id="check-btn" class="btn-primary hidden" type="button">Check prediction</button>
+          <button id="hint-btn" class="btn-ghost" type="button">Hint</button>
+          <button id="reveal-btn" class="btn-ghost" type="button">Reveal answer</button>
+          <button id="next-step-btn" class="btn-primary hidden" type="button">Next step →</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="try-bar" class="try-bar hidden">
+      <div class="try-left">
+        <span id="tip-tag" class="tip-tag">Try this</span>
+        <span id="try-msg"></span>
+      </div>
+      <button id="next-tip-btn" class="btn-ghost" type="button">Next idea →</button>
+    </div>
+
+    <div id="stage" class="stage">
+      <div id="canvas-wrap" class="canvas-wrap">
+        <svg id="links-svg" class="links-svg" aria-hidden="true"></svg>
+        <div id="ptr-status" class="ptr-status hidden"></div>
+
+        <div id="ptr-p" class="ptr" style="opacity: 0;">
+          <span class="ptr-label">p</span>
+          <svg width="14" height="12" viewBox="0 0 14 12" style="color: #185a4f;">
+            <path d="M7 0 L7 9 M3 6 L7 10.5 L11 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+
+        <div id="ptr-q" class="ptr ptr-q" style="opacity: 0;">
+          <span class="ptr-label">q</span>
+          <svg width="14" height="12" viewBox="0 0 14 12" style="color: #6b3861;">
+            <path d="M7 0 L7 9 M3 6 L7 10.5 L11 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+
+        <div id="ptr-r" class="ptr ptr-r" style="opacity: 0;">
+          <span class="ptr-label">r</span>
+          <svg width="14" height="12" viewBox="0 0 14 12" style="color: #5c574f;">
+            <path d="M7 0 L7 9 M3 6 L7 10.5 L11 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+
+        <div id="insert-hint" class="insert-hint">
+          <span>+E</span>
+          <svg width="12" height="14" viewBox="0 0 12 14" style="color: #26633a;">
+            <path d="M6 0 L6 11 M2 8 L6 12.5 L10 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+
+        <div id="nodes-row" class="nodes-row"></div>
+      </div>
+    </div>
+
+    <div id="sandbox-panel" class="sandbox-panel hidden">
+      <div id="sandbox-guide" class="sandbox-guide"></div>
+      <div class="op-group">
+        <span class="group-label">Move p:</span>
+        <button type="button" class="op-btn" data-op="first">First <span class="op-code">L.first()</span></button>
+        <button type="button" class="op-btn" data-op="prev">Back <span class="op-code">p.previous()</span></button>
+        <button type="button" class="op-btn" data-op="next">Forward <span class="op-code">p.next()</span></button>
+        <button type="button" class="op-btn" data-op="last">Last <span class="op-code">L.last()</span></button>
+        <button type="button" class="op-btn" data-op="read">Read <span class="op-code">p.getElement()</span></button>
+      </div>
+      <div class="op-group">
+        <span class="group-label">Insert / Undo:</span>
+        <button type="button" class="op-btn" id="insert-btn" data-op="insert">Insert <span class="op-code">L.insert(p, E)</span></button>
+        <button type="button" class="btn-ghost" id="undo-btn">Undo last step</button>
+      </div>
+      <div class="op-group">
+        <span class="group-label">Safe remove:</span>
+        <button type="button" class="op-btn" data-op="save">1. Save next <span class="op-code">r = p.next()</span></button>
+        <button type="button" class="op-btn" data-op="remove">2. Remove <span class="op-code">L.remove(p)</span></button>
+        <button type="button" class="op-btn" id="restore-btn" data-op="restore">3. Restore <span class="op-code">p = r</span></button>
+      </div>
+    </div>
+
+    <div id="feedback" class="feedback" role="status" aria-live="polite">
+      <div class="feedback-content">
+        <span id="feedback-msg"></span>
+        <div id="rule-callout" class="rule-callout hidden"></div>
+      </div>
+      <button id="next-stage-btn" class="btn-primary hidden" type="button"></button>
+    </div>
+
+    <div id="trail" class="trail hidden"></div>
+  </div>
+
+  <script>
+    const STAGE_DEFS = [
+      {
+        id: 'navigate',
+        title: '1. Navigate',
+        goal: 'Trace the highlighted statements from top to bottom, then click the node (or L.EOL) where p lands.',
+        nextStageId: 'loops',
+        nextStageTitle: '2. While Loops',
+        cases: [
+          {
+            id: 'nav',
+            title: 'Navigation',
+            initialNodes: [
+              { id: 'n1', label: 'A' },
+              { id: 'n2', label: 'B' },
+              { id: 'n3', label: 'C' },
+              { id: 'n4', label: 'D' }
+            ],
+            initialP: 'UNSET',
+            initialQ: null,
+            initialR: null,
+            steps: [
+              {
+                codeLines: ['p = L.first();', 'p = p.next();'],
+                hl: [0, 1],
+                kind: 'node',
+                targetNode: 'n2',
+                prompt: 'Where does p point after both statements finish?',
+                setup: s => { s.p = 'UNSET'; s.pBadge = 'p = not set yet'; },
+                apply: s => { s.p = 'n2'; s.pBadge = ''; },
+                hints: [
+                  clicked => clicked === 'n1'
+                    ? 'A is where line 1 (L.first()) lands — now trace line 2 (p = p.next()) as well.'
+                    : 'Trace both lines in order: L.first() puts p at the head, then p.next() steps one link right.',
+                  () => 'Hint 2: After line 1, p points to A. Follow one forward arrow from A.',
+                  () => 'Final hint: One step right from A lands on B.'
+                ],
+                rule: 'L.first() starts at the first element node, and p.next() advances one link forward.'
+              },
+              {
+                codeLines: ['p = L.last();', 'p = p.previous();'],
+                hl: [0, 1],
+                kind: 'node',
+                targetNode: 'n3',
+                prompt: 'Starting from B, both statements run in order. Click the box where p points at the end:',
+                setup: s => { s.p = 'n2'; s.pBadge = ''; },
+                apply: s => { s.p = 'n3'; s.pBadge = ''; },
+                hints: [
+                  clicked => clicked === 'n4'
+                    ? 'D is where L.last() jumps before line 2 (p = p.previous()) runs.'
+                    : clicked === 'EOL'
+                    ? 'Remember: L.last() returns the last element node, NOT L.EOL!'
+                    : 'Trace line 1 (L.last()) first, then step backward once along the bottom arrow.',
+                  () => 'Hint 2: L.last() sets p to D, then p.previous() moves one link left.',
+                  () => 'Final hint: One backward step from D lands on C.'
+                ],
+                rule: 'L.last() skips straight to the final data node (D), and p.previous() steps backward.'
+              },
+              {
+                codeLines: ['p = p.previous();', 'p = p.previous();'],
+                hl: [0, 1],
+                kind: 'node',
+                targetNode: 'n1',
+                prompt: 'Starting from C, where does p end up after both backward steps?',
+                setup: s => { s.p = 'n3'; s.pBadge = ''; },
+                apply: s => { s.p = 'n1'; s.pBadge = ''; },
+                hints: [
+                  clicked => clicked === 'n2'
+                    ? 'B is after the first p.previous() — trace the second line too!'
+                    : 'Follow the backward arrow twice starting from C.',
+                  () => 'Hint 2: C -> B is one previous(); take one more backward link from B.',
+                  () => 'Final hint: Two steps left from C lands on A.'
+                ],
+                rule: 'Calling p.previous() repeatedly walks leftward node by node (calling previous() on first() would be undefined).'
+              },
+              {
+                codeLines: ['p = L.last();', 'p = p.next();'],
+                hl: [0, 1],
+                kind: 'node',
+                targetNode: 'EOL',
+                prompt: 'Where does p land after L.last() followed by p.next()?',
+                setup: s => { s.p = 'n1'; s.pBadge = ''; },
+                apply: s => { s.p = 'EOL'; s.pBadge = ''; },
+                hints: [
+                  clicked => clicked === 'n4'
+                    ? 'D is L.last(), before line 2 executes p = p.next().'
+                    : 'Step once right past the final element node D.',
+                  () => 'Hint 2: Stepping one link past the last element enters the end-of-list marker.',
+                  () => 'Final hint: D.next() returns L.EOL.'
+                ],
+                rule: 'On the last data node, p.next() returns L.EOL (End Of List) cleanly without crashing.'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'loops',
+        title: '2. While Loops',
+        goal: 'Trace each loop variant: select the running value and click where p points after each step.',
+        nextStageId: 'insert',
+        nextStageTitle: '3. Insert @ p',
+        cases: [
+          {
+            id: 'sum',
+            title: '1. Full: p != L.EOL',
+            initialNodes: [
+              { id: 'n1', label: '3' },
+              { id: 'n2', label: '5' },
+              { id: 'n3', label: '2' }
+            ],
+            initialP: 'UNSET',
+            initialQ: null,
+            initialR: null,
+            initialSum: 0,
+            initialIters: 0,
+            steps: [
+              {
+                codeLines: [
+                  'int sum = 0;',
+                  'p = L.first();',
+                  'while (p != L.EOL) {',
+                  '    sum = sum + p.getElement();',
+                  '    p = p.next();',
+                  '}'
+                ],
+                hl: [1],
+                kind: 'node',
+                targetNode: 'n1',
+                prompt: 'Line 2 initializes p before the loop. Click where p points:',
+                setup: s => { s.p = 'UNSET'; s.pBadge = 'p = not set yet'; },
+                apply: s => { s.p = 'n1'; s.pBadge = ''; },
+                hints: [
+                  () => 'L.first() sets p directly onto the first element node.',
+                  () => 'Hint 2: The first node holds 3.',
+                  () => 'Final hint: Click node 3.'
+                ],
+                rule: 'Every traversal loop initializes p with L.first() before testing while (p != L.EOL).'
+              },
+              {
+                codeLines: [
+                  'int sum = 0;',
+                  'p = L.first();',
+                  'while (p != L.EOL) {',
+                  '    sum = sum + p.getElement();',
+                  '    p = p.next();',
+                  '}'
+                ],
+                hl: [2, 3, 4],
+                kind: 'dual',
+                choices: ['0', '3', '5', '8'],
+                valLabel: 'Pick sum after line 4:',
+                targetVal: '3',
+                targetNode: 'n2',
+                prompt: 'Iteration 1 runs on 3: choose updated sum AND click new p after line 5.',
+                setup: s => {},
+                apply: s => { s.sum = 3; s.iters = 1; s.p = 'n2'; },
+                hints: [
+                  () => 'p currently points to 3, so sum becomes 0 + 3, then p = p.next() advances one link.',
+                  () => 'Hint 2: sum = 3, and following the link from 3 moves p to 5.',
+                  () => 'Final hint: Select 3 for sum and click node 5.'
+                ],
+                rule: 'Read the current node with p.getElement() before advancing p = p.next() at the end of the loop body.'
+              },
+              {
+                codeLines: [
+                  'int sum = 0;',
+                  'p = L.first();',
+                  'while (p != L.EOL) {',
+                  '    sum = sum + p.getElement();',
+                  '    p = p.next();',
+                  '}'
+                ],
+                hl: [2, 3, 4],
+                kind: 'dual',
+                choices: ['5', '8', '10', '3'],
+                valLabel: 'Pick sum after line 4:',
+                targetVal: '8',
+                targetNode: 'n3',
+                prompt: 'Iteration 2 runs on 5: choose updated sum AND click new p after line 5.',
+                setup: s => {},
+                apply: s => { s.sum = 8; s.iters = 2; s.p = 'n3'; },
+                hints: [
+                  () => 'Add the element in p (5) to the previous sum (3), then step one link right.',
+                  () => 'Hint 2: sum = 3 + 5 = 8, and 5.next() moves p onto 2.',
+                  () => 'Final hint: Select 8 for sum and click node 2.'
+                ],
+                rule: 'Each iteration adds one element to sum and steps p one node closer to L.EOL.'
+              },
+              {
+                codeLines: [
+                  'int sum = 0;',
+                  'p = L.first();',
+                  'while (p != L.EOL) {',
+                  '    sum = sum + p.getElement();',
+                  '    p = p.next();',
+                  '}'
+                ],
+                hl: [2, 3, 4],
+                kind: 'dual',
+                choices: ['2', '8', '10', '12'],
+                valLabel: 'Pick sum after line 4:',
+                targetVal: '10',
+                targetNode: 'EOL',
+                prompt: 'Iteration 3 runs on 2: choose updated sum AND click new p after line 5.',
+                setup: s => {},
+                apply: s => { s.sum = 10; s.iters = 3; s.p = 'EOL'; },
+                hints: [
+                  () => 'p is on the last element (2). Add 2 to sum (8), then advance past 2.',
+                  () => 'Hint 2: sum = 8 + 2 = 10, and stepping past the last node lands on L.EOL.',
+                  () => 'Final hint: Select 10 for sum and click L.EOL.'
+                ],
+                rule: 'The final element IS summed before p = p.next() steps onto L.EOL.'
+              },
+              {
+                codeLines: [
+                  'int sum = 0;',
+                  'p = L.first();',
+                  'while (p != L.EOL) {',
+                  '    sum = sum + p.getElement();',
+                  '    p = p.next();',
+                  '}'
+                ],
+                hl: [2],
+                kind: 'mcq',
+                choices: ['0 times', '2 times', '3 times', '4 times'],
+                targetVal: '3 times',
+                prompt: 'Line 3 checks p != L.EOL and stops. How many times did the loop body run?',
+                setup: s => {},
+                apply: s => {},
+                hints: [
+                  () => 'Count how many data nodes existed — the body ran once per node before hitting L.EOL.',
+                  () => 'Hint 2: Nodes 3, 5, and 2 each ran the body once; at L.EOL the check failed immediately.',
+                  () => 'Final hint: 3 data nodes -> 3 times.'
+                ],
+                rule: 'For a list of n elements, while (p != L.EOL) executes the loop body exact n times (final sum = 10).'
+              }
+            ]
+          },
+          {
+            id: 'skipLast',
+            title: '2. p.next() != L.EOL Bug',
+            initialNodes: [
+              { id: 'n1', label: '3' },
+              { id: 'n2', label: '5' },
+              { id: 'n3', label: '2' }
+            ],
+            initialP: 'n1',
+            initialQ: null,
+            initialR: null,
+            initialSum: 0,
+            initialIters: 0,
+            steps: [
+              {
+                codeLines: [
+                  'int sum = 0;',
+                  'p = L.first();',
+                  'while (p.next() != L.EOL) {',
+                  '    sum = sum + p.getElement();',
+                  '    p = p.next();',
+                  '}'
+                ],
+                hl: [2, 3, 4],
+                kind: 'dual',
+                choices: ['5', '8', '10', '0'],
+                valLabel: 'sum after 2 iterations:',
+                targetVal: '8',
+                targetNode: 'n3',
+                prompt: 'Line 3 changed to while (p.next() != L.EOL). After 2 iterations from 3, pick sum and p:',
+                setup: s => {},
+                apply: s => { s.sum = 8; s.iters = 2; s.p = 'n3'; },
+                hints: [
+                  () => 'In iteration 1 (p at 3), 3.next() is 5 != EOL so sum += 3 and p -> 5. Trace iteration 2 similarly.',
+                  () => 'Hint 2: Iteration 2 adds 5 (sum = 8) and moves p -> 2.',
+                  () => 'Final hint: Select 8 and click node 2.'
+                ],
+                rule: 'So far 3 and 5 passed p.next() != L.EOL. Now watch what happens when p stands on the last element (2)!'
+              },
+              {
+                codeLines: [
+                  'int sum = 0;',
+                  'p = L.first();',
+                  'while (p.next() != L.EOL) {',
+                  '    sum = sum + p.getElement();',
+                  '    p = p.next();',
+                  '}'
+                ],
+                hl: [2],
+                kind: 'mcq',
+                choices: [
+                  'Stops cleanly (sum = 8, 2 runs)',
+                  'Runs body once more (sum = 10, 3 runs)',
+                  'Stops cleanly (sum = 8, 3 runs)',
+                  'Throws error on node 2'
+                ],
+                targetVal: 'Stops cleanly (sum = 8, 2 runs)',
+                prompt: 'Now p points to node 2. Line 3 tests p.next() != L.EOL — what happens?',
+                setup: s => {},
+                apply: s => {},
+                hints: [
+                  () => 'Look at what 2.next() returns right now: node 2 is the last node, so 2.next() IS L.EOL!',
+                  () => 'Hint 2: Because 2.next() != L.EOL is FALSE, the body does NOT run on 2.',
+                  () => 'Final hint: Loop stops with sum = 8 after 2 runs (node 2 was skipped).'
+                ],
+                rule: 'Classic off-by-one bug: while (p.next() != L.EOL) skips the last element — AND fails with an error on an empty list!'
+              }
+            ]
+          },
+          {
+            id: 'empty',
+            title: '3. Empty List',
+            initialNodes: [],
+            initialP: 'UNSET',
+            initialQ: null,
+            initialR: null,
+            initialSum: 0,
+            initialIters: 0,
+            steps: [
+              {
+                codeLines: [
+                  'int sum = 0;',
+                  'p = L.first();',
+                  'while (p != L.EOL) {',
+                  '    sum = sum + p.getElement();',
+                  '    p = p.next();',
+                  '}'
+                ],
+                hl: [1],
+                kind: 'mcq',
+                valLabel: 'p = L.first() returns:',
+                choices: ['L.EOL', 'Throws an error', 'Remains unset', 'Creates a placeholder node'],
+                targetVal: 'L.EOL',
+                prompt: 'List L is empty (0 elements). What does line 2 (p = L.first()) return?',
+                setup: s => { s.p = 'UNSET'; s.pBadge = 'p = not set yet'; },
+                apply: s => { s.p = 'EOL'; s.pBadge = ''; },
+                hints: [
+                  () => 'In this linked list, L.first() still returns a valid list position (L.EOL) on an empty list instead of crashing.',
+                  () => 'Final hint: On an empty list, L.first() returns L.EOL.'
+                ],
+                rule: 'In this linked list, L.first() and L.last() both return L.EOL on an empty list.'
+              },
+              {
+                codeLines: [
+                  'int sum = 0;',
+                  'p = L.first();',
+                  'while (p != L.EOL) {',
+                  '    sum = sum + p.getElement();',
+                  '    p = p.next();',
+                  '}'
+                ],
+                hl: [2],
+                kind: 'mcq',
+                choices: ['0 times, sum = 0', '1 time, sum = 0', '0 times, throws error', '1 time, throws error'],
+                targetVal: '0 times, sum = 0',
+                prompt: 'Line 3 checks while (p != L.EOL) on this empty list. What is the result?',
+                setup: s => {},
+                apply: s => {},
+                hints: [
+                  () => 'Evaluate p != L.EOL when p already equals L.EOL — the condition fails before entering the loop.',
+                  () => 'Final hint: 0 iterations and sum stays 0 with no error.'
+                ],
+                rule: 'while (p != L.EOL) handles an empty list cleanly (0 iterations, sum = 0). By contrast, while (p.next() != L.EOL) calls next() on L.EOL and crashes!'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'insert',
+        title: '3. Insert @ p',
+        goal: 'The new node is already inserted and p is hidden (?). Click which node p points to after L.insert(p, x).',
+        nextStageId: 'remove',
+        nextStageTitle: '4. Remove & Loops',
+        cases: [
+          {
+            id: 'ins',
+            title: 'Insert behavior',
+            initialNodes: [
+              { id: 'n1', label: 'A' },
+              { id: 'n2', label: 'B' },
+              { id: 'n3', label: 'C' }
+            ],
+            initialP: 'n2',
+            initialQ: null,
+            initialR: null,
+            steps: [
+              {
+                codeLines: ['// Before: p pointed to B', 'L.insert(p, "X");'],
+                hl: [1],
+                kind: 'node',
+                targetNode: 'n2',
+                prompt: 'Node "X" was just inserted while p pointed to B. Click which node p points to NOW:',
+                setup: s => {
+                  s.nodes = [
+                    { id: 'n1', label: 'A' },
+                    { id: 'nx', label: 'X', isNew: true },
+                    { id: 'n2', label: 'B' },
+                    { id: 'n3', label: 'C' }
+                  ];
+                  s.p = 'HIDDEN';
+                  s.pBadge = 'p = ? (click below)';
+                },
+                apply: s => { s.p = 'n2'; s.pBadge = ''; },
+                hints: [
+                  clicked => clicked === 'nx'
+                    ? 'Common misconception! L.insert(p, "X") links "X" into the list before p, without changing variable p itself.'
+                    : 'Notice "X" appeared in front of B. Did L.insert reassign variable p?',
+                  () => 'Hint 2: No p = ... assignment ran, so p still holds the exact node reference it pointed to beforehand.',
+                  () => 'Final hint: p started on B and stays on B.'
+                ],
+                rule: 'Rule discovered: L.insert(p, x) inserts x BEFORE p, while p remains attached to its original node.'
+              },
+              {
+                codeLines: ['// Starting from B:', 'p = p.next();', 'p = p.next();'],
+                hl: [1, 2],
+                kind: 'node',
+                targetNode: 'EOL',
+                prompt: 'Starting from B, both lines run. Click where p points afterward:',
+                setup: s => {
+                  s.nodes.forEach(n => { n.isNew = false; });
+                  s.p = 'n2';
+                  s.pBadge = '';
+                },
+                apply: s => { s.p = 'EOL'; s.pBadge = ''; },
+                hints: [
+                  clicked => clicked === 'n3'
+                    ? 'C is one step forward (line 2) — trace line 3 (p = p.next()) from C too!'
+                    : 'Follow two forward links starting from B.',
+                  () => 'Hint 2: B -> C is one step; stepping forward from the last node enters L.EOL.',
+                  () => 'Final hint: Click L.EOL.'
+                ],
+                rule: 'Two steps forward from B passes C onto L.EOL.'
+              },
+              {
+                codeLines: ['// Before: p pointed to L.EOL', 'L.insert(p, "Y");'],
+                hl: [1],
+                kind: 'node',
+                targetNode: 'EOL',
+                prompt: 'L.insert(p, "Y") ran while p pointed to L.EOL. Click what p points to NOW:',
+                setup: s => {
+                  s.nodes.push({ id: 'ny', label: 'Y', isNew: true });
+                  s.p = 'HIDDEN';
+                  s.pBadge = 'p = ? (click below)';
+                },
+                apply: s => { s.p = 'EOL'; s.pBadge = ''; },
+                hints: [
+                  clicked => clicked === 'ny'
+                    ? 'Not Y! Inserting at L.EOL appends "Y" just before L.EOL — variable p still holds L.EOL!'
+                    : 'Think of the rule you found in Step 1: does insert move variable p?',
+                  () => 'Final hint: Click L.EOL — p remains on L.EOL while "Y" becomes the new last node.'
+                ],
+                rule: 'L.insert(L.EOL, x) appends x to the end of the list, and p stays on L.EOL.'
+              },
+              {
+                codeLines: ['p = L.last();', 'L.insert(p, "Z");'],
+                hl: [0, 1],
+                kind: 'node',
+                targetNode: 'ny',
+                prompt: 'Both statements just executed. Click which node p points to now:',
+                setup: s => {
+                  s.nodes.forEach(n => { n.isNew = false; });
+                  const yIdx = s.nodes.findIndex(n => n.id === 'ny');
+                  s.nodes.splice(yIdx, 0, { id: 'nz', label: 'Z', isNew: true });
+                  s.p = 'HIDDEN';
+                  s.pBadge = 'p = ? (click below)';
+                },
+                apply: s => { s.p = 'ny'; s.pBadge = ''; },
+                hints: [
+                  clicked => clicked === 'nz'
+                    ? 'L.last() moved p onto Y first, then "Z" was inserted BEFORE Y while p stayed on its node.'
+                    : clicked === 'EOL'
+                    ? 'L.last() selects the last data element (Y), not L.EOL!'
+                    : 'Trace line 1 (which node is L.last()?), then apply insert BEFORE p.',
+                  () => 'Hint 2: L.last() picked Y; L.insert put Z before Y without moving p off Y.',
+                  () => 'Final hint: Click Y.'
+                ],
+                rule: 'Combining rules: L.last() targets Y (the final element), L.insert places Z before Y, and p stays on Y.'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'remove',
+        title: '4. Remove & Loops',
+        goal: 'Steps 1–2: relinking after L.remove(p). Steps 3–4: loop skip and crash bugs. Steps 5–6: the else fix.',
+        nextStageId: 'sandbox',
+        nextStageTitle: '5. Sandbox',
+        cases: [
+          {
+            id: 'rem',
+            title: 'Remove & Loop Bug',
+            initialNodes: [
+              { id: 'n1', label: 'A' },
+              { id: 'n2', label: 'B' },
+              { id: 'n3', label: 'C' },
+              { id: 'n4', label: 'D' }
+            ],
+            initialP: 'INVALID',
+            initialQ: 'n1',
+            initialR: null,
+            steps: [
+              {
+                codeLines: [
+                  '// Before: q -> A, p -> B',
+                  'L.remove(p);',
+                  '// What does q.next() return?'
+                ],
+                hl: [1],
+                kind: 'node',
+                targetNode: 'n3',
+                prompt: 'B was just removed with L.remove(p) (p is now invalid; B is shown ghosted). Click what q.next() returns now:',
+                setup: s => {
+                  s.nodes = [
+                    { id: 'n1', label: 'A' },
+                    { id: 'ghost_n2', label: 'B', ghost: true },
+                    { id: 'n3', label: 'C' },
+                    { id: 'n4', label: 'D' }
+                  ];
+                  s.q = 'n1';
+                  s.p = 'INVALID';
+                  s.pBadge = 'p = INVALID (node B removed)';
+                },
+                apply: s => {},
+                hints: [
+                  () => 'Look at the relinked arrows bypassing the ghosted B box: A stays valid (pointed to by q), and B is detached. Which node follows A?',
+                  () => 'Final hint: A now links directly forward to C — click C.'
+                ],
+                rule: 'Rule discovered: L.remove(p) relinks the neighbors (A <-> C), while the removed node itself is detached — so p becomes unusable (p.next() is undefined!).'
+              },
+              {
+                codeLines: [
+                  '// Before: [A, B, C, D], p -> C',
+                  'r = p.next();',
+                  'L.remove(p);',
+                  'p = r;'
+                ],
+                hl: [1, 2, 3],
+                kind: 'node',
+                targetNode: 'n4',
+                prompt: 'All three lines just ran starting with p -> C. Click where p points now:',
+                setup: s => {
+                  s.nodes = [
+                    { id: 'n1', label: 'A' },
+                    { id: 'n2', label: 'B' },
+                    { id: 'ghost_n3', label: 'C', ghost: true },
+                    { id: 'n4', label: 'D' }
+                  ];
+                  s.q = null;
+                  s.r = null;
+                  s.p = 'HIDDEN';
+                  s.pBadge = 'p = ? (click below)';
+                },
+                apply: s => { s.p = 'n4'; s.pBadge = ''; },
+                hints: [
+                  () => 'Line 1 saved C\'s successor into r BEFORE line 2 deleted C. What node originally followed C?',
+                  () => 'Hint 2: r saved D, line 2 deleted C (linking B <-> D), and line 3 restored p = r.',
+                  () => 'Final hint: Click D.'
+                ],
+                rule: 'Safe-remove pattern: (1) r = p.next() before deletion, (2) L.remove(p), (3) p = r restores traversal to D.'
+              },
+              {
+                codeLines: [
+                  'while (p != L.EOL) {',
+                  '    if (p.getElement() % 2 == 0) {',
+                  '        r = p.next();',
+                  '        L.remove(p);',
+                  '        p = r;',
+                  '    }',
+                  '    p = p.next();',
+                  '}'
+                ],
+                hl: [1, 2, 3, 4, 6],
+                kind: 'node',
+                targetNode: 'm4',
+                prompt: 'List was [3, 4, 6, 7] with p -> 4. Lines 2–7 all ran. Click where p lands before the next check:',
+                setup: s => {
+                  s.nodes = [
+                    { id: 'm1', label: '3' },
+                    { id: 'ghost_m2', label: '4', ghost: true },
+                    { id: 'm3', label: '6' },
+                    { id: 'm4', label: '7' }
+                  ];
+                  s.q = null;
+                  s.r = null;
+                  s.p = 'HIDDEN';
+                  s.pBadge = 'p = ? (click below)';
+                },
+                apply: s => { s.p = 'm4'; s.pBadge = ''; },
+                hints: [
+                  clicked => clicked === 'm3'
+                    ? 'That is the trap! Line 5 (p = r) already landed on 6 — and THEN line 7 ran p = p.next() again! Where did line 7 go?'
+                    : 'Trace BOTH moves after deleting 4: first p = r lands on 4\'s successor, then line 7 executes before the next loop check.',
+                  () => 'Hint 2: r was 6. So p = r set p -> 6, and then line 7 ran 6.next().',
+                  () => 'Final hint: 6 was skipped! p jumped onto 7.'
+                ],
+                rule: 'Skip bug: After p = r, falling through to p = p.next() advances TWICE and skips adjacent element 6!'
+              },
+              {
+                codeLines: [
+                  'while (p != L.EOL) {',
+                  '    if (p.getElement() % 2 == 0) {',
+                  '        r = p.next();',
+                  '        L.remove(p);',
+                  '        p = r;',
+                  '    }',
+                  '    p = p.next();',
+                  '}'
+                ],
+                hl: [1, 2, 3, 4, 6],
+                crashLines: [6],
+                kind: 'mcq',
+                valLabel: 'What happens at line 7?',
+                choices: [
+                  'Stops cleanly at L.EOL',
+                  'Crashes / undefined (p is L.EOL!)',
+                  'Loops back to node 3',
+                  'Keeps 4 and moves to L.EOL'
+                ],
+                targetVal: 'Crashes / undefined (p is L.EOL!)',
+                prompt: 'Now try [3, 4] with p -> 4 (the last node). Lines 2–7 all run after removing 4 — what happens at line 7?',
+                setup: s => {
+                  s.nodes = [
+                    { id: 'm1', label: '3' },
+                    { id: 'ghost_m2', label: '4', ghost: true }
+                  ];
+                  s.q = null;
+                  s.r = null;
+                  s.p = 'HIDDEN';
+                  s.pCrash = false;
+                  s.pBadge = 'p = ? after line 5';
+                },
+                apply: s => {
+                  s.p = 'EOL';
+                  s.pCrash = true;
+                  s.pBadge = 'CRASH at line 7: p = L.EOL -> p.next() is undefined!';
+                },
+                hints: [
+                  () => 'When p pointed to the last element (4), line 3 saved r = 4.next(). What was after 4?',
+                  () => 'Hint 2: p = r sets p = L.EOL, and then line 7 still calls p.next() on L.EOL.',
+                  () => 'Final hint: Calling p.next() on L.EOL is undefined and crashes!'
+                ],
+                rule: 'Worse symptom! Removing the last node makes p = r equal L.EOL, so an unconditional p = p.next() calls L.EOL.next() and crashes.'
+              },
+              {
+                codeLines: [
+                  'while (p != L.EOL) {',
+                  '    if (p.getElement() % 2 == 0) {',
+                  '        r = p.next();',
+                  '        L.remove(p);',
+                  '        p = r;',
+                  '    } else {',
+                  '        p = p.next();',
+                  '    }',
+                  '}'
+                ],
+                hl: [1, 2, 3, 4],
+                kind: 'node',
+                targetNode: 'm3',
+                prompt: 'Fixed with else! List was [3, 4, 6, 7] with p -> 4. After removing 4, where does p point next?',
+                setup: s => {
+                  s.nodes = [
+                    { id: 'm1', label: '3' },
+                    { id: 'ghost_m2', label: '4', ghost: true },
+                    { id: 'm3', label: '6' },
+                    { id: 'm4', label: '7' }
+                  ];
+                  s.p = 'HIDDEN';
+                  s.pCrash = false;
+                  s.pBadge = 'p = ? (click below)';
+                },
+                apply: s => { s.p = 'm3'; s.pCrash = false; s.pBadge = ''; },
+                hints: [
+                  () => 'Now line 7 (p = p.next()) is inside else, so it ONLY runs when the if-branch did NOT execute.',
+                  () => 'Final hint: p = r sets p directly onto 6 so 6 is checked next.'
+                ],
+                rule: 'Putting p = p.next() inside else advances once on removal (onto 6) instead of skipping.'
+              },
+              {
+                codeLines: [
+                  'while (p != L.EOL) {',
+                  '    if (p.getElement() % 2 == 0) {',
+                  '        r = p.next();',
+                  '        L.remove(p);',
+                  '        p = r;',
+                  '    } else {',
+                  '        p = p.next();',
+                  '    }',
+                  '}'
+                ],
+                hl: [1, 2, 3, 4],
+                kind: 'node',
+                targetNode: 'EOL',
+                prompt: 'Now run the same else fix on [3, 4] with p -> 4 (the last node). After removing 4, where does p land before the next while check?',
+                setup: s => {
+                  s.nodes = [
+                    { id: 'm1', label: '3' },
+                    { id: 'ghost_m2', label: '4', ghost: true }
+                  ];
+                  s.q = null;
+                  s.r = null;
+                  s.p = 'HIDDEN';
+                  s.pCrash = false;
+                  s.pBadge = 'p = ? (click below)';
+                },
+                apply: s => { s.p = 'EOL'; s.pCrash = false; s.pBadge = ''; },
+                hints: [
+                  () => 'When p pointed to the last element (4), line 3 saved r = 4.next(). Since 4 had no data successor, what did r save?',
+                  () => 'Hint 2: p = r sets p = L.EOL, and because p = p.next() is inside else, it is SKIPPED on the iteration that removed 4.',
+                  () => 'Final hint: Click L.EOL — then while (p != L.EOL) evaluates to false and exits cleanly without crashing!'
+                ],
+                rule: 'Paired fix verified! With else, removing the last node sets p = L.EOL and skips p.next(), so while (p != L.EOL) exits cleanly instead of crashing.'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'sandbox',
+        title: '5. Sandbox',
+        goal: 'Experiment freely with list operations, hover Insert to preview the slot before p, or test Save → Remove → Restore.',
+        nextStageId: null,
+        nextStageTitle: null,
+        cases: [
+          {
+            id: 'free',
+            title: 'Sandbox',
+            initialNodes: [
+              { id: 'n1', label: 'A' },
+              { id: 'n2', label: 'B' },
+              { id: 'n3', label: 'C' },
+              { id: 'n4', label: 'D' }
+            ],
+            initialP: 'n1',
+            initialQ: null,
+            initialR: null,
+            steps: []
+          }
+        ]
+      }
+    ];
+
+    const SANDBOX_IDEAS = [
+      'Safe delete pattern: Click Save next (r = p.next()), then Remove (L.remove(p)), then Restore (p = r) to see traversal continue!',
+      'Forgot to save: With r unset, click Remove (L.remove(p)) directly — p turns INVALID until you jump with L.first() or L.last().',
+      'Before-p rule: Hover over L.insert(p, E) to preview the +E insertion slot, then click and watch p stay attached to its node.',
+      'Sentinel bounds: Step right to L.EOL, then try p.getElement() or p.next() or p.previous() — all are undefined on L.EOL!',
+      'Empty list check: Remove every node until 0 data elements remain — observe L.first() and L.last() both return L.EOL.'
+    ];
+
+    const LETTERS = 'EFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+    const el = {
+      scorePill: document.getElementById('score-pill'),
+      resetBtn: document.getElementById('reset-btn'),
+      tabs: document.getElementById('tabs'),
+      stageGoal: document.getElementById('stage-goal'),
+      subtabs: document.getElementById('subtabs'),
+      lessonGrid: document.getElementById('lesson-grid'),
+      codeCard: document.getElementById('code-card'),
+      codeLines: document.getElementById('code-lines'),
+      watchBar: document.getElementById('watch-bar'),
+      promptCard: document.getElementById('prompt-card'),
+      stepBadge: document.getElementById('step-badge'),
+      attemptPill: document.getElementById('attempt-pill'),
+      questionText: document.getElementById('question-text'),
+      actionGuide: document.getElementById('action-guide'),
+      mcqRow: document.getElementById('mcq-row'),
+      checkBtn: document.getElementById('check-btn'),
+      hintBtn: document.getElementById('hint-btn'),
+      revealBtn: document.getElementById('reveal-btn'),
+      nextStepBtn: document.getElementById('next-step-btn'),
+      tryBar: document.getElementById('try-bar'),
+      tipTag: document.getElementById('tip-tag'),
+      tryMsg: document.getElementById('try-msg'),
+      nextTipBtn: document.getElementById('next-tip-btn'),
+      canvasWrap: document.getElementById('canvas-wrap'),
+      linksSvg: document.getElementById('links-svg'),
+      ptrStatus: document.getElementById('ptr-status'),
+      ptrP: document.getElementById('ptr-p'),
+      ptrQ: document.getElementById('ptr-q'),
+      ptrR: document.getElementById('ptr-r'),
+      insertHint: document.getElementById('insert-hint'),
+      nodesRow: document.getElementById('nodes-row'),
+      sandboxPanel: document.getElementById('sandbox-panel'),
+      sandboxGuide: document.getElementById('sandbox-guide'),
+      insertBtn: document.getElementById('insert-btn'),
+      restoreBtn: document.getElementById('restore-btn'),
+      undoBtn: document.getElementById('undo-btn'),
+      feedback: document.getElementById('feedback'),
+      feedbackMsg: document.getElementById('feedback-msg'),
+      ruleCallout: document.getElementById('rule-callout'),
+      nextStageBtn: document.getElementById('next-stage-btn'),
+      trail: document.getElementById('trail')
+    };
+
+    function shuffleChoices(list) {
+      const arr = list.slice();
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+      }
+      return arr;
+    }
+
+    function cloneNodes(list) {
+      return list.map(n => ({ id: n.id, label: n.label, isNew: !!n.isNew, ghost: !!n.ghost }));
+    }
+
+    function createStageState(stageDef) {
+      const stageState = {
+        id: stageDef.id,
+        caseIndex: 0,
+        cases: stageDef.cases.map(c => ({
+          id: c.id,
+          stepIndex: 0,
+          awaiting: c.steps.length > 0,
+          attempts: 0,
+          hintsUsed: 0,
+          pendingNode: null,
+          pendingVal: null,
+          choiceOrders: c.steps.map(s => (s.kind === 'mcq' && Array.isArray(s.choices) ? shuffleChoices(s.choices) : null)),
+          results: c.steps.map(() => null), // null | 'first-try' | 'assisted'
+          nodes: cloneNodes(c.initialNodes),
+          p: c.initialP,
+          q: c.initialQ,
+          r: c.initialR,
+          pCrash: false,
+          pBadge: '',
+          sum: c.initialSum ?? null,
+          iters: c.initialIters ?? null,
+          feedbackText: stageDef.id === 'sandbox'
+            ? 'Click any operation below to test how p moves.'
+            : '',
+          feedbackTone: 'neutral',
+          ruleText: '',
+          history: [],
+          trail: [],
+          letterCursor: 0,
+          nextIdNum: 20,
+          ideaIndex: 0
+        }))
+      };
+      // Initialize step 0 setup for every sub-case cleanly
+      stageState.cases.forEach((cState, cIdx) => {
+        const cDef = stageDef.cases[cIdx];
+        if (cDef.steps.length > 0) cDef.steps[0].setup(cState);
+      });
+      return stageState;
+    }
+
+    const app = {
+      activeStageIndex: 0,
+      stages: STAGE_DEFS.map(createStageState)
+    };
+
+    function getActiveDef() {
+      return STAGE_DEFS[app.activeStageIndex];
+    }
+
+    function getActiveStage() {
+      return app.stages[app.activeStageIndex];
+    }
+
+    function getActiveCaseDef() {
+      return getActiveDef().cases[getActiveStage().caseIndex];
+    }
+
+    function getActiveCaseState() {
+      return getActiveStage().cases[getActiveStage().caseIndex];
+    }
+
+    function resetCurrentStage() {
+      const idx = app.activeStageIndex;
+      app.stages[idx] = createStageState(STAGE_DEFS[idx]);
+      renderAll();
+    }
+
+    function labelForTarget(cs, id) {
+      if (id === 'EOL') return 'L.EOL';
+      if (id === 'INVALID') return 'INVALID';
+      if (id === 'HIDDEN') return '?';
+      if (id === 'UNSET') return '(not set)';
+      if (!id) return 'null';
+      const found = cs.nodes.find(n => n.id === id);
+      return found ? found.label : '(removed)';
+    }
+
+    function stageStats(stageIdx) {
+      const st = app.stages[stageIdx];
+      let total = 0;
+      let solved = 0;
+      let firstTry = 0;
+      st.cases.forEach(c => {
+        c.results.forEach(res => {
+          total += 1;
+          if (res !== null) solved += 1;
+          if (res === 'first-try') firstTry += 1;
+        });
+      });
+      return { total, solved, firstTry };
+    }
+
+    function renderTopScore() {
+      let total = 0;
+      let firstTry = 0;
+      STAGE_DEFS.forEach((_, i) => {
+        const s = stageStats(i);
+        total += s.total;
+        firstTry += s.firstTry;
+      });
+      el.scorePill.textContent = `First-try: ${firstTry}/${total}`;
+    }
+
+    function renderTabs() {
+      el.tabs.innerHTML = '';
+      STAGE_DEFS.forEach((def, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tab-btn';
+        btn.setAttribute('role', 'tab');
+        const selected = idx === app.activeStageIndex;
+        btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+        btn.tabIndex = selected ? 0 : -1;
+
+        const txt = document.createElement('span');
+        txt.textContent = def.title;
+        btn.appendChild(txt);
+
+        const stats = stageStats(idx);
+        if (stats.total > 0) {
+          if (stats.solved === stats.total && stats.firstTry === stats.total) {
+            const badge = document.createElement('span');
+            badge.className = 'tab-badge mastered';
+            badge.textContent = '✓';
+            badge.title = `All ${stats.total} first-try correct!`;
+            btn.appendChild(badge);
+          } else if (stats.solved > 0 || stats.firstTry > 0) {
+            const badge = document.createElement('span');
+            badge.className = 'tab-badge partial';
+            badge.textContent = `${stats.firstTry}/${stats.total}`;
+            badge.title = `${stats.firstTry} of ${stats.total} first-try`;
+            btn.appendChild(badge);
+          }
+        }
+
+        btn.addEventListener('click', () => {
+          app.activeStageIndex = idx;
+          renderAll();
+        });
+
+        btn.addEventListener('keydown', e => {
+          let nextIdx = null;
+          if (e.key === 'ArrowRight') nextIdx = (idx + 1) % STAGE_DEFS.length;
+          else if (e.key === 'ArrowLeft') nextIdx = (idx - 1 + STAGE_DEFS.length) % STAGE_DEFS.length;
+          else if (e.key === 'Home') nextIdx = 0;
+          else if (e.key === 'End') nextIdx = STAGE_DEFS.length - 1;
+          if (nextIdx !== null) {
+            e.preventDefault();
+            app.activeStageIndex = nextIdx;
+            renderAll();
+            const newTab = el.tabs.querySelectorAll('[role="tab"]')[nextIdx];
+            if (newTab) newTab.focus();
+          }
+        });
+
+        el.tabs.appendChild(btn);
+      });
+    }
+
+    function renderSubtabs() {
+      const def = getActiveDef();
+      const st = getActiveStage();
+      if (def.cases.length <= 1) {
+        el.subtabs.classList.add('hidden');
+        return;
+      }
+      el.subtabs.classList.remove('hidden');
+      el.subtabs.innerHTML = '';
+
+      def.cases.forEach((cDef, cIdx) => {
+        const cState = st.cases[cIdx];
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'subtab-btn' + (cIdx === st.caseIndex ? ' active' : '');
+        const firstCount = cState.results.filter(r => r === 'first-try').length;
+        const done = cState.results.every(r => r !== null);
+        const suffix = (done && firstCount === cDef.steps.length) ? ' ✓' : ` (${firstCount}/${cDef.steps.length})`;
+        btn.textContent = cDef.title + suffix;
+        btn.addEventListener('click', () => {
+          st.caseIndex = cIdx;
+          renderAll();
+        });
+        el.subtabs.appendChild(btn);
+      });
+    }
+
+    function getActionGuideText(def, st, cDef, cs, step) {
+      if (!cs.awaiting) {
+        const hasNextStep = cs.stepIndex + 1 < cDef.steps.length;
+        if (hasNextStep) return 'Click Next step → to continue.';
+        if (st.caseIndex + 1 < def.cases.length) return 'Click Next loop case → below.';
+        if (def.nextStageTitle) return `Click Continue to ${def.nextStageTitle} → below.`;
+        return 'Stage complete.';
+      }
+      if (step.kind === 'dual') {
+        const pickedNode = cs.pendingNode ? labelForTarget(cs, cs.pendingNode) : null;
+        if (cs.pendingVal !== null && cs.pendingNode !== null) {
+          return `Ready to submit: value = "${cs.pendingVal}", p → ${pickedNode}. Click Check prediction.`;
+        }
+        if (cs.pendingVal !== null) {
+          return `Chosen value "${cs.pendingVal}". Now click a node box (or L.EOL) for p, then Check prediction.`;
+        }
+        if (cs.pendingNode !== null) {
+          return `Chosen node "${pickedNode}". Now select a value option above, then Check prediction.`;
+        }
+        return 'Do 2 things: select a value option above AND click where p points below, then Check prediction.';
+      }
+      if (step.kind === 'mcq') {
+        return 'Select one option below.';
+      }
+      if (cs.p === 'INVALID') {
+        return cs.q
+          ? `p is INVALID; q points to ${labelForTarget(cs, cs.q)}. Click what q.next() returns below.`
+          : 'p is INVALID. Click your prediction in the diagram below.';
+      }
+      if (cs.p === 'HIDDEN') {
+        return 'p is hidden (?). Click the node box (or L.EOL) where p points now.';
+      }
+      if (cs.p === 'UNSET') {
+        return 'p starts unset. Click the node box (or L.EOL) where p lands.';
+      }
+      return `p starts on ${labelForTarget(cs, cs.p)}. Click where p finishes below.`;
+    }
+
+    function getSandboxGuide(cs) {
+      const liveCount = cs.nodes.filter(n => !n.ghost).length;
+      if (cs.p === 'INVALID') {
+        if (cs.r && cs.r !== 'INVALID') {
+          const emptyNote = liveCount === 0 ? 'List is empty and ' : '';
+          return {
+            text: `Current state: ${emptyNote}p is INVALID (its node was removed, so moving/inserting/removing via p is undefined). Click 3. Restore (p = r) to recover to ${labelForTarget(cs, cs.r)}, or click First / Last / Undo.`,
+            warn: true
+          };
+        }
+        if (liveCount === 0) {
+          return {
+            text: 'Current state: List is empty AND p is INVALID (the last node was removed without saving r). Click First (L.first()), Last (L.last()), or Undo last step to restore p to L.EOL before inserting.',
+            warn: true
+          };
+        }
+        return {
+          text: 'Current state: p is INVALID because its node was removed without saving r first. Click First (L.first()), Last (L.last()), or Undo last step to recover.',
+          warn: true
+        };
+      }
+      if (liveCount === 0) {
+        return {
+          text: 'Current state: List is empty (0 live nodes, p = L.EOL). Click Insert (L.insert(p, ...)) to add a first node, or Undo last step.',
+          warn: false
+        };
+      }
+      if (cs.p === 'EOL') {
+        return {
+          text: 'Current state: p is on sentinel L.EOL (no data element here). Insert appends at the end; First and Last jump back onto data nodes.',
+          warn: true
+        };
+      }
+      const pLbl = labelForTarget(cs, cs.p);
+      const rNote = (cs.r && cs.r !== 'INVALID') ? ` (r points to ${labelForTarget(cs, cs.r)})` : '';
+      return {
+        text: `Current state: p is on ${pLbl}${rNote}. Move p along links, hover Insert to preview the +slot before p, or run 1. Save next → 2. Remove → 3. Restore.`,
+        warn: false
+      };
+    }
+
+    function renderGoalAndState() {
+      const def = getActiveDef();
+      el.stageGoal.textContent = def.goal;
+    }
+
+    function renderCodeAndPrompt() {
+      const def = getActiveDef();
+      const st = getActiveStage();
+      const cDef = getActiveCaseDef();
+      const cs = getActiveCaseState();
+      const isSandbox = def.id === 'sandbox';
+
+      el.lessonGrid.classList.toggle('hidden', isSandbox);
+      el.tryBar.classList.toggle('hidden', !isSandbox);
+      el.sandboxPanel.classList.toggle('hidden', !isSandbox);
+      el.trail.classList.toggle('hidden', !isSandbox || cs.trail.length === 0);
+
+      if (isSandbox) {
+        el.tipTag.textContent = `Try ${cs.ideaIndex + 1}/${SANDBOX_IDEAS.length}`;
+        el.tryMsg.textContent = SANDBOX_IDEAS[cs.ideaIndex];
+        const nextLabel = LETTERS[cs.letterCursor % LETTERS.length];
+        el.insertBtn.innerHTML = `Insert <span class="op-code">L.insert(p, ${nextLabel})</span>`;
+        el.restoreBtn.disabled = !cs.r;
+        el.restoreBtn.classList.toggle('ready-highlight', !!cs.r && cs.p === 'INVALID');
+        el.undoBtn.disabled = cs.history.length === 0;
+        const sg = getSandboxGuide(cs);
+        el.sandboxGuide.textContent = sg.text;
+        el.sandboxGuide.classList.toggle('warn', sg.warn);
+        updateSandboxBoundaryStyles(cs);
+        renderTrail(cs);
+        return;
+      }
+
+      const step = cDef.steps[cs.stepIndex];
+
+      // Code lines with highlight & arrow
+      el.codeLines.innerHTML = '';
+      step.codeLines.forEach((line, idx) => {
+        const row = document.createElement('div');
+        const isCrash = !cs.awaiting && Array.isArray(step.crashLines) && step.crashLines.includes(idx);
+        const isHl = !isCrash && step.hl.includes(idx);
+        row.className = 'code-line' + (isCrash ? ' crash' : isHl ? ' hl' : '');
+        if (isCrash) row.dataset.crash = 'true';
+        if (isHl || isCrash) row.setAttribute('aria-current', 'step');
+
+        const num = document.createElement('span');
+        num.className = 'line-num';
+        num.textContent = String(idx + 1);
+
+        const arrow = document.createElement('span');
+        arrow.className = 'line-arrow';
+        arrow.textContent = isCrash ? '✕' : isHl ? '→' : ' ';
+
+        const code = document.createElement('span');
+        code.textContent = line;
+
+        row.appendChild(num);
+        row.appendChild(arrow);
+        row.appendChild(code);
+        el.codeLines.appendChild(row);
+      });
+
+      // Loop variables watch bar
+      if (cs.sum !== null) {
+        el.watchBar.classList.remove('hidden');
+        el.watchBar.innerHTML = '';
+        [
+          `sum = ${cs.sum}`,
+          `iterations = ${cs.iters}`,
+          `p = ${labelForTarget(cs, cs.p)}`
+        ].forEach(txt => {
+          const span = document.createElement('span');
+          span.className = 'watch-chip';
+          span.textContent = txt;
+          el.watchBar.appendChild(span);
+        });
+      } else {
+        el.watchBar.classList.add('hidden');
+      }
+
+      // Prompt card
+      el.stepBadge.textContent = `Step ${cs.stepIndex + 1} of ${cDef.steps.length}`;
+      const stepRes = cs.results[cs.stepIndex];
+      if (stepRes === 'first-try') {
+        el.attemptPill.textContent = 'Solved ✓';
+        el.attemptPill.className = 'attempt-pill';
+      } else if (stepRes === 'assisted') {
+        el.attemptPill.textContent = 'Solved (guided)';
+        el.attemptPill.className = 'attempt-pill used';
+      } else if (cs.hintsUsed > 0 || cs.attempts > 0) {
+        el.attemptPill.textContent = cs.hintsUsed ? 'Hint viewed' : `Attempts: ${cs.attempts}`;
+        el.attemptPill.className = 'attempt-pill used';
+      } else {
+        el.attemptPill.textContent = '';
+        el.attemptPill.className = 'attempt-pill';
+      }
+
+      el.questionText.textContent = step.prompt;
+
+      // MCQ options when kind === 'mcq' or 'dual'
+      if (step.kind === 'mcq' || step.kind === 'dual') {
+        el.mcqRow.classList.remove('hidden');
+        el.mcqRow.innerHTML = '';
+        if (step.valLabel) {
+          const lbl = document.createElement('span');
+          lbl.style.fontSize = '0.8rem';
+          lbl.style.fontWeight = '700';
+          lbl.style.alignSelf = 'center';
+          lbl.textContent = step.valLabel;
+          el.mcqRow.appendChild(lbl);
+        }
+        const choices = (cs.choiceOrders && cs.choiceOrders[cs.stepIndex]) || step.choices;
+        choices.forEach(choice => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          const isCorrectChoice = !cs.awaiting && choice === step.targetVal;
+          btn.className = 'mcq-btn' + (isCorrectChoice ? ' correct-choice' : '');
+          if (isCorrectChoice) btn.dataset.correct = 'true';
+          btn.textContent = choice;
+          btn.disabled = !cs.awaiting;
+          btn.setAttribute('aria-pressed', cs.pendingVal === choice ? 'true' : 'false');
+          btn.addEventListener('click', () => {
+            if (!cs.awaiting) return;
+            if (step.kind === 'mcq') {
+              submitMcqPrediction(choice);
+            } else {
+              cs.pendingVal = choice;
+              renderCodeAndPrompt();
+            }
+          });
+          el.mcqRow.appendChild(btn);
+        });
+      } else {
+        el.mcqRow.classList.add('hidden');
+        el.mcqRow.innerHTML = '';
+      }
+
+      // Action buttons
+      const showCheck = cs.awaiting && step.kind === 'dual';
+      el.checkBtn.classList.toggle('hidden', !showCheck);
+      el.checkBtn.disabled = !(cs.pendingVal !== null && cs.pendingNode !== null);
+      el.hintBtn.classList.toggle('hidden', !cs.awaiting);
+      el.revealBtn.classList.toggle('hidden', !cs.awaiting);
+
+      const hasNextStep = !cs.awaiting && cs.stepIndex + 1 < cDef.steps.length;
+      el.nextStepBtn.classList.toggle('hidden', !hasNextStep);
+      el.actionGuide.textContent = getActionGuideText(def, st, cDef, cs, step);
+    }
+
+    function updateSandboxBoundaryStyles(cs) {
+      const liveNodes = cs.nodes.filter(n => !n.ghost);
+      const liveIdx = liveNodes.findIndex(n => n.id === cs.p);
+      const isInvalid = cs.p === 'INVALID';
+      const isEol = cs.p === 'EOL';
+      const atFirst = liveIdx === 0;
+
+      const mapBoundary = {
+        first: false,
+        prev: isInvalid || isEol || atFirst,
+        next: isInvalid || isEol,
+        last: false,
+        read: isInvalid || isEol,
+        insert: isInvalid,
+        save: isInvalid || isEol,
+        remove: isInvalid || isEol,
+        restore: !cs.r
+      };
+
+      document.querySelectorAll('.op-btn[data-op]').forEach(btn => {
+        btn.classList.toggle('boundary', !!mapBoundary[btn.dataset.op]);
+      });
+    }
+
+    function renderTrail(cs) {
+      if (cs.trail.length === 0) {
+        el.trail.innerHTML = '';
+        return;
+      }
+      el.trail.innerHTML = '<strong>History:</strong>';
+      cs.trail.slice(-8).forEach(entry => {
+        const chip = document.createElement('span');
+        chip.className = 'trail-chip';
+        chip.textContent = entry;
+        el.trail.appendChild(chip);
+      });
+    }
+
+    function buildNodeAriaLabel(cs, id, baseLabel, opts = {}) {
+      const notes = [];
+      if (opts.ghost) notes.push('removed node, neighbors relinked');
+      if (opts.isNew) notes.push('newly inserted');
+      if (cs.p === id) notes.push('pointer p here');
+      if (cs.q === id) notes.push('pointer q here');
+      if (cs.r === id) notes.push('saved pointer r here');
+      return notes.length ? `${baseLabel} (${notes.join(', ')})` : baseLabel;
+    }
+
+    function renderNodes() {
+      const def = getActiveDef();
+      const cDef = getActiveCaseDef();
+      const cs = getActiveCaseState();
+      const step = cDef.steps[cs.stepIndex];
+      const nodesInteractive = def.id !== 'sandbox' && cs.awaiting && (step.kind === 'node' || step.kind === 'dual');
+
+      el.nodesRow.innerHTML = '';
+
+      cs.nodes.forEach(node => {
+        const isGhost = !!node.ghost;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'node-box';
+        btn.dataset.id = node.id;
+        if (isGhost) btn.dataset.ghost = 'true';
+
+        const lblSpan = document.createElement('span');
+        if (isGhost) lblSpan.className = 'ghost-label';
+        lblSpan.textContent = node.label;
+        btn.appendChild(lblSpan);
+
+        const baseAria = isGhost ? `Removed node ${node.label}` : `Node ${node.label}`;
+        btn.setAttribute('aria-label', buildNodeAriaLabel(cs, node.id, baseAria, { ghost: isGhost, isNew: node.isNew }));
+        btn.disabled = isGhost || !nodesInteractive;
+
+        if (isGhost) {
+          btn.classList.add('ghost');
+          const rBadge = document.createElement('span');
+          rBadge.className = 'removed-badge';
+          rBadge.textContent = 'removed';
+          btn.appendChild(rBadge);
+        } else {
+          if (nodesInteractive) btn.classList.add('clickable');
+          if (cs.pendingNode === node.id) btn.classList.add('selected-node');
+          if (cs.p === node.id) btn.classList.add('active-p');
+          if (cs.q === node.id) btn.classList.add('active-q');
+          if (cs.r === node.id) btn.classList.add('active-r');
+        }
+
+        if (node.isNew && !isGhost) {
+          const badge = document.createElement('span');
+          badge.className = 'new-badge';
+          badge.textContent = 'new';
+          btn.appendChild(badge);
+        }
+
+        if (nodesInteractive && !isGhost) {
+          btn.addEventListener('click', () => handleNodeClick(node.id, btn));
+        }
+
+        el.nodesRow.appendChild(btn);
+      });
+
+      const eolBtn = document.createElement('button');
+      eolBtn.type = 'button';
+      eolBtn.className = 'node-box eol';
+      eolBtn.dataset.id = 'EOL';
+      eolBtn.textContent = 'L.EOL';
+      eolBtn.setAttribute('aria-label', buildNodeAriaLabel(cs, 'EOL', 'L.EOL end of list sentinel'));
+      eolBtn.disabled = !nodesInteractive;
+
+      if (nodesInteractive) {
+        eolBtn.classList.add('clickable');
+        eolBtn.addEventListener('click', () => handleNodeClick('EOL', eolBtn));
+      }
+      if (cs.pendingNode === 'EOL') eolBtn.classList.add('selected-node');
+      if (cs.p === 'EOL') eolBtn.classList.add('active-p');
+
+      el.nodesRow.appendChild(eolBtn);
+    }
+
+    function positionBadge(ptrEl, targetId, offsetPx) {
+      const wrapRect = el.canvasWrap.getBoundingClientRect();
+      const boxes = Array.from(el.nodesRow.querySelectorAll('.node-box'));
+      const box = boxes.find(b => b.dataset.id === targetId && b.dataset.ghost !== 'true');
+      if (box) {
+        const r = box.getBoundingClientRect();
+        const cx = (r.left + r.right) / 2 - wrapRect.left;
+        ptrEl.style.left = (cx + offsetPx) + 'px';
+        ptrEl.style.opacity = '1';
+      } else {
+        ptrEl.style.opacity = '0';
+      }
+    }
+
+    function layoutArrowsAndPointers() {
+      const cs = getActiveCaseState();
+      const wrapRect = el.canvasWrap.getBoundingClientRect();
+      const boxes = Array.from(el.nodesRow.querySelectorAll('.node-box'));
+      const liveBoxes = boxes.filter(b => b.dataset.ghost !== 'true');
+
+      let svgHtml = '';
+      for (let i = 0; i < liveBoxes.length - 1; i++) {
+        const b1 = liveBoxes[i];
+        const b2 = liveBoxes[i + 1];
+        const idx1 = boxes.indexOf(b1);
+        const idx2 = boxes.indexOf(b2);
+        const r1 = b1.getBoundingClientRect();
+        const r2 = b2.getBoundingClientRect();
+
+        if (idx2 === idx1 + 1) {
+          const x1 = r1.right - wrapRect.left + 4;
+          const x2 = r2.left - wrapRect.left - 4;
+          const y = (r1.top + r1.bottom) / 2 - wrapRect.top;
+
+          if (x2 > x1 + 6) {
+            const yf = y - 5;
+            svgHtml += `<line x1="${x1}" y1="${yf}" x2="${x2 - 5}" y2="${yf}" stroke="#5c574f" stroke-width="1.7" stroke-linecap="round"/>`;
+            svgHtml += `<path d="M${x2 - 6} ${yf - 3.5} L${x2} ${yf} L${x2 - 6} ${yf + 3.5}" fill="none" stroke="#5c574f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+            const yb = y + 5;
+            svgHtml += `<line x1="${x2}" y1="${yb}" x2="${x1 + 5}" y2="${yb}" stroke="#9c9488" stroke-width="1.5" stroke-linecap="round"/>`;
+            svgHtml += `<path d="M${x1 + 6} ${yb - 3.5} L${x1} ${yb} L${x1 + 6} ${yb + 3.5}" fill="none" stroke="#9c9488" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+          }
+        } else {
+          // Curved relink bypass underneath ghosted removed node(s)
+          const ybTop = r1.bottom - wrapRect.top + 3;
+          const sx1 = r1.right - wrapRect.left - 10;
+          const ex1 = r2.left - wrapRect.left + 10;
+          svgHtml += `<path d="M${sx1} ${ybTop} C${sx1} ${ybTop + 26}, ${ex1} ${ybTop + 26}, ${ex1} ${ybTop + 2}" fill="none" stroke="#5c574f" stroke-width="1.7" stroke-linecap="round"/>`;
+          svgHtml += `<path d="M${ex1 - 4} ${ybTop + 8} L${ex1} ${ybTop + 1} L${ex1 + 4} ${ybTop + 8}" fill="none" stroke="#5c574f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+          const sx2 = r2.left - wrapRect.left + 22;
+          const ex2 = r1.right - wrapRect.left - 22;
+          svgHtml += `<path d="M${sx2} ${ybTop} C${sx2} ${ybTop + 40}, ${ex2} ${ybTop + 40}, ${ex2} ${ybTop + 2}" fill="none" stroke="#9c9488" stroke-width="1.5" stroke-linecap="round"/>`;
+          svgHtml += `<path d="M${ex2 - 4} ${ybTop + 8} L${ex2} ${ybTop + 1} L${ex2 + 4} ${ybTop + 8}" fill="none" stroke="#9c9488" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+        }
+      }
+      el.linksSvg.innerHTML = svgHtml;
+
+      // Status pill for special p states and crash warnings
+      const pLabel = el.ptrP.querySelector('.ptr-label');
+      const pSvg = el.ptrP.querySelector('svg');
+      if (cs.p === 'INVALID' || cs.p === 'HIDDEN' || cs.p === 'UNSET') {
+        el.ptrStatus.classList.remove('hidden', 'crash');
+        el.ptrStatus.classList.toggle('invalid', cs.p === 'INVALID');
+        el.ptrStatus.textContent = cs.pBadge || (cs.p === 'INVALID' ? 'p = INVALID (removed)' : 'p = ?');
+        el.ptrP.style.opacity = '0';
+        if (pLabel) { pLabel.classList.remove('crash'); pLabel.textContent = 'p'; }
+        if (pSvg) pSvg.style.color = '#185a4f';
+      } else {
+        if (cs.pCrash) {
+          el.ptrStatus.classList.remove('hidden', 'invalid');
+          el.ptrStatus.classList.add('crash');
+          el.ptrStatus.textContent = cs.pBadge || 'CRASH: p.next() called on L.EOL!';
+          if (pLabel) { pLabel.classList.add('crash'); pLabel.textContent = 'p ✕ crash'; }
+          if (pSvg) pSvg.style.color = '#a12828';
+        } else {
+          el.ptrStatus.classList.add('hidden');
+          el.ptrStatus.classList.remove('invalid', 'crash');
+          if (pLabel) { pLabel.classList.remove('crash'); pLabel.textContent = 'p'; }
+          if (pSvg) pSvg.style.color = '#185a4f';
+        }
+        const pOverlapR = cs.r && cs.r === cs.p ? -18 : 0;
+        const pOverlapQ = cs.q && cs.q === cs.p ? -18 : 0;
+        positionBadge(el.ptrP, cs.p, pOverlapR || pOverlapQ);
+      }
+
+      const qOffset = (cs.p && cs.p === cs.q) ? 18 : 0;
+      positionBadge(el.ptrQ, cs.q, qOffset);
+
+      const rOffset = (cs.p && cs.p === cs.r) ? 18 : 0;
+      positionBadge(el.ptrR, cs.r, rOffset);
+    }
+
+    function renderFeedbackBar() {
+      const def = getActiveDef();
+      const st = getActiveStage();
+      const cDef = getActiveCaseDef();
+      const cs = getActiveCaseState();
+
+      el.feedbackMsg.textContent = cs.feedbackText;
+      el.feedback.className = 'feedback' + (
+        cs.feedbackTone === 'ok' ? ' ok'
+        : cs.feedbackTone === 'warn' ? ' warn'
+        : cs.feedbackTone === 'err' ? ' err'
+        : ''
+      );
+
+      if (cs.ruleText) {
+        el.ruleCallout.textContent = cs.ruleText;
+        el.ruleCallout.classList.remove('hidden');
+      } else {
+        el.ruleCallout.classList.add('hidden');
+      }
+
+      const caseDone = def.id !== 'sandbox' && !cs.awaiting && cs.stepIndex === cDef.steps.length - 1;
+      const hasNextCase = st.caseIndex + 1 < def.cases.length;
+
+      if (caseDone && hasNextCase) {
+        const nextCaseTitle = def.cases[st.caseIndex + 1].title;
+        el.nextStageBtn.textContent = `Next loop case: ${nextCaseTitle} →`;
+        el.nextStageBtn.dataset.action = 'next-case';
+        el.nextStageBtn.classList.remove('hidden');
+      } else if (caseDone && def.nextStageTitle) {
+        el.nextStageBtn.textContent = `Continue to ${def.nextStageTitle} →`;
+        el.nextStageBtn.dataset.action = 'next-stage';
+        el.nextStageBtn.classList.remove('hidden');
+      } else {
+        el.nextStageBtn.classList.add('hidden');
+      }
+    }
+
+    function renderAll() {
+      renderTopScore();
+      renderTabs();
+      renderGoalAndState();
+      renderSubtabs();
+      renderCodeAndPrompt();
+      renderNodes();
+      renderFeedbackBar();
+      requestAnimationFrame(layoutArrowsAndPointers);
+    }
+
+    function escalateHint(step, attempts, clickedArg) {
+      const idx = Math.min(attempts - 1, step.hints.length - 1);
+      return step.hints[idx](clickedArg);
+    }
+
+    function resolveCurrentStep(revealed) {
+      const cDef = getActiveCaseDef();
+      const cs = getActiveCaseState();
+      const step = cDef.steps[cs.stepIndex];
+
+      step.apply(cs);
+      cs.awaiting = false;
+      cs.pendingNode = null;
+      cs.pendingVal = null;
+
+      if (!revealed && cs.attempts === 0 && !cs.hintsUsed) {
+        cs.results[cs.stepIndex] = 'first-try';
+        cs.feedbackText = 'Correct on the first try!';
+      } else if (revealed) {
+        cs.results[cs.stepIndex] = 'assisted';
+        cs.feedbackText = 'Answer revealed.';
+      } else {
+        cs.results[cs.stepIndex] = 'assisted';
+        cs.feedbackText = cs.hintsUsed ? 'Solved with hint!' : `Solved in ${cs.attempts + 1} attempts.`;
+      }
+
+      cs.feedbackTone = revealed ? 'warn' : 'ok';
+      cs.ruleText = step.rule;
+      renderAll();
+
+      if (step.targetNode) {
+        requestAnimationFrame(() => {
+          const box = el.nodesRow.querySelector(`.node-box[data-id="${step.targetNode}"]`);
+          if (box) {
+            box.classList.add('correct-flash');
+            setTimeout(() => box.classList.remove('correct-flash'), 650);
+          }
+        });
+      }
+    }
+
+    function handleNodeClick(clickedId, btnEl) {
+      const cDef = getActiveCaseDef();
+      const cs = getActiveCaseState();
+      if (!cs.awaiting) return;
+      const step = cDef.steps[cs.stepIndex];
+
+      if (step.kind === 'dual') {
+        cs.pendingNode = clickedId;
+        renderNodes();
+        renderCodeAndPrompt();
+        return;
+      }
+
+      if (clickedId === step.targetNode) {
+        resolveCurrentStep(false);
+      } else {
+        cs.attempts += 1;
+        cs.feedbackTone = 'err';
+        cs.feedbackText = `Not "${labelForTarget(cs, clickedId)}" — ` + escalateHint(step, cs.attempts, clickedId);
+        // Rule only unlocks after solving or >= 2 attempts? Show subtle rule after reveal/solve, escalating hints on wrong tries.
+        renderAll();
+        requestAnimationFrame(() => {
+          const badBox = el.nodesRow.querySelector(`.node-box[data-id="${clickedId}"]`);
+          if (badBox) {
+            badBox.classList.remove('wrong-flash');
+            void badBox.offsetWidth;
+            badBox.classList.add('wrong-flash');
+          }
+        });
+      }
+    }
+
+    function submitMcqPrediction(choice) {
+      const cDef = getActiveCaseDef();
+      const cs = getActiveCaseState();
+      if (!cs.awaiting) return;
+      const step = cDef.steps[cs.stepIndex];
+
+      if (choice === step.targetVal) {
+        resolveCurrentStep(false);
+      } else {
+        cs.attempts += 1;
+        cs.feedbackTone = 'err';
+        cs.feedbackText = `Not "${choice}" — ` + escalateHint(step, cs.attempts, choice);
+        renderAll();
+      }
+    }
+
+    function checkDualPrediction() {
+      const cDef = getActiveCaseDef();
+      const cs = getActiveCaseState();
+      if (!cs.awaiting) return;
+      const step = cDef.steps[cs.stepIndex];
+      if (cs.pendingVal === null || cs.pendingNode === null) return;
+
+      const valOk = cs.pendingVal === step.targetVal;
+      const nodeOk = cs.pendingNode === step.targetNode;
+
+      if (valOk && nodeOk) {
+        resolveCurrentStep(false);
+      } else {
+        cs.attempts += 1;
+        cs.feedbackTone = 'err';
+        const partMsg = !valOk && nodeOk
+          ? `Node ${labelForTarget(cs, cs.pendingNode)} is right, but sum "${cs.pendingVal}" isn't. `
+          : valOk && !nodeOk
+          ? `sum = ${cs.pendingVal} is right, but p doesn't land on ${labelForTarget(cs, cs.pendingNode)}. `
+          : 'Neither matches yet — ';
+        cs.feedbackText = partMsg + escalateHint(step, cs.attempts, cs.pendingNode);
+        renderAll();
+      }
+    }
+
+    function advanceStep() {
+      const cDef = getActiveCaseDef();
+      const cs = getActiveCaseState();
+      if (cs.stepIndex + 1 >= cDef.steps.length) return;
+
+      cs.stepIndex += 1;
+      cs.awaiting = true;
+      cs.attempts = 0;
+      cs.hintsUsed = 0;
+      cs.pendingNode = null;
+      cs.pendingVal = null;
+      cs.pCrash = false;
+      cs.feedbackTone = 'neutral';
+      cs.feedbackText = 'Trace the highlighted code, then make your prediction.';
+      cs.ruleText = '';
+
+      cDef.steps[cs.stepIndex].setup(cs);
+      renderAll();
+    }
+
+    function pushSandboxHistory(cs, label) {
+      cs.history.push({
+        nodes: cloneNodes(cs.nodes),
+        p: cs.p,
+        r: cs.r,
+        letterCursor: cs.letterCursor,
+        trailLen: cs.trail.length
+      });
+      cs.trail.push(label);
+    }
+
+    function runSandboxOp(op) {
+      const cs = getActiveCaseState();
+      const liveNodes = cs.nodes.filter(n => !n.ghost);
+      const liveIdx = liveNodes.findIndex(n => n.id === cs.p);
+      const pIdx = cs.nodes.findIndex(n => n.id === cs.p);
+      cs.nodes.forEach(n => { n.isNew = false; });
+      cs.ruleText = '';
+
+      if (op === 'first') {
+        pushSandboxHistory(cs, 'p = L.first()');
+        cs.p = liveNodes.length > 0 ? liveNodes[0].id : 'EOL';
+        cs.feedbackTone = 'ok';
+        cs.feedbackText = cs.p === 'EOL'
+          ? 'Empty list: L.first() returned L.EOL.'
+          : `L.first() placed p on "${labelForTarget(cs, cs.p)}".`;
+      } else if (op === 'last') {
+        pushSandboxHistory(cs, 'p = L.last()');
+        cs.p = liveNodes.length > 0 ? liveNodes[liveNodes.length - 1].id : 'EOL';
+        cs.feedbackTone = 'ok';
+        cs.feedbackText = cs.p === 'EOL'
+          ? 'Empty list: L.last() returned L.EOL.'
+          : `L.last() placed p on "${labelForTarget(cs, cs.p)}".`;
+      } else if (op === 'prev') {
+        if (cs.p === 'INVALID') {
+          cs.feedbackTone = 'err';
+          cs.feedbackText = 'Undefined! p points to a removed node. Jump with L.first() or L.last(), or click Restore (p = r).';
+          renderAll();
+          return;
+        }
+        if (cs.p === 'EOL' || liveIdx <= 0) {
+          cs.feedbackTone = 'warn';
+          cs.feedbackText = cs.p === 'EOL'
+            ? 'Undefined! Cannot call p.previous() on L.EOL — use L.last() to jump to the last node.'
+            : 'Undefined! p is already at the first node; there is no predecessor.';
+          renderAll();
+          return;
+        }
+        pushSandboxHistory(cs, 'p = p.previous()');
+        cs.p = liveNodes[liveIdx - 1].id;
+        cs.feedbackTone = 'ok';
+        cs.feedbackText = `p.previous() moved p left to "${labelForTarget(cs, cs.p)}".`;
+      } else if (op === 'next') {
+        if (cs.p === 'INVALID') {
+          cs.feedbackTone = 'err';
+          cs.feedbackText = 'Undefined! p points to a removed node. Jump with L.first() or L.last(), or click Restore (p = r).';
+          renderAll();
+          return;
+        }
+        if (cs.p === 'EOL') {
+          cs.feedbackTone = 'warn';
+          cs.feedbackText = 'Undefined! p is already on L.EOL — cannot step past L.EOL.';
+          renderAll();
+          return;
+        }
+        pushSandboxHistory(cs, 'p = p.next()');
+        cs.p = (liveIdx + 1 < liveNodes.length) ? liveNodes[liveIdx + 1].id : 'EOL';
+        cs.feedbackTone = 'ok';
+        cs.feedbackText = `p.next() moved p right to ${labelForTarget(cs, cs.p)}.`;
+      } else if (op === 'read') {
+        if (cs.p === 'INVALID' || cs.p === 'EOL') {
+          cs.feedbackTone = 'err';
+          cs.feedbackText = cs.p === 'INVALID'
+            ? 'Undefined! p\'s node was removed, so p.getElement() cannot read from the list.'
+            : 'Undefined! L.EOL is a sentinel marker and holds no element.';
+          renderAll();
+          return;
+        }
+        cs.feedbackTone = 'ok';
+        cs.feedbackText = `p.getElement() returned "${labelForTarget(cs, cs.p)}" (p did not move).`;
+        renderAll();
+        requestAnimationFrame(() => {
+          const box = el.nodesRow.querySelector(`.node-box[data-id="${cs.p}"]`);
+          if (box) {
+            box.classList.add('read-pulse');
+            setTimeout(() => box.classList.remove('read-pulse'), 650);
+          }
+        });
+        return;
+      } else if (op === 'insert') {
+        if (cs.p === 'INVALID') {
+          cs.feedbackTone = 'err';
+          cs.feedbackText = 'Undefined! p points to a removed node, so L.insert(p, x) cannot insert relative to p.';
+          renderAll();
+          return;
+        }
+        const lbl = LETTERS[cs.letterCursor % LETTERS.length];
+        cs.letterCursor += 1;
+        cs.nextIdNum += 1;
+        const newNode = { id: 'ns' + cs.nextIdNum, label: lbl, isNew: true };
+        const beforeLabel = labelForTarget(cs, cs.p);
+        pushSandboxHistory(cs, `L.insert(p, ${lbl})`);
+        if (cs.p === 'EOL') {
+          cs.nodes.push(newNode);
+        } else {
+          cs.nodes.splice(pIdx, 0, newNode);
+        }
+        cs.feedbackTone = 'ok';
+        cs.feedbackText = `Inserted "${lbl}" BEFORE ${beforeLabel} — p stayed attached to ${beforeLabel}.`;
+      } else if (op === 'save') {
+        if (cs.p === 'INVALID' || cs.p === 'EOL') {
+          cs.feedbackTone = 'err';
+          cs.feedbackText = cs.p === 'INVALID'
+            ? 'Undefined! Cannot read p.next() from a removed node.'
+            : 'Undefined! Cannot call p.next() on L.EOL.';
+          renderAll();
+          return;
+        }
+        const nextId = (liveIdx + 1 < liveNodes.length) ? liveNodes[liveIdx + 1].id : 'EOL';
+        pushSandboxHistory(cs, 'r = p.next()');
+        cs.r = nextId;
+        cs.feedbackTone = 'ok';
+        cs.feedbackText = `Saved next node (${labelForTarget(cs, cs.r)}) in variable r.`;
+      } else if (op === 'remove') {
+        if (cs.p === 'INVALID' || cs.p === 'EOL') {
+          cs.feedbackTone = 'err';
+          cs.feedbackText = cs.p === 'INVALID'
+            ? 'Undefined! That node was already removed.'
+            : 'Undefined! Cannot remove L.EOL.';
+          renderAll();
+          return;
+        }
+        const removedLabel = labelForTarget(cs, cs.p);
+        const removedId = cs.p;
+        pushSandboxHistory(cs, `L.remove(${removedLabel})`);
+        cs.nextIdNum += 1;
+        const ghostNode = { id: 'ghost_' + removedId + '_' + cs.nextIdNum, label: removedLabel, ghost: true };
+        const updated = [];
+        cs.nodes.forEach((n, idx) => {
+          if (idx === pIdx) updated.push(ghostNode);
+          else if (!n.ghost) updated.push(n);
+        });
+        cs.nodes = updated;
+        cs.p = 'INVALID';
+        if (cs.r === removedId) {
+          cs.r = 'INVALID';
+        }
+        cs.feedbackTone = 'warn';
+        cs.feedbackText = (cs.r && cs.r !== 'INVALID')
+          ? `Removed "${removedLabel}" (shown ghosted; neighbors relinked). p is now INVALID — click Restore (p = r) to recover!`
+          : `Removed "${removedLabel}" (shown ghosted; neighbors relinked). Because r wasn't saved first, p is now INVALID!`;
+      } else if (op === 'restore') {
+        if (!cs.r) return;
+        pushSandboxHistory(cs, 'p = r');
+        if (cs.r === 'INVALID') {
+          cs.p = 'INVALID';
+          cs.r = null;
+          cs.feedbackTone = 'err';
+          cs.feedbackText = 'r also pointed to a removed node, so p remains INVALID!';
+        } else {
+          cs.p = cs.r;
+          cs.r = null;
+          cs.feedbackTone = 'ok';
+          cs.feedbackText = `Restored p = r -> p now points cleanly to ${labelForTarget(cs, cs.p)}.`;
+        }
+      }
+
+      renderAll();
+    }
+
+    function showInsertPreview(show) {
+      const def = getActiveDef();
+      const cs = getActiveCaseState();
+      if (!show || def.id !== 'sandbox' || cs.p === 'INVALID') {
+        el.insertHint.classList.remove('visible');
+        return;
+      }
+      const nextLabel = LETTERS[cs.letterCursor % LETTERS.length];
+      el.insertHint.querySelector('span').textContent = '+' + nextLabel;
+
+      const wrapRect = el.canvasWrap.getBoundingClientRect();
+      const targetBox = Array.from(el.nodesRow.querySelectorAll('.node-box')).find(b => b.dataset.id === cs.p && b.dataset.ghost !== 'true');
+      if (!targetBox) {
+        el.insertHint.classList.remove('visible');
+        return;
+      }
+      const r = targetBox.getBoundingClientRect();
+      el.insertHint.style.left = Math.max(16, (r.left - wrapRect.left) - 17) + 'px';
+      el.insertHint.classList.add('visible');
+    }
+
+    // Bind events
+    el.resetBtn.addEventListener('click', resetCurrentStage);
+    el.checkBtn.addEventListener('click', checkDualPrediction);
+    el.hintBtn.addEventListener('click', () => {
+      const cDef = getActiveCaseDef();
+      const cs = getActiveCaseState();
+      if (!cs.awaiting) return;
+      const step = cDef.steps[cs.stepIndex];
+      cs.hintsUsed = (cs.hintsUsed || 0) + 1;
+      cs.feedbackTone = 'warn';
+      cs.feedbackText = 'Hint: ' + escalateHint(step, cs.hintsUsed, cs.pendingNode);
+      renderAll();
+    });
+    el.revealBtn.addEventListener('click', () => {
+      if (getActiveCaseState().awaiting) resolveCurrentStep(true);
+    });
+    el.nextStepBtn.addEventListener('click', advanceStep);
+
+    el.nextStageBtn.addEventListener('click', () => {
+      const action = el.nextStageBtn.dataset.action;
+      const st = getActiveStage();
+      if (action === 'next-case') {
+        st.caseIndex += 1;
+        renderAll();
+      } else if (action === 'next-stage' && app.activeStageIndex + 1 < STAGE_DEFS.length) {
+        app.activeStageIndex += 1;
+        renderAll();
+      }
+    });
+
+    el.nextTipBtn.addEventListener('click', () => {
+      const cs = getActiveCaseState();
+      cs.ideaIndex = (cs.ideaIndex + 1) % SANDBOX_IDEAS.length;
+      renderAll();
+    });
+
+    document.querySelectorAll('.op-btn[data-op]').forEach(btn => {
+      btn.addEventListener('click', () => runSandboxOp(btn.dataset.op));
+    });
+
+    el.insertBtn.addEventListener('mouseenter', () => showInsertPreview(true));
+    el.insertBtn.addEventListener('mouseleave', () => showInsertPreview(false));
+    el.insertBtn.addEventListener('focus', () => showInsertPreview(true));
+    el.insertBtn.addEventListener('blur', () => showInsertPreview(false));
+
+    el.undoBtn.addEventListener('click', () => {
+      const cs = getActiveCaseState();
+      const prev = cs.history.pop();
+      if (!prev) return;
+      cs.nodes = prev.nodes;
+      cs.p = prev.p;
+      cs.r = prev.r;
+      cs.letterCursor = prev.letterCursor;
+      cs.trail = cs.trail.slice(0, prev.trailLen);
+      cs.feedbackTone = 'neutral';
+      cs.feedbackText = 'Undid last Sandbox operation.';
+      renderAll();
+    });
+
+    window.addEventListener('resize', () => {
+      requestAnimationFrame(layoutArrowsAndPointers);
+    });
+
+    renderAll();
+  </script>
+</body>
+</html>
