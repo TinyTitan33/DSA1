@@ -1,0 +1,3115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Queue &amp; Deque — Only the Ends Are Open</title>
+  <style>
+    :root {
+      --paper: #f6f3ec;
+      --paper-alt: #ede8dc;
+      --surface: #fcfbf8;
+      --ink: #161514;
+      --ink-muted: #4a4640;
+      --ink-faint: #6b655c;
+      --rule: #cfc8ba;
+      --vermilion: #d6361d;
+      --vermilion-tint: #fdedea;
+      --vermilion-soft: rgba(214, 54, 29, 0.14);
+      --font-sans: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      --font-serif: "Georgia", "Times New Roman", serif;
+      --font-mono: "JetBrains Mono", "SFMono-Regular", "Consolas", "Liberation Mono", Menlo, monospace;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --shadow-paper: 0 2px 0 rgba(22, 21, 20, 0.08);
+      --shadow-lift: 0 4px 0 #161514;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--paper);
+      background-image:
+        linear-gradient(to right, rgba(22, 21, 20, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(22, 21, 20, 0.03) 1px, transparent 1px);
+      background-size: 24px 24px;
+      color: var(--ink);
+      font-family: var(--font-sans);
+      line-height: 1.45;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .app-shell {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 20px 16px 36px;
+    }
+
+    /* Header */
+    .masthead {
+      background: var(--surface);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      box-shadow: var(--shadow-paper);
+      margin-bottom: 16px;
+    }
+
+    .masthead-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--rule);
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: clamp(1.3rem, 2.5vw, 1.75rem);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      font-size: 0.9rem;
+      color: var(--ink-muted);
+    }
+
+    .masthead-nav {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tab-btn {
+      min-height: 42px;
+      padding: 8px 14px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 0.86rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.14s ease, color 0.14s ease, transform 0.1s ease;
+    }
+
+    .tab-btn[hidden] {
+      display: none !important;
+    }
+
+    .tab-btn:hover {
+      background: var(--paper-alt);
+    }
+
+    .tab-btn.active {
+      background: var(--ink);
+      color: var(--surface);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 42px;
+      padding: 8px 14px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.12s ease, transform 0.08s ease, border-color 0.12s ease;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: var(--paper-alt);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+
+    .btn-ink {
+      background: var(--ink);
+      color: var(--surface);
+    }
+
+    .btn-ink:hover:not(:disabled) {
+      background: #2f2d2b;
+    }
+
+    .btn-subtle {
+      border-color: var(--ink-faint);
+      color: var(--ink-muted);
+      font-family: var(--font-sans);
+      font-weight: 600;
+    }
+
+    .btn-subtle:hover:not(:disabled) {
+      border-color: var(--ink);
+      color: var(--ink);
+    }
+
+    .btn-accent-outline {
+      border-color: var(--vermilion);
+      color: var(--vermilion);
+      background: var(--vermilion-tint);
+    }
+
+    .btn-accent-outline:hover:not(:disabled) {
+      background: #fae2dd;
+    }
+
+    /* Panels / Widgets */
+    .panel {
+      display: none;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    .widget-card {
+      background: var(--surface);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-paper);
+    }
+
+    /* Lane Progressive Stepper */
+    .lane-stepper {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+    }
+
+    .stepper-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 10px;
+      flex: 1 1 280px;
+    }
+
+    .stepper-count {
+      flex: 0 0 auto;
+      padding: 2px 8px;
+      border-radius: 3px;
+      background: var(--ink);
+      color: var(--surface);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .stepper-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .stepper-title {
+      font-family: var(--font-serif);
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .stepper-goal {
+      font-size: 0.84rem;
+      color: var(--ink-muted);
+    }
+
+    .stepper-task {
+      flex: 1 0 100%;
+      order: 3;
+      margin: 2px 0 0;
+      font-family: var(--font-sans);
+      font-size: 0.84rem;
+      color: var(--ink-muted);
+    }
+
+    .stepper-task strong {
+      color: var(--ink);
+    }
+
+    .stepper-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      order: 2;
+    }
+
+    /* Step & Mode Visibility Coordination */
+    #lane-panel[data-mode="queue"] .deque-only {
+      display: none !important;
+    }
+
+    #lane-panel[data-mode="deque"] .queue-only {
+      display: none !important;
+    }
+
+    #lane-panel[data-step="1"] .step-2-up {
+      display: none !important;
+    }
+
+    #lane-panel[data-step="1"] .step-3-up,
+    #lane-panel[data-step="2"] .step-3-up {
+      display: none !important;
+    }
+
+    #lane-panel[data-step="1"] .step-4-up,
+    #lane-panel[data-step="2"] .step-4-up,
+    #lane-panel[data-step="3"] .step-4-up {
+      display: none !important;
+    }
+
+    #challenge-panel[data-completed="false"] .challenge-post-only {
+      display: none !important;
+    }
+
+    .widget-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--rule);
+      padding-bottom: 14px;
+      margin-bottom: 16px;
+    }
+
+    .widget-title-group {
+      flex: 1 1 280px;
+      min-width: 0;
+    }
+
+    .widget-title-group h2 {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .widget-title-group p {
+      margin: 2px 0 0;
+      font-size: 0.86rem;
+      color: var(--ink-muted);
+    }
+
+    #challenge-subheading {
+      max-width: 56ch;
+    }
+
+    .segmented {
+      display: inline-flex;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      background: var(--paper);
+    }
+
+    .seg-btn {
+      min-height: 42px;
+      padding: 8px 14px;
+      border: none;
+      border-right: 1px solid var(--ink);
+      background: transparent;
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 0.86rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .seg-btn:last-child {
+      border-right: none;
+    }
+
+    .seg-btn.active {
+      background: var(--ink);
+      color: var(--surface);
+    }
+
+    /* Telemetry Strip (isEmpty light + pointer stats) */
+    .telemetry-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding: 10px 14px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+    }
+
+    .contract-details {
+      margin: 10px 0 0;
+    }
+
+    .contract-details summary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      font-family: var(--font-sans);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--ink-muted);
+      cursor: pointer;
+    }
+
+    .contract-details summary:hover {
+      border-color: var(--ink);
+      color: var(--ink);
+    }
+
+    .contract-note {
+      margin: 8px 0 0;
+      padding: 8px 12px;
+      border-left: 3px solid var(--ink-faint);
+      background: var(--paper);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+      line-height: 1.45;
+    }
+
+    .telemetry-metrics {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .metric-item strong {
+      font-weight: 700;
+    }
+
+    .isempty-light {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px;
+      border: 1.5px solid var(--ink);
+      border-radius: 999px;
+      background: var(--surface);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      transition: all 0.16s ease;
+    }
+
+    .isempty-bulb {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      border: 1.5px solid var(--ink);
+      background: transparent;
+      transition: all 0.16s ease;
+    }
+
+    .isempty-light.is-empty {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+    }
+
+    .isempty-light.is-empty .isempty-bulb {
+      border-color: var(--vermilion);
+      background: var(--vermilion);
+      box-shadow: 0 0 0 3px var(--vermilion-soft);
+    }
+
+    /* Lane Stage */
+    .lane-stage {
+      position: relative;
+      background: var(--paper);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-md);
+      padding: 18px 14px 16px;
+      margin-bottom: 14px;
+    }
+
+    .lane-diagram {
+      display: grid;
+      grid-template-columns: 112px 1fr 112px;
+      align-items: stretch;
+      gap: 0;
+      min-height: 148px;
+    }
+
+    /* End Portals (Serving Window & Entry Door / Deck Ends) */
+    .portal {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 6px;
+      text-align: center;
+      position: relative;
+    }
+
+    .portal-svg {
+      width: 58px;
+      height: 58px;
+      margin-bottom: 6px;
+      color: var(--ink);
+      transition: color 0.15s ease, transform 0.15s ease;
+    }
+
+    .portal.active-flash .portal-svg {
+      color: var(--vermilion);
+      transform: scale(1.06);
+    }
+
+    .portal-title {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .portal-sub {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+      margin-top: 2px;
+    }
+
+    /* Horizontal Corridor */
+    .corridor-wrap {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 0;
+      padding: 8px 10px;
+      border-top: 3px solid var(--ink);
+      border-bottom: 3px solid var(--ink);
+      background: var(--surface);
+      min-height: 124px;
+      overflow-x: auto;
+      overflow-y: visible;
+    }
+
+    .corridor-items {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: max-content;
+      min-width: 100%;
+      min-height: 84px;
+      padding: 8px 4px;
+    }
+
+    .corridor-empty-msg {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--ink-muted);
+      border: 1.5px dashed var(--ink-faint);
+      border-radius: var(--radius-sm);
+      padding: 16px 10px;
+      transition: all 0.15s ease;
+    }
+
+    .corridor-empty-msg.exception-state {
+      border-color: var(--vermilion);
+      border-style: solid;
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+      font-weight: 700;
+    }
+
+    /* Lane Item Tile (Queue Block & Deque Card) */
+    .lane-item {
+      position: relative;
+      min-width: 58px;
+      width: auto;
+      min-height: 70px;
+      padding: 6px 8px;
+      flex: 0 0 auto;
+      border: 2px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      box-shadow: 2px 2px 0 var(--ink);
+      transition: transform 0.16s ease, border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .lane-item:hover {
+      transform: translateY(-2px);
+    }
+
+    .lane-item .item-letter {
+      font-family: var(--font-serif);
+      font-size: 1.45rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .lane-item .item-role {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      letter-spacing: 0.02em;
+      text-transform: lowercase;
+      color: var(--ink-muted);
+      margin-top: 4px;
+    }
+
+    /* Deque lane end-open tile styling */
+    .corridor-wrap.deque-lane .lane-item {
+      min-width: 62px;
+      width: auto;
+      min-height: 76px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      background: var(--surface);
+      box-shadow: 3px 3px 0 var(--ink);
+    }
+
+    .lane-item.just-happened {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+      box-shadow: 2px 2px 0 var(--vermilion);
+      animation: popIn 0.25s ease;
+    }
+
+    .lane-item.just-happened .item-role {
+      color: var(--vermilion);
+    }
+
+    .lane-item.blocked-shake {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+      box-shadow: 2px 2px 0 var(--vermilion);
+      animation: shakeX 0.42s ease;
+    }
+
+    .lane-item.blocked-shake .item-role {
+      color: var(--vermilion);
+    }
+
+    .item-callout {
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--vermilion);
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 3px;
+      white-space: nowrap;
+      z-index: 10;
+      pointer-events: none;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    }
+
+    .item-callout::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 4px solid transparent;
+      border-top-color: var(--vermilion);
+    }
+
+    /* Circular Buffer Backing Array Strip */
+    .backing-strip {
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+
+    .backing-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px 12px;
+      margin-bottom: 10px;
+    }
+
+    .backing-title-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 4px 12px;
+    }
+
+    .backing-title {
+      font-family: var(--font-mono);
+      font-size: 0.84rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .backing-note {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+      line-height: 1.35;
+    }
+
+    .backing-helper {
+      margin: 10px 0 0;
+      font-size: 0.84rem;
+      color: var(--ink-muted);
+      line-height: 1.4;
+    }
+
+    .backing-slots {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .ring-cell {
+      min-width: 0;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      padding: 6px 4px;
+      text-align: center;
+      font-family: var(--font-mono);
+      overflow-wrap: anywhere;
+      transition: all 0.15s ease;
+    }
+
+    .ring-cell.wrapped-cell {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+    }
+
+    .ring-idx {
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+    }
+
+    .ring-val {
+      font-family: var(--font-serif);
+      font-size: 1.05rem;
+      font-weight: 700;
+      min-height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ring-ptr {
+      font-size: 0.8rem;
+      font-weight: 700;
+      min-height: 18px;
+      color: var(--ink);
+    }
+
+    .ring-cell.wrapped-cell .ring-ptr,
+    .ring-cell.wrapped-cell .ring-idx {
+      color: var(--vermilion);
+    }
+
+    /* Controls Bar */
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .controls-primary,
+    .controls-secondary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .letter-picker {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 42px;
+      padding: 4px 10px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .letter-picker select {
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      font-weight: 700;
+      border: 1px solid var(--ink-faint);
+      border-radius: 3px;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 4px 6px;
+      min-height: 30px;
+      cursor: pointer;
+    }
+
+    /* Predict-First Prompt Box */
+    .predict-box {
+      display: none;
+      margin-bottom: 14px;
+      padding: 14px 16px;
+      border: 2px solid var(--ink);
+      border-left: 6px solid var(--vermilion);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      animation: popIn 0.2s ease;
+    }
+
+    .predict-box.visible {
+      display: block;
+    }
+
+    .predict-kicker {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      color: var(--vermilion);
+      margin-bottom: 4px;
+    }
+
+    .predict-question {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin: 0 0 6px;
+    }
+
+    .predict-helper {
+      margin: 0 0 10px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--ink-muted);
+    }
+
+    .predict-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .predict-opt {
+      min-height: 42px;
+      padding: 8px 14px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.12s ease;
+    }
+
+    .predict-opt:hover:not(:disabled) {
+      background: var(--paper-alt);
+    }
+
+    .predict-opt.wrong-choice {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+      animation: shakeX 0.35s ease;
+    }
+
+    .predict-opt.right-choice {
+      background: var(--ink);
+      color: var(--surface);
+    }
+
+    .predict-feedback {
+      margin-top: 8px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      min-height: 20px;
+    }
+
+    .predict-feedback.wrong {
+      color: var(--vermilion);
+    }
+
+    /* One-line Status Bar */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      min-height: 44px;
+    }
+
+    .status-bar.status-accent {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+    }
+
+    .status-badge {
+      flex: 0 0 auto;
+      padding: 2px 7px;
+      border-radius: 3px;
+      background: var(--ink);
+      color: var(--surface);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .status-bar.status-accent .status-badge {
+      background: var(--vermilion);
+    }
+
+    .status-text {
+      flex: 1 1 auto;
+      color: var(--ink);
+    }
+
+    .status-bar.status-accent .status-text {
+      color: var(--vermilion);
+      font-weight: 600;
+    }
+
+    /* Challenge Tab: Palindrome Checker */
+    .challenge-stage {
+      margin-bottom: 14px;
+    }
+
+    .middle-card {
+      min-width: 128px;
+      max-width: 190px;
+    }
+
+    .corridor-wrap.deque-lane .lane-item.middle-card {
+      min-width: 132px;
+      padding: 10px 14px;
+    }
+
+    .middle-card .item-role {
+      text-transform: none;
+      white-space: normal;
+      text-align: center;
+      line-height: 1.25;
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .pairs-box {
+      background: var(--paper);
+      border: 1.5px solid var(--rule);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }
+
+    .pairs-box-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .pairs-box-title {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .pairs-box-note {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+    }
+
+    .pairs-header,
+    .pair-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pairs-header {
+      padding: 0 8px 6px;
+      border-bottom: 1px solid var(--rule);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+    }
+
+    .pairs-list {
+      max-height: 156px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding-top: 6px;
+    }
+
+    .pairs-empty {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--ink-muted);
+      padding: 6px 8px;
+    }
+
+    .pair-row {
+      padding: 5px 8px;
+      min-height: 33px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .pair-row.pair-mismatch {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+    }
+
+    .pair-result {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .pair-result.is-match {
+      color: var(--ink);
+    }
+
+    .pair-result.is-miss {
+      color: var(--vermilion);
+    }
+
+    .result-verdict {
+      margin-bottom: 10px;
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      font-weight: 700;
+      text-align: center;
+      border: 1.5px solid var(--rule);
+      background: var(--surface);
+      color: var(--ink);
+    }
+
+    .result-verdict.palindrome {
+      border-color: var(--ink);
+      background: var(--ink);
+      color: var(--surface);
+    }
+
+    .result-verdict.not-palindrome {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+    }
+
+    #challenge-panel[data-completed="false"] .challenge-post-only {
+      display: none;
+    }
+
+    .challenge-next-hint {
+      margin: 0 0 12px;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--ink-muted);
+    }
+
+    /* Animations */
+    @keyframes shakeX {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-7px); }
+      40% { transform: translateX(6px); }
+      60% { transform: translateX(-5px); }
+      80% { transform: translateX(4px); }
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.88); opacity: 0.6; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .lane-shake {
+      animation: shakeX 0.4s ease;
+    }
+
+    /* Responsive Breakpoints */
+    @media (max-width: 680px) {
+      .app-shell {
+        padding: 12px 10px 28px;
+      }
+
+      .masthead,
+      .widget-card {
+        padding: 14px 12px;
+      }
+
+      .lane-diagram {
+        grid-template-columns: 76px 1fr 76px;
+      }
+
+      .portal-svg {
+        width: 42px;
+        height: 42px;
+      }
+
+      .portal-title {
+        font-size: 0.8rem;
+      }
+
+      .portal-sub {
+        font-size: 0.8rem;
+      }
+
+      .lane-item {
+        min-width: 50px;
+        min-height: 64px;
+        padding: 4px 6px;
+      }
+
+      .corridor-wrap.deque-lane .lane-item {
+        min-width: 54px;
+        min-height: 68px;
+        padding: 6px 10px;
+      }
+
+      .lane-item .item-letter {
+        font-size: 1.2rem;
+      }
+
+      .backing-slots {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .stepper-nav {
+        width: 100%;
+      }
+
+      .stepper-nav .btn {
+        flex: 1 1 auto;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .app-shell {
+        padding: 10px 8px 24px;
+      }
+
+      .widget-card,
+      .masthead {
+        padding: 12px 10px;
+      }
+
+      .lane-stage {
+        padding: 12px 8px;
+      }
+
+      .lane-diagram {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .portal {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        padding: 4px;
+      }
+
+      .portal-svg {
+        margin-bottom: 0;
+        width: 36px;
+        height: 36px;
+      }
+
+      .corridor-items {
+        gap: 6px;
+      }
+
+      .lane-item {
+        min-width: 46px;
+        min-height: 58px;
+        padding: 4px 6px;
+      }
+
+      .corridor-wrap.deque-lane .lane-item {
+        min-width: 50px;
+        min-height: 62px;
+        padding: 6px 8px;
+      }
+
+      .backing-slots {
+        gap: 6px;
+      }
+    }
+
+    /* Keyboard Focus Visibility */
+    .tab-btn:focus-visible,
+    .btn:focus-visible,
+    .seg-btn:focus-visible,
+    .contract-details summary:focus-visible,
+    .predict-opt:focus-visible,
+    .lane-item:focus-visible,
+    .letter-picker select:focus-visible {
+      outline: 3px solid var(--vermilion);
+      outline-offset: 2px;
+    }
+
+    /* Reduced Motion Support */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+
+      .lane-item:hover {
+        transform: none;
+      }
+
+      .portal.active-flash .portal-svg {
+        transform: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="masthead">
+      <div class="masthead-top">
+        <div>
+          <h1>Queue &amp; Deque: Only the Ends Are Open</h1>
+          <p class="subtitle">Explore how queues and deques work.</p>
+        </div>
+      </div>
+
+      <nav class="masthead-nav" aria-label="Queue and Deque Navigation">
+        <div class="tabs" role="tablist" aria-label="Queue and Deque Pages">
+          <button type="button" id="tab-step-1" class="tab-btn active" role="tab" aria-selected="true" aria-controls="lane-panel" tabindex="0" data-tab="lane-panel" data-step="1">
+            1. Queue Basics
+          </button>
+          <button type="button" id="tab-step-2" class="tab-btn" role="tab" aria-selected="false" aria-controls="lane-panel" tabindex="-1" data-tab="lane-panel" data-step="2">
+            2. Empty &amp; Full
+          </button>
+          <button type="button" id="tab-step-3" class="tab-btn" role="tab" aria-selected="false" aria-controls="lane-panel" tabindex="-1" data-tab="lane-panel" data-step="3">
+            3. Deque
+          </button>
+          <button type="button" id="tab-step-4" class="tab-btn" role="tab" aria-selected="false" aria-controls="lane-panel" tabindex="-1" data-tab="lane-panel" data-step="4">
+            4. Under the Hood
+          </button>
+          <button type="button" id="tab-challenge" class="tab-btn" role="tab" aria-selected="false" aria-controls="challenge-panel" tabindex="-1" data-tab="challenge-panel" hidden>
+            5. Challenge: Is It a Palindrome?
+          </button>
+        </div>
+      </nav>
+    </header>
+
+    <!-- QUEUE & DEQUE LANE -->
+    <section id="lane-panel" class="panel active" role="tabpanel" aria-labelledby="tab-step-1" data-step="1" data-mode="queue">
+      <div class="widget-card">
+        <div class="lane-stepper" id="lane-stepper" aria-label="Queue and Deque step">
+          <div class="stepper-meta">
+            <span class="stepper-count" id="lane-step-count">Step 1 of 4</span>
+            <div class="stepper-text">
+              <strong class="stepper-title" id="lane-step-title">1. Queue basics</strong>
+              <span class="stepper-goal" id="lane-step-goal">Add with offer(x) at the right door and remove with poll() at the left window (First in, first out — FIFO). Only the two ends are open.</span>
+            </div>
+          </div>
+          <p class="stepper-task" id="lane-step-task"><strong>Try this:</strong> Press offer(x) a few times, then poll(). Notice which item leaves first: the one that arrived first.</p>
+          <div class="stepper-nav">
+            <button type="button" id="btn-step-back" class="btn btn-subtle" disabled>&larr; Back</button>
+            <button type="button" id="btn-step-next" class="btn btn-ink">Next &rarr;</button>
+          </div>
+        </div>
+
+        <div class="widget-header">
+          <div class="widget-title-group">
+            <h2 id="lane-heading">Queue Mode — Serving Window &amp; Entry Door</h2>
+          </div>
+          <div id="mode-switch-group" class="segmented step-3-up" role="group" aria-label="Lane structure mode">
+            <button type="button" id="mode-queue-btn" class="seg-btn active" aria-pressed="true">Queue (FIFO)</button>
+            <button type="button" id="mode-deque-btn" class="seg-btn" aria-pressed="false">Deque (Both Ends)</button>
+          </div>
+        </div>
+
+        <div class="telemetry-bar step-2-up">
+          <div class="telemetry-metrics">
+            <span class="metric-item">Size: <strong id="lane-size-val">4</strong> / 6</span>
+            <span class="metric-item" id="lane-ends-summary">Head: <strong>A</strong> | Tail: <strong>D</strong></span>
+          </div>
+          <div id="isempty-light" class="isempty-light" aria-live="polite">
+            <span class="isempty-bulb" aria-hidden="true"></span>
+            <span id="isempty-text">isEmpty: false</span>
+          </div>
+        </div>
+
+        <div id="lane-stage" class="lane-stage">
+          <div class="lane-diagram">
+            <!-- Left Portal -->
+            <div class="portal" id="left-portal">
+              <svg id="left-portal-svg" class="portal-svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <!-- Serving window icon -->
+                <rect x="10" y="12" width="44" height="32" rx="2" />
+                <path d="M8 12 L14 4 L50 4 L56 12" />
+                <line x1="6" y1="48" x2="58" y2="48" stroke-width="3" />
+                <line x1="20" y1="28" x2="44" y2="28" />
+                <polyline points="26,22 20,28 26,34" />
+              </svg>
+              <div class="portal-title" id="left-portal-title">Head Window</div>
+              <div class="portal-sub" id="left-portal-sub">&larr; poll() / peek()</div>
+            </div>
+
+            <!-- Horizontal Corridor -->
+            <div class="corridor-wrap" id="corridor-wrap">
+              <div class="corridor-items" id="corridor-items"></div>
+            </div>
+
+            <!-- Right Portal -->
+            <div class="portal" id="right-portal">
+              <svg id="right-portal-svg" class="portal-svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <!-- Entry door icon -->
+                <rect x="14" y="8" width="32" height="48" />
+                <polygon points="14,8 36,14 36,50 14,56" fill="rgba(22,21,20,0.06)" />
+                <circle cx="31" cy="32" r="2" fill="currentColor" />
+                <line x1="56" y1="32" x2="40" y2="32" />
+                <polyline points="45,27 40,32 45,37" />
+              </svg>
+              <div class="portal-title" id="right-portal-title">Tail Door</div>
+              <div class="portal-sub" id="right-portal-sub">&larr; offer(x)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Circular Array Backing Strip -->
+        <div class="backing-strip step-4-up">
+          <div class="backing-head">
+            <div class="backing-title-group">
+              <span class="backing-title" id="backing-title">Circular Array Backing</span>
+              <span class="backing-note" id="backing-note">Fixed capacity of 6 for illustration. Java&rsquo;s ArrayDeque grows automatically.</span>
+            </div>
+            <button type="button" id="setup-wrap-btn" class="btn btn-subtle" style="min-height:34px; padding:4px 10px;">
+              Show me the wrap-around
+            </button>
+          </div>
+          <div class="backing-slots" id="backing-slots"></div>
+          <p class="backing-helper">When the end of the array is reached, new items continue from slot 0.</p>
+        </div>
+
+        <!-- Quick guess Prompt for Widget 1 -->
+        <div id="lane-predict-box" class="predict-box" aria-live="polite">
+          <div class="predict-kicker">Quick guess</div>
+          <p class="predict-question" id="lane-predict-question"></p>
+          <p class="predict-helper">Pick one to continue</p>
+          <div class="predict-options" id="lane-predict-options"></div>
+          <div class="predict-feedback" id="lane-predict-feedback"></div>
+        </div>
+
+        <!-- Controls for Widget 1 -->
+        <div class="controls-row">
+          <div class="controls-primary" id="lane-controls-primary">
+            <label class="letter-picker">
+              <span>x =</span>
+              <select id="next-letter-select" aria-label="Letter to insert" autocomplete="off"></select>
+            </label>
+
+            <!-- Queue Controls -->
+            <button type="button" id="btn-offer" class="btn btn-ink queue-only">offer(x)</button>
+            <button type="button" id="btn-poll" class="btn queue-only">poll()</button>
+            <button type="button" id="btn-peek" class="btn queue-only">peek()</button>
+
+            <!-- Deque Controls -->
+            <button type="button" id="btn-add-first" class="btn btn-ink deque-only step-3-up">addFirst(x)</button>
+            <button type="button" id="btn-add-last" class="btn btn-ink deque-only step-3-up">addLast(x)</button>
+            <button type="button" id="btn-remove-first" class="btn deque-only step-3-up">removeFirst()</button>
+            <button type="button" id="btn-remove-last" class="btn deque-only step-3-up">removeLast()</button>
+          </div>
+
+          <div class="controls-secondary">
+            <button type="button" id="btn-empty-lane" class="btn btn-subtle step-2-up">Empty Lane</button>
+            <button type="button" id="btn-lane-reset" class="btn">Reset</button>
+          </div>
+        </div>
+
+        <!-- One-line status message -->
+        <div id="lane-status-bar" class="status-bar" aria-live="polite">
+          <span class="status-badge" id="lane-status-badge">Ready</span>
+          <span class="status-text" id="lane-status-text">Queue initialized with [A, B, C, D] — only the head window and tail door are open.</span>
+        </div>
+        <details class="contract-details step-4-up" id="lane-contract-details">
+          <summary>More detail for Java programmers</summary>
+          <p class="contract-note" id="lane-contract-note">
+            In this course&rsquo;s ADT, an empty queue throws an exception. In <code>java.util</code>, <code>poll()</code> and <code>peek()</code> return <code>null</code>, while <code>remove()</code> and <code>element()</code> throw; on a bounded queue, <code>offer()</code> returns <code>false</code> when full.
+          </p>
+        </details>
+      </div>
+    </section>
+
+    <!-- TAB 2: CHALLENGE — PALINDROME CHECKER -->
+    <section id="challenge-panel" class="panel" role="tabpanel" aria-labelledby="tab-challenge" data-completed="false">
+      <div class="widget-card">
+        <div class="widget-header">
+          <div class="widget-title-group">
+            <h2 id="challenge-heading">Challenge: Is It a Palindrome?</h2>
+            <p id="challenge-subheading">A palindrome reads the same forwards and backwards. Each step removes one letter from the front and one from the back. If every pair matches, it&rsquo;s a palindrome.</p>
+          </div>
+          <div class="controls-secondary">
+            <label class="letter-picker" id="challenge-word-picker" for="challenge-word-select">
+              <span>Word:</span>
+              <select id="challenge-word-select" aria-label="Word to test" autocomplete="off">
+                <option value="RACECAR" selected>RACECAR</option>
+                <option value="LEVEL">LEVEL</option>
+                <option value="RACEBAR">RACEBAR</option>
+                <option value="HELLO">HELLO</option>
+                <option value="NOON">NOON</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="lane-stage challenge-stage">
+          <div class="lane-diagram">
+            <div class="portal" id="challenge-portal-front">
+              <svg class="portal-svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                <rect x="14" y="10" width="32" height="44" rx="4" stroke="currentColor" stroke-width="2.5" fill="var(--surface)" />
+                <text id="challenge-front-icon-letter" x="30" y="37" text-anchor="middle" font-family="Georgia, serif" font-size="18" font-weight="700" fill="currentColor">R</text>
+                <path d="M56 32H40M40 32L46 26M40 32L46 38" stroke="var(--vermilion)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span class="portal-title">Front end</span>
+              <span class="portal-sub">removeFirst()</span>
+            </div>
+
+            <div class="corridor-wrap deque-lane" id="challenge-corridor-wrap">
+              <div class="corridor-items" id="challenge-corridor"></div>
+            </div>
+
+            <div class="portal" id="challenge-portal-back">
+              <svg class="portal-svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                <rect x="18" y="10" width="32" height="44" rx="4" stroke="currentColor" stroke-width="2.5" fill="var(--surface)" />
+                <text id="challenge-back-icon-letter" x="34" y="37" text-anchor="middle" font-family="Georgia, serif" font-size="18" font-weight="700" fill="currentColor">R</text>
+                <path d="M8 32H24M24 32L18 26M24 32L18 38" stroke="var(--vermilion)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span class="portal-title">Back end</span>
+              <span class="portal-sub">removeLast()</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pairs-box" aria-label="Matched pairs log">
+          <div class="pairs-box-head">
+            <span class="pairs-box-title">Matched pairs</span>
+            <span class="pairs-box-note">Newest at bottom (up to 4 shown)</span>
+          </div>
+          <div class="pairs-header">
+            <span>Front letter</span>
+            <span>Back letter</span>
+            <span>Result</span>
+          </div>
+          <div class="pairs-list" id="challenge-pairs-list">
+            <div class="pairs-empty">No pairs compared yet.</div>
+          </div>
+        </div>
+
+        <div id="challenge-verdict" class="result-verdict" aria-live="polite">Press Next step to remove the first and last letter and compare them.</div>
+        <p id="challenge-next-hint" class="challenge-next-hint challenge-post-only">A queue can only read one end. The deque let us compare both ends at once. Try another word from the list.</p>
+
+        <!-- Quick guess Prompt for Widget 2 -->
+        <div id="challenge-predict-box" class="predict-box" aria-live="polite">
+          <div class="predict-kicker">Quick guess</div>
+          <p class="predict-question" id="challenge-predict-question"></p>
+          <p class="predict-helper">Pick one to continue</p>
+          <div class="predict-options" id="challenge-predict-options"></div>
+          <div class="predict-feedback" id="challenge-predict-feedback"></div>
+        </div>
+
+        <!-- Controls for Widget 2 -->
+        <div class="controls-row">
+          <div class="controls-primary">
+            <button type="button" id="btn-challenge-step" class="btn btn-ink">Next step</button>
+            <button type="button" id="btn-challenge-run" class="btn">Run all</button>
+          </div>
+          <div class="controls-secondary">
+            <button type="button" id="btn-challenge-reset" class="btn">Reset</button>
+          </div>
+        </div>
+
+        <!-- One-line status message -->
+        <div id="challenge-status-bar" class="status-bar" aria-live="polite">
+          <span class="status-badge" id="challenge-status-badge">Ready</span>
+          <span class="status-text" id="challenge-status-text">Deque loaded with RACECAR — compare the front and back letters.</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      const CAP = 6;
+      const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+      const LANE_STEPS = [
+        {
+          step: 1,
+          title: "1. Queue basics",
+          goal: "Add with offer(x) at the right door and remove with poll() at the left window (First in, first out — FIFO). Only the two ends are open.",
+          task: "Press offer(x) a few times, then poll(). Notice which item leaves first: the one that arrived first."
+        },
+        {
+          step: 2,
+          title: "2. Empty and full",
+          goal: "Watch the size counter and isEmpty light as you empty or fill the lane.",
+          task: "Press offer(x) until the lane is full, then once more. Then press Empty Lane and try poll()."
+        },
+        {
+          step: 3,
+          title: "3. Deque",
+          goal: "Switch between Queue and Deque (pronounced \"deck\") to open both ends of the lane.",
+          task: "A queue adds at the tail and removes at the head. Switch to Deque and try addFirst() and removeLast() too."
+        },
+        {
+          step: 4,
+          title: "4. Under the hood",
+          goal: "Bonus: under the hood — see how 6 array slots store the lane and wrap around.",
+          task: "Use 'Show me the wrap-around', then press offer(x) and watch which array slot is used."
+        }
+      ];
+
+      const globalState = {
+        predictFirst: true,
+        challengeUnlocked: false,
+        predictedRules: {
+          queuePoll: false,
+          dequeRemoveFirst: false,
+          dequeRemoveLast: false,
+          tailWrapQueue: false,
+          tailWrapDeque: false,
+          headWrapDeque: false,
+          palindromeMatch: false,
+          palindromeMismatch: false,
+          palindromeMiddleOne: false
+        }
+      };
+
+      function prefersReducedMotion() {
+        return Boolean(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      }
+
+      function resetLanePredictions() {
+        globalState.predictedRules.queuePoll = false;
+        globalState.predictedRules.dequeRemoveFirst = false;
+        globalState.predictedRules.dequeRemoveLast = false;
+        globalState.predictedRules.tailWrapQueue = false;
+        globalState.predictedRules.tailWrapDeque = false;
+        globalState.predictedRules.headWrapDeque = false;
+      }
+
+      function resetChallengePredictions() {
+        globalState.predictedRules.palindromeMatch = false;
+        globalState.predictedRules.palindromeMismatch = false;
+        globalState.predictedRules.palindromeMiddleOne = false;
+      }
+
+      /* -----------------------------
+         DOM Helpers & Shared Predict
+      ----------------------------- */
+      const $ = (id) => document.getElementById(id);
+
+      function isLanePromptOpen() {
+        return $("lane-predict-box").classList.contains("visible");
+      }
+
+      function isChallengePromptOpen() {
+        return $("challenge-predict-box").classList.contains("visible");
+      }
+
+      function syncLaneControls() {
+        const locked = isLanePromptOpen();
+        [
+          "btn-offer",
+          "btn-poll",
+          "btn-peek",
+          "btn-add-first",
+          "btn-add-last",
+          "btn-remove-first",
+          "btn-remove-last",
+          "btn-empty-lane",
+          "setup-wrap-btn",
+          "next-letter-select"
+        ].forEach((id) => {
+          const el = $(id);
+          if (el) el.disabled = locked;
+        });
+        const backBtn = $("btn-step-back");
+        const nextBtn = $("btn-step-next");
+        if (backBtn) backBtn.disabled = locked || laneState.step <= 1;
+        if (nextBtn) nextBtn.disabled = locked;
+      }
+
+      function syncChallengeControls() {
+        const promptOpen = isChallengePromptOpen();
+        const locked = challengeState.isRunning || promptOpen;
+        const canRun = !locked && challengeState.phase === "running";
+        $("btn-challenge-step").disabled = !canRun;
+        $("btn-challenge-run").disabled = !canRun;
+        $("btn-challenge-reset").disabled = promptOpen;
+        const wordSel = $("challenge-word-select");
+        if (wordSel) wordSel.disabled = promptOpen;
+      }
+
+      function syncAllControls() {
+        syncLaneControls();
+        syncChallengeControls();
+      }
+
+      function hidePredictBox(boxEl) {
+        if (boxEl._revealTimer) {
+          clearTimeout(boxEl._revealTimer);
+          boxEl._revealTimer = null;
+        }
+        boxEl.classList.remove("visible");
+        syncAllControls();
+      }
+
+      function setStatus(barEl, badgeEl, textEl, badge, text, isAccent) {
+        badgeEl.textContent = badge;
+        textEl.textContent = text;
+        barEl.classList.toggle("status-accent", Boolean(isAccent));
+      }
+
+      function shuffleOptions(options) {
+        const copy = options.slice();
+        for (let i = copy.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const temp = copy[i];
+          copy[i] = copy[j];
+          copy[j] = temp;
+        }
+        return copy;
+      }
+
+      function showPredictPrompt(boxEl, qEl, optsEl, fbEl, question, options, onCorrect) {
+        if (boxEl._revealTimer) {
+          clearTimeout(boxEl._revealTimer);
+          boxEl._revealTimer = null;
+        }
+        const shuffledOptions = shuffleOptions(options);
+        qEl.textContent = question;
+        optsEl.innerHTML = "";
+        fbEl.textContent = "";
+        fbEl.className = "predict-feedback";
+        boxEl.classList.add("visible");
+        syncAllControls();
+
+        shuffledOptions.forEach((opt) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "predict-opt";
+          btn.textContent = opt.label;
+          btn.addEventListener("click", () => {
+            if (opt.correct) {
+              btn.classList.add("right-choice");
+              fbEl.className = "predict-feedback";
+              fbEl.textContent = "Correct — " + opt.explain;
+              Array.from(optsEl.querySelectorAll("button")).forEach((b) => {
+                b.disabled = true;
+              });
+              boxEl._revealTimer = setTimeout(() => {
+                boxEl._revealTimer = null;
+                boxEl.classList.remove("visible");
+                syncAllControls();
+                onCorrect();
+              }, prefersReducedMotion() ? 150 : 380);
+            } else {
+              btn.classList.add("wrong-choice");
+              fbEl.className = "predict-feedback wrong";
+              fbEl.textContent = "Not quite — " + opt.explain;
+            }
+          });
+          optsEl.appendChild(btn);
+        });
+      }
+
+      /* -----------------------------
+         Header Tabs
+      ----------------------------- */
+      const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
+      const panels = document.querySelectorAll(".panel");
+
+      function syncStepTabHighlight(activeTab) {
+        tabButtons.forEach((b) => {
+          const active = b === activeTab;
+          b.classList.toggle("active", active);
+          b.setAttribute("aria-selected", String(active));
+          b.setAttribute("tabindex", active ? "0" : "-1");
+        });
+      }
+
+      function unlockChallengeTab() {
+        globalState.challengeUnlocked = true;
+        const challengeTab = $("tab-challenge");
+        challengeTab.hidden = false;
+        challengeTab.removeAttribute("hidden");
+        challengeTab.title = "Open the Palindrome challenge";
+        activateTab(challengeTab, false);
+      }
+
+      function activateTab(btn, moveFocus) {
+        const target = btn.getAttribute("data-tab");
+        if (target === "challenge-panel" && !globalState.challengeUnlocked) {
+          return;
+        }
+        if (target === "lane-panel") {
+          const stepNum = Number(btn.getAttribute("data-step"));
+          if (stepNum && stepNum !== laneState.step) {
+            if (!setLaneStep(stepNum, true)) {
+              if (moveFocus) {
+                const currentStepBtn = $("tab-step-" + laneState.step);
+                if (currentStepBtn) currentStepBtn.focus();
+              }
+              return;
+            }
+          }
+          $("lane-panel").setAttribute("aria-labelledby", btn.id);
+        }
+        if (target !== "challenge-panel" && challengeState.isRunning) {
+          stopChallengeAnimation();
+          renderChallenge();
+          setStatus(
+            $("challenge-status-bar"),
+            $("challenge-status-badge"),
+            $("challenge-status-text"),
+            "Paused",
+            "Run paused while viewing another tab — click Next step or Run all to resume.",
+            false
+          );
+        }
+        syncStepTabHighlight(btn);
+        panels.forEach((p) => {
+          p.classList.toggle("active", p.id === target);
+        });
+        if (moveFocus) {
+          btn.focus();
+        }
+      }
+
+      tabButtons.forEach((btn) => {
+        btn.addEventListener("click", () => activateTab(btn, false));
+        btn.addEventListener("keydown", (e) => {
+          const visibleTabs = tabButtons.filter((b) => !b.hidden);
+          const curIdx = visibleTabs.indexOf(btn);
+          if (curIdx === -1) return;
+          let nextIdx = null;
+          if (e.key === "ArrowRight") nextIdx = (curIdx + 1) % visibleTabs.length;
+          else if (e.key === "ArrowLeft") nextIdx = (curIdx - 1 + visibleTabs.length) % visibleTabs.length;
+          else if (e.key === "Home") nextIdx = 0;
+          else if (e.key === "End") nextIdx = visibleTabs.length - 1;
+          if (nextIdx !== null) {
+            e.preventDefault();
+            activateTab(visibleTabs[nextIdx], true);
+          }
+        });
+      });
+
+      /* =========================================================
+         WIDGET 1: QUEUE & DEQUE HORIZONTAL LANE
+      ========================================================= */
+      const laneState = {
+        step: 1,
+        mode: "queue", // "queue" | "deque"
+        buffer: new Array(CAP).fill(null),
+        head: 0,
+        count: 0,
+        nextCharIdx: 4, // E
+        flashIndex: -1, // logical index 0..count-1
+        flashWrappedSlot: -1, // physical array slot 0..CAP-1
+        flashPortal: null, // "left" | "right" | null
+        blockedIndex: -1,
+        emptyException: false,
+        calloutTimer: null
+      };
+
+      const letterSelect = $("next-letter-select");
+      ALPHABET.forEach((ch, idx) => {
+        const opt = document.createElement("option");
+        opt.value = ch;
+        opt.textContent = ch;
+        if (idx === 4) opt.selected = true;
+        letterSelect.appendChild(opt);
+      });
+
+      function initLane(customHead) {
+        laneState.buffer = new Array(CAP).fill(null);
+        const startHead = typeof customHead === "number" ? customHead : 0;
+        const seed = ["A", "B", "C", "D"];
+        seed.forEach((ch, i) => {
+          laneState.buffer[(startHead + i) % CAP] = ch;
+        });
+        laneState.head = startHead;
+        laneState.count = seed.length;
+        laneState.nextCharIdx = 4; // E
+        letterSelect.value = ALPHABET[laneState.nextCharIdx];
+        laneState.flashIndex = -1;
+        laneState.flashWrappedSlot = -1;
+        laneState.flashPortal = null;
+        laneState.blockedIndex = -1;
+        laneState.emptyException = false;
+        hidePredictBox($("lane-predict-box"));
+      }
+
+      function getLogicalItems() {
+        const res = [];
+        for (let i = 0; i < laneState.count; i++) {
+          const slot = (laneState.head + i) % CAP;
+          res.push({ letter: laneState.buffer[slot], slot, logicalIdx: i });
+        }
+        return res;
+      }
+
+      function advanceLetter() {
+        const current = letterSelect.value;
+        const curIdx = ALPHABET.indexOf(current);
+        laneState.nextCharIdx = (curIdx + 1) % ALPHABET.length;
+        letterSelect.value = ALPHABET[laneState.nextCharIdx];
+        return current;
+      }
+
+      function updatePortalIcons() {
+        const leftSvg = $("left-portal-svg");
+        const rightSvg = $("right-portal-svg");
+        if (laneState.mode === "queue") {
+          $("lane-heading").textContent = "Queue Mode — Serving Window & Entry Door";
+          $("left-portal-title").textContent = "Head Window";
+          $("left-portal-sub").innerHTML = "&larr; poll() / peek()";
+          $("right-portal-title").textContent = "Tail Door";
+          $("right-portal-sub").innerHTML = "&larr; offer(x)";
+          leftSvg.innerHTML =
+            '<rect x="10" y="12" width="44" height="32" rx="2" />' +
+            '<path d="M8 12 L14 4 L50 4 L56 12" />' +
+            '<line x1="6" y1="48" x2="58" y2="48" stroke-width="3" />' +
+            '<line x1="20" y1="28" x2="44" y2="28" />' +
+            '<polyline points="26,22 20,28 26,34" />';
+          rightSvg.innerHTML =
+            '<rect x="14" y="8" width="32" height="48" />' +
+            '<polygon points="14,8 36,14 36,50 14,56" fill="rgba(22,21,20,0.06)" />' +
+            '<circle cx="31" cy="32" r="2" fill="currentColor" />' +
+            '<line x1="56" y1="32" x2="40" y2="32" />' +
+            '<polyline points="45,27 40,32 45,37" />';
+        } else {
+          $("lane-heading").textContent = "Deque Mode — Both Ends of the Lane Open";
+          $("left-portal-title").textContent = "First (open)";
+          $("left-portal-sub").innerHTML = "add / removeFirst";
+          $("right-portal-title").textContent = "Last (open)";
+          $("right-portal-sub").innerHTML = "add / removeLast";
+          leftSvg.innerHTML =
+            '<rect x="14" y="10" width="34" height="44" rx="4" />' +
+            '<line x1="6" y1="26" x2="26" y2="26" />' +
+            '<polyline points="20,21 26,26 20,31" />' +
+            '<line x1="26" y1="38" x2="6" y2="38" />' +
+            '<polyline points="12,33 6,38 12,43" />';
+          rightSvg.innerHTML =
+            '<rect x="16" y="10" width="34" height="44" rx="4" />' +
+            '<line x1="38" y1="26" x2="58" y2="26" />' +
+            '<polyline points="52,21 58,26 52,31" />' +
+            '<line x1="58" y1="38" x2="38" y2="38" />' +
+            '<polyline points="44,33 38,38 44,43" />';
+        }
+      }
+
+      function renderLane() {
+        const items = getLogicalItems();
+        const isQueue = laneState.mode === "queue";
+        updatePortalIcons();
+
+        // Coordinate step and mode visibility through panel attributes
+        const lanePanel = $("lane-panel");
+        lanePanel.setAttribute("data-step", String(laneState.step));
+        lanePanel.setAttribute("data-mode", laneState.mode);
+
+        const stepInfo = LANE_STEPS[laneState.step - 1] || LANE_STEPS[0];
+        $("lane-step-count").textContent = `Step ${stepInfo.step} of ${LANE_STEPS.length}`;
+        $("lane-step-title").textContent = stepInfo.title;
+        $("lane-step-goal").textContent = stepInfo.goal;
+        const stepTaskEl = $("lane-step-task");
+        if (stepTaskEl) {
+          stepTaskEl.textContent = "";
+          const labelEl = document.createElement("strong");
+          labelEl.textContent = "Try this:";
+          stepTaskEl.appendChild(labelEl);
+          stepTaskEl.appendChild(document.createTextNode(" " + stepInfo.task));
+        }
+        $("btn-step-next").textContent = laneState.step >= 4 ? "Next: Challenge \u2192" : "Next \u2192";
+
+        $("mode-queue-btn").classList.toggle("active", isQueue);
+        $("mode-queue-btn").setAttribute("aria-pressed", String(isQueue));
+        $("mode-deque-btn").classList.toggle("active", !isQueue);
+        $("mode-deque-btn").setAttribute("aria-pressed", String(!isQueue));
+
+        // Telemetry & isEmpty light
+        $("lane-size-val").textContent = String(laneState.count);
+        const endsSummary = $("lane-ends-summary");
+        if (items.length === 0) {
+          endsSummary.innerHTML = isQueue
+            ? "Head: <strong>none</strong> | Tail: <strong>none</strong>"
+            : "First: <strong>none</strong> | Last: <strong>none</strong>";
+        } else {
+          const first = items[0].letter;
+          const last = items[items.length - 1].letter;
+          endsSummary.innerHTML = isQueue
+            ? `Head: <strong>${first}</strong> | Tail: <strong>${last}</strong>`
+            : `First: <strong>${first}</strong> | Last: <strong>${last}</strong>`;
+        }
+
+        const isEmpty = items.length === 0;
+        const lightEl = $("isempty-light");
+        lightEl.classList.toggle("is-empty", isEmpty);
+        $("isempty-text").textContent = `isEmpty: ${isEmpty}`;
+
+        // Portal flashes
+        $("left-portal").classList.toggle("active-flash", laneState.flashPortal === "left");
+        $("right-portal").classList.toggle("active-flash", laneState.flashPortal === "right");
+
+        // Corridor wrapper style
+        const corridorWrap = $("corridor-wrap");
+        corridorWrap.classList.toggle("deque-lane", !isQueue);
+
+        const corridor = $("corridor-items");
+        const activeTileEl = document.activeElement && corridor.contains(document.activeElement)
+          ? document.activeElement.closest(".lane-item")
+          : null;
+        const activeLogicalIdx = activeTileEl ? Number(activeTileEl.getAttribute("data-logical-idx")) : -1;
+        corridor.innerHTML = "";
+
+        if (items.length === 0) {
+          const emptyBox = document.createElement("div");
+          emptyBox.className = "corridor-empty-msg" + (laneState.emptyException ? " exception-state lane-shake" : "");
+          emptyBox.textContent = laneState.emptyException
+            ? "empty \u2192 exception"
+            : "Lane is empty \u2014 insert at an open end";
+          corridor.appendChild(emptyBox);
+        } else {
+          items.forEach((entry, idx) => {
+            const tile = document.createElement("div");
+            tile.className = "lane-item";
+            tile.setAttribute("role", "button");
+            tile.setAttribute("tabindex", "0");
+            tile.setAttribute("data-logical-idx", String(idx));
+
+            const isFirst = idx === 0;
+            const isLast = idx === items.length - 1;
+            const isMiddle = idx > 0 && idx < items.length - 1;
+
+            let roleText = "mid";
+            if (isQueue) {
+              if (items.length === 1) roleText = "head/tail";
+              else if (isFirst) roleText = "head";
+              else if (isLast) roleText = "tail";
+            } else {
+              if (items.length === 1) roleText = "first/last";
+              else if (isFirst) roleText = "first";
+              else if (isLast) roleText = "last";
+            }
+
+            tile.setAttribute(
+              "aria-label",
+              `Item ${entry.letter}, ${isMiddle ? "middle of lane" : roleText + " end"} — press Enter or Space to test access`
+            );
+
+            if (laneState.flashIndex === idx) {
+              tile.classList.add("just-happened");
+            }
+            if (laneState.blockedIndex === idx) {
+              tile.classList.add("blocked-shake");
+            }
+
+            tile.innerHTML =
+              `<span class="item-letter">${entry.letter}</span>` +
+              `<span class="item-role">${roleText}</span>`;
+
+            if (laneState.blockedIndex === idx) {
+              const callout = document.createElement("div");
+              callout.className = "item-callout";
+              callout.textContent = "only the ends are open";
+              tile.appendChild(callout);
+            }
+
+            const onTileInteract = () => handleTileClick(idx, entry.letter, isFirst, isLast, isMiddle);
+            tile.addEventListener("click", onTileInteract);
+            tile.addEventListener("keydown", (e) => {
+              if (e.key === "Enter" || e.key === " " || e.key === "Spacebar" || e.code === "Space") {
+                e.preventDefault();
+                onTileInteract();
+              }
+            });
+
+            corridor.appendChild(tile);
+          });
+
+          if (activeLogicalIdx >= 0 && items.length > 0) {
+            const targetIdx = Math.min(activeLogicalIdx, items.length - 1);
+            const focusTarget = corridor.querySelector(`.lane-item[data-logical-idx="${targetIdx}"]`);
+            if (focusTarget) focusTarget.focus();
+          }
+        }
+
+        renderBackingSlots(items);
+        syncLaneControls();
+      }
+
+      function renderBackingSlots(items) {
+        const container = $("backing-slots");
+        container.innerHTML = "";
+        const tailSlot = laneState.count > 0 ? (laneState.head + laneState.count - 1) % CAP : -1;
+        const nextSlot = (laneState.head + laneState.count) % CAP;
+
+        for (let s = 0; s < CAP; s++) {
+          const cell = document.createElement("div");
+          cell.className = "ring-cell" + (laneState.flashWrappedSlot === s ? " wrapped-cell" : "");
+          const val = laneState.buffer[s];
+
+          const ptrs = [];
+          if (laneState.count > 0 && s === laneState.head) ptrs.push("head");
+          if (laneState.count > 0 && s === tailSlot) ptrs.push("tail");
+          if (laneState.count < CAP && s === nextSlot) ptrs.push("next");
+          if (laneState.count === 0 && s === laneState.head) ptrs.push("head");
+
+          cell.innerHTML =
+            `<div class="ring-idx">idx ${s}</div>` +
+            `<div class="ring-val">${val ? val : "\u2014"}</div>` +
+            `<div class="ring-ptr">${ptrs.join(" / ")}</div>`;
+          container.appendChild(cell);
+        }
+      }
+
+      function triggerMiddleBlock(idx, letter, customReason) {
+        if (laneState.calloutTimer) clearTimeout(laneState.calloutTimer);
+        laneState.flashIndex = -1;
+        laneState.flashWrappedSlot = -1;
+        laneState.flashPortal = null;
+        laneState.blockedIndex = idx;
+        renderLane();
+        setStatus(
+          $("lane-status-bar"),
+          $("lane-status-badge"),
+          $("lane-status-text"),
+          "Blocked",
+          customReason || `Rule confirmed: interior items are sealed \u2014 only the ends are open (middle item '${letter}' cannot be accessed directly).`,
+          true
+        );
+        laneState.calloutTimer = setTimeout(() => {
+          laneState.blockedIndex = -1;
+          renderLane();
+        }, 1800);
+      }
+
+      function triggerEmptyException(opName) {
+        laneState.flashIndex = -1;
+        laneState.flashWrappedSlot = -1;
+        laneState.flashPortal = null;
+        laneState.blockedIndex = -1;
+        laneState.emptyException = true;
+        renderLane();
+        let msg;
+        if (opName === "poll()") {
+          msg = "empty \u2192 exception (Course ADT throws on empty poll(); in java.util.Queue, poll() returns null while remove() throws).";
+        } else if (opName === "peek()") {
+          msg = "empty \u2192 exception (Course ADT throws on empty peek(); in java.util.Queue, peek() returns null while element() throws).";
+        } else {
+          msg = `empty \u2192 exception (${opName} throws on empty deque; in java.util.Deque, pollFirst()/pollLast() return null).`;
+        }
+        setStatus(
+          $("lane-status-bar"),
+          $("lane-status-badge"),
+          $("lane-status-text"),
+          "Exception",
+          msg,
+          true
+        );
+      }
+
+      function handleTileClick(idx, letter, isFirst, isLast, isMiddle) {
+        if (isLanePromptOpen()) return;
+        if (isMiddle) {
+          triggerMiddleBlock(idx, letter);
+          return;
+        }
+        if (laneState.mode === "queue") {
+          if (isFirst) {
+            setStatus(
+              $("lane-status-bar"),
+              $("lane-status-badge"),
+              $("lane-status-text"),
+              "Head End",
+              `Item '${letter}' is at the serving window (head) \u2014 use poll() or peek() to read or remove it.`,
+              false
+            );
+          } else if (isLast) {
+            triggerMiddleBlock(
+              idx,
+              letter,
+              `Blocked: '${letter}' is at the tail \u2014 the tail is open for offer(x) only, and you cannot read it here.`
+            );
+          }
+        } else {
+          const endLabel = isFirst ? "First (left end) via addFirst/removeFirst" : "Last (right end) via addLast/removeLast";
+          setStatus(
+            $("lane-status-bar"),
+            $("lane-status-badge"),
+            $("lane-status-text"),
+            "Open End",
+            `Item '${letter}' sits at ${endLabel} \u2014 both ends of a Deque are open.`,
+            false
+          );
+        }
+      }
+
+      /* Queue & Deque Operations */
+      function executeOffer(isDequeLast) {
+        if (isLanePromptOpen()) return;
+        if (laneState.count >= CAP) {
+          laneState.emptyException = false;
+          const fullMsg = isDequeLast
+            ? `The lane is full (${laneState.count}/${CAP}), so remove an item before calling addLast().`
+            : `The lane is full (${laneState.count}/${CAP}), so remove one first.`;
+          setStatus(
+            $("lane-status-bar"),
+            $("lane-status-badge"),
+            $("lane-status-text"),
+            "Full",
+            fullMsg,
+            true
+          );
+          const stage = $("lane-stage");
+          stage.classList.remove("lane-shake");
+          void stage.offsetWidth;
+          stage.classList.add("lane-shake");
+          return;
+        }
+
+        const tailSlotBefore = laneState.count > 0 ? (laneState.head + laneState.count - 1) % CAP : -1;
+        const nextSlot = (laneState.head + laneState.count) % CAP;
+        const willWrap = laneState.count > 0 && tailSlotBefore === CAP - 1 && nextSlot === 0;
+        const wrapRuleKey = isDequeLast ? "tailWrapDeque" : "tailWrapQueue";
+
+        const runInsert = () => {
+          const letter = advanceLetter();
+          laneState.buffer[nextSlot] = letter;
+          laneState.count += 1;
+          laneState.emptyException = false;
+          laneState.blockedIndex = -1;
+          laneState.flashIndex = laneState.count - 1;
+          laneState.flashPortal = "right";
+          laneState.flashWrappedSlot = willWrap ? nextSlot : -1;
+          renderLane();
+
+          const op = isDequeLast ? `addLast('${letter}')` : `offer('${letter}')`;
+          const why = willWrap && laneState.step >= 4
+            ? `tail wrapped from index ${CAP - 1} around to index 0 in the circular array!`
+            : laneState.step >= 4
+            ? `placed '${letter}' at the right open end (index ${nextSlot}).`
+            : `entered '${letter}' at the right tail end.`;
+          setStatus($("lane-status-bar"), $("lane-status-badge"), $("lane-status-text"), op, `${op}: ${why}`, true);
+        };
+
+        if (willWrap && laneState.step >= 4 && globalState.predictFirst && !globalState.predictedRules[wrapRuleKey]) {
+          const candidate = letterSelect.value;
+          const freeRange = laneState.head > 1 ? `0..${laneState.head - 1}` : "0";
+          showPredictPrompt(
+            $("lane-predict-box"),
+            $("lane-predict-question"),
+            $("lane-predict-options"),
+            $("lane-predict-feedback"),
+            `Tail is at index ${CAP - 1} (the end of the ${CAP}-slot array) while head is at index ${laneState.head}. Where does ${isDequeLast ? "addLast" : "offer"}('${candidate}') place '${candidate}'?`,
+            [
+              {
+                label: `Wraps around to index 0: (${CAP - 1} + 1) mod ${CAP} = 0`,
+                correct: true,
+                explain: "circular indexing reuses empty front slots without shifting."
+              },
+              {
+                label: `Throws overflow / returns false even though slot ${freeRange} is free`,
+                correct: false,
+                explain: "slots at the front are free, so a circular buffer wraps instead of treating the array as full."
+              },
+              {
+                label: "Shifts every element left to index 0 first",
+                correct: false,
+                explain: "shifting costs O(n); circular wrap keeps enqueue O(1)."
+              }
+            ],
+            () => {
+              globalState.predictedRules[wrapRuleKey] = true;
+              runInsert();
+            }
+          );
+          return;
+        }
+
+        runInsert();
+      }
+
+      function executeAddFirst() {
+        if (isLanePromptOpen()) return;
+        if (laneState.count >= CAP) {
+          laneState.emptyException = false;
+          setStatus(
+            $("lane-status-bar"),
+            $("lane-status-badge"),
+            $("lane-status-text"),
+            "Full",
+            `The lane is full (${laneState.count}/${CAP}), so remove an item before calling addFirst().`,
+            true
+          );
+          const stage = $("lane-stage");
+          stage.classList.remove("lane-shake");
+          void stage.offsetWidth;
+          stage.classList.add("lane-shake");
+          return;
+        }
+
+        const newHead = (laneState.head - 1 + CAP) % CAP;
+        const willWrap = laneState.head === 0 && newHead === CAP - 1;
+
+        const runInsertFirst = () => {
+          const letter = advanceLetter();
+          laneState.head = newHead;
+          laneState.buffer[newHead] = letter;
+          laneState.count += 1;
+          laneState.emptyException = false;
+          laneState.blockedIndex = -1;
+          laneState.flashIndex = 0;
+          laneState.flashPortal = "left";
+          laneState.flashWrappedSlot = willWrap ? newHead : -1;
+          renderLane();
+
+          const why =
+            laneState.step >= 4
+              ? willWrap
+                ? `head wrapped backward from index 0 around to index ${newHead} via (0 - 1 + ${CAP}) mod ${CAP}!`
+                : `inserted '${letter}' at the left open end (index ${newHead}).`
+              : `inserted '${letter}' at the left open end (First).`;
+          setStatus(
+            $("lane-status-bar"),
+            $("lane-status-badge"),
+            $("lane-status-text"),
+            `addFirst('${letter}')`,
+            `addFirst('${letter}'): ${why}`,
+            true
+          );
+        };
+
+        if (willWrap && laneState.step >= 3 && globalState.predictFirst && !globalState.predictedRules.headWrapDeque) {
+          const candidate = letterSelect.value;
+          showPredictPrompt(
+            $("lane-predict-box"),
+            $("lane-predict-question"),
+            $("lane-predict-options"),
+            $("lane-predict-feedback"),
+            `First (head) is at index 0 of the ${CAP}-slot circular array. Where does addFirst('${candidate}') place '${candidate}'?`,
+            [
+              {
+                label: `Index ${CAP - 1}, via (0 - 1 + ${CAP}) mod ${CAP}`,
+                correct: true,
+                explain: `decrementing head past 0 wraps backward to index ${CAP - 1} in O(1) time.`
+              },
+              {
+                label: "Shifts every existing item right to reopen index 0",
+                correct: false,
+                explain: `shifting costs O(n); circular arithmetic wraps head to index ${CAP - 1} in O(1).`
+              },
+              {
+                label: "Throws an exception because index -1 is out of bounds",
+                correct: false,
+                explain: `modular arithmetic wraps -1 to index ${CAP - 1}, where free space exists.`
+              }
+            ],
+            () => {
+              globalState.predictedRules.headWrapDeque = true;
+              runInsertFirst();
+            }
+          );
+          return;
+        }
+
+        runInsertFirst();
+      }
+
+      function executeRemove(opType) {
+        if (isLanePromptOpen()) return;
+        const opName = `${opType}()`;
+        if (laneState.count === 0) {
+          triggerEmptyException(opName);
+          return;
+        }
+
+        const isLast = opType === "removeLast";
+        const isQueuePoll = opType === "poll";
+        const ruleKey = isQueuePoll
+          ? "queuePoll"
+          : isLast
+          ? "dequeRemoveLast"
+          : "dequeRemoveFirst";
+
+        const runRemove = () => {
+          const targetSlot = isLast
+            ? (laneState.head + laneState.count - 1) % CAP
+            : laneState.head;
+          const removed = laneState.buffer[targetSlot];
+          laneState.buffer[targetSlot] = null;
+          if (!isLast) {
+            laneState.head = (laneState.head + 1) % CAP;
+          }
+          laneState.count -= 1;
+          laneState.emptyException = false;
+          laneState.blockedIndex = -1;
+          laneState.flashIndex = laneState.count > 0 ? (isLast ? laneState.count - 1 : 0) : -1;
+          laneState.flashWrappedSlot = -1;
+          laneState.flashPortal = isLast ? "right" : "left";
+          renderLane();
+
+          const reason = isQueuePoll
+            ? `removed '${removed}' from the serving window (oldest item exits first — FIFO).`
+            : isLast
+            ? `removed '${removed}' from the right open end of the lane.`
+            : `removed '${removed}' from the left open end of the lane.`;
+          setStatus(
+            $("lane-status-bar"),
+            $("lane-status-badge"),
+            $("lane-status-text"),
+            opName,
+            `${opName} returned '${removed}': ${reason}`,
+            true
+          );
+        };
+
+        if (laneState.step >= 2 && laneState.count >= 2 && globalState.predictFirst && !globalState.predictedRules[ruleKey]) {
+          const items = getLogicalItems();
+          const firstVal = items[0].letter;
+          const midVal = items[Math.floor(items.length / 2)].letter;
+          const lastVal = items[items.length - 1].letter;
+
+          const promptQuestion = isQueuePoll
+            ? "Queue follows FIFO (First-In, First-Out). Which letter exits on poll()?"
+            : `In a Deque, both ends are open. Which item does ${opName} take?`;
+
+          const options = isQueuePoll
+            ? [
+                {
+                  label: `'${firstVal}' (leftmost at HEAD window)`,
+                  correct: true,
+                  explain: `'${firstVal}' arrived first, so it stands at the serving window.`
+                },
+                {
+                  label: `'${lastVal}' (rightmost at TAIL door)`,
+                  correct: false,
+                  explain: "removing the newest item would be LIFO (a stack), not a queue."
+                },
+                {
+                  label: `'${midVal}' (middle item)`,
+                  correct: false,
+                  explain: "interior items are sealed; only the head end exits."
+                }
+              ]
+            : isLast
+            ? [
+                {
+                  label: `'${lastVal}' (rightmost item at LAST)`,
+                  correct: true,
+                  explain: "removeLast() operates on the right open end."
+                },
+                {
+                  label: `'${firstVal}' (leftmost item at FIRST)`,
+                  correct: false,
+                  explain: "that is the First end — removeFirst() takes from the left."
+                }
+              ]
+            : [
+                {
+                  label: `'${firstVal}' (leftmost item at FIRST)`,
+                  correct: true,
+                  explain: "removeFirst() removes from the left open end."
+                },
+                {
+                  label: `'${lastVal}' (rightmost item at LAST)`,
+                  correct: false,
+                  explain: "that is the Last end — removeLast() takes from the right."
+                }
+              ];
+
+          showPredictPrompt(
+            $("lane-predict-box"),
+            $("lane-predict-question"),
+            $("lane-predict-options"),
+            $("lane-predict-feedback"),
+            promptQuestion,
+            options,
+            () => {
+              globalState.predictedRules[ruleKey] = true;
+              runRemove();
+            }
+          );
+          return;
+        }
+
+        runRemove();
+      }
+
+      function executePeek() {
+        if (isLanePromptOpen()) return;
+        if (laneState.count === 0) {
+          triggerEmptyException("peek()");
+          return;
+        }
+        const headVal = laneState.buffer[laneState.head];
+        laneState.emptyException = false;
+        laneState.blockedIndex = -1;
+        laneState.flashIndex = 0;
+        laneState.flashWrappedSlot = -1;
+        laneState.flashPortal = "left";
+        renderLane();
+        setStatus(
+          $("lane-status-bar"),
+          $("lane-status-badge"),
+          $("lane-status-text"),
+          "peek()",
+          `peek() inspected '${headVal}' at the serving window without removing it (size stays ${laneState.count}).`,
+          true
+        );
+      }
+
+      /* Wire Widget 1 Controls */
+      function setLaneStep(targetStep, fromTabClick) {
+        if (isLanePromptOpen()) return false;
+        const nextStep = Math.max(1, Math.min(4, targetStep));
+        if (nextStep === laneState.step && !fromTabClick) return true;
+        laneState.step = nextStep;
+        let forcedQueue = false;
+        if (nextStep <= 2 && laneState.mode !== "queue") {
+          laneState.mode = "queue";
+          forcedQueue = true;
+        }
+        $("mode-queue-btn").classList.toggle("active", laneState.mode === "queue");
+        $("mode-queue-btn").setAttribute("aria-pressed", laneState.mode === "queue" ? "true" : "false");
+        $("mode-deque-btn").classList.toggle("active", laneState.mode === "deque");
+        $("mode-deque-btn").setAttribute("aria-pressed", laneState.mode === "deque" ? "true" : "false");
+        laneState.flashIndex = -1;
+        laneState.flashWrappedSlot = -1;
+        laneState.flashPortal = null;
+        laneState.blockedIndex = -1;
+        laneState.emptyException = false;
+        hidePredictBox($("lane-predict-box"));
+        resetLanePredictions();
+        renderLane();
+        const stepTabBtn = $("tab-step-" + nextStep);
+        if (stepTabBtn && !fromTabClick) {
+          $("lane-panel").setAttribute("aria-labelledby", stepTabBtn.id);
+          syncStepTabHighlight(stepTabBtn);
+        }
+        const stepTitle = $("lane-step-title").textContent;
+        const stepGoal = $("lane-step-goal").textContent;
+        setStatus(
+          $("lane-status-bar"),
+          $("lane-status-badge"),
+          $("lane-status-text"),
+          stepTitle,
+          forcedQueue
+            ? `${stepGoal} Switched back to Queue mode while keeping your current lane items.`
+            : stepGoal,
+          false
+        );
+        return true;
+      }
+
+      $("btn-step-back").addEventListener("click", () => setLaneStep(laneState.step - 1));
+      $("btn-step-next").addEventListener("click", () => {
+        if (laneState.step >= 4) {
+          unlockChallengeTab();
+        } else {
+          setLaneStep(laneState.step + 1);
+        }
+      });
+
+      $("mode-queue-btn").addEventListener("click", () => {
+        if (isLanePromptOpen()) return;
+        laneState.mode = "queue";
+        $("mode-queue-btn").classList.add("active");
+        $("mode-queue-btn").setAttribute("aria-pressed", "true");
+        $("mode-deque-btn").classList.remove("active");
+        $("mode-deque-btn").setAttribute("aria-pressed", "false");
+        laneState.flashIndex = -1;
+        laneState.flashPortal = null;
+        laneState.blockedIndex = -1;
+        laneState.emptyException = false;
+        hidePredictBox($("lane-predict-box"));
+        resetLanePredictions();
+        renderLane();
+        setStatus(
+          $("lane-status-bar"),
+          $("lane-status-badge"),
+          $("lane-status-text"),
+          "Queue Mode",
+          "Switched to Queue view on the same lane — serving window on left (head), entry door on right (tail).",
+          false
+        );
+      });
+
+      $("mode-deque-btn").addEventListener("click", () => {
+        if (isLanePromptOpen() || laneState.step < 3) return;
+        laneState.mode = "deque";
+        $("mode-deque-btn").classList.add("active");
+        $("mode-deque-btn").setAttribute("aria-pressed", "true");
+        $("mode-queue-btn").classList.remove("active");
+        $("mode-queue-btn").setAttribute("aria-pressed", "false");
+        laneState.flashIndex = -1;
+        laneState.flashPortal = null;
+        laneState.blockedIndex = -1;
+        laneState.emptyException = false;
+        hidePredictBox($("lane-predict-box"));
+        resetLanePredictions();
+        renderLane();
+        setStatus(
+          $("lane-status-bar"),
+          $("lane-status-badge"),
+          $("lane-status-text"),
+          "Deque Mode",
+          "Switched to Deque mode on the same lane — both First and Last ends are open.",
+          false
+        );
+      });
+
+      $("btn-offer").addEventListener("click", () => executeOffer(false));
+      $("btn-poll").addEventListener("click", () => executeRemove("poll"));
+      $("btn-peek").addEventListener("click", executePeek);
+      $("btn-add-first").addEventListener("click", executeAddFirst);
+      $("btn-add-last").addEventListener("click", () => executeOffer(true));
+      $("btn-remove-first").addEventListener("click", () => executeRemove("removeFirst"));
+      $("btn-remove-last").addEventListener("click", () => executeRemove("removeLast"));
+
+      $("btn-empty-lane").addEventListener("click", () => {
+        if (isLanePromptOpen()) return;
+        laneState.buffer.fill(null);
+        laneState.head = (laneState.head + laneState.count) % CAP;
+        laneState.count = 0;
+        laneState.flashIndex = -1;
+        laneState.flashWrappedSlot = -1;
+        laneState.flashPortal = null;
+        laneState.blockedIndex = -1;
+        laneState.emptyException = false;
+        hidePredictBox($("lane-predict-box"));
+        renderLane();
+        const tryOps =
+          laneState.step >= 3 && laneState.mode === "deque"
+            ? "removeFirst() or removeLast()"
+            : "poll() or peek()";
+        const emptyMsg =
+          laneState.step >= 4
+            ? `Lane cleared (head remains at idx ${laneState.head}, isEmpty is true) \u2014 try ${tryOps} to see empty \u2192 exception.`
+            : `Lane cleared (isEmpty is true) \u2014 try ${tryOps} to see empty \u2192 exception.`;
+        setStatus(
+          $("lane-status-bar"),
+          $("lane-status-badge"),
+          $("lane-status-text"),
+          "Emptied",
+          emptyMsg,
+          true
+        );
+      });
+
+      $("setup-wrap-btn").addEventListener("click", () => {
+        if (isLanePromptOpen()) return;
+        globalState.predictedRules.tailWrapQueue = false;
+        globalState.predictedRules.tailWrapDeque = false;
+        globalState.predictedRules.headWrapDeque = false;
+        initLane(2);
+        renderLane();
+        setStatus(
+          $("lane-status-bar"),
+          $("lane-status-badge"),
+          $("lane-status-text"),
+          "Tail Wrap Ready",
+          "Placed [A, B, C, D] at indices 2..5 (head=2, tail=5 in 6 slots) \u2014 click offer(x) or addLast(x) to watch tail wrap to index 0.",
+          true
+        );
+      });
+
+      $("btn-lane-reset").addEventListener("click", () => {
+        resetLanePredictions();
+        initLane(0);
+        renderLane();
+        const resetMsg =
+          laneState.step >= 4
+            ? "Lane reset to [A, B, C, D] at indices 0..3 (capacity = 6) \u2014 only the ends are open."
+            : laneState.mode === "deque"
+            ? "Lane reset to [A, B, C, D] \u2014 only First and Last ends are open."
+            : "Lane reset with [A, B, C, D] \u2014 only the head window and tail door are open.";
+        setStatus(
+          $("lane-status-bar"),
+          $("lane-status-badge"),
+          $("lane-status-text"),
+          "Reset",
+          resetMsg,
+          false
+        );
+      });
+
+      /* =========================================================
+         WIDGET 2: CHALLENGE — PALINDROME CHECKER
+      ========================================================= */
+      const CHALLENGE_WORDS = ["RACECAR", "LEVEL", "RACEBAR", "HELLO", "NOON"];
+
+      const challengeState = {
+        word: "RACECAR",
+        deque: "RACECAR".split(""),
+        pairs: [], // { front, back, match }
+        phase: "running", // "running" | "palindrome" | "not-palindrome"
+        mismatchEnds: null, // { front, back, middle } when mismatch occurs
+        firstCompletionDone: false,
+        isRunning: false,
+        runTimer: null
+      };
+
+      function stopChallengeAnimation() {
+        if (challengeState.runTimer) {
+          clearInterval(challengeState.runTimer);
+          challengeState.runTimer = null;
+        }
+        challengeState.isRunning = false;
+      }
+
+      function flashChallengePortals() {
+        [$("challenge-portal-front"), $("challenge-portal-back")].forEach((el) => {
+          if (!el) return;
+          el.classList.remove("active-flash");
+          void el.offsetWidth;
+          el.classList.add("active-flash");
+          setTimeout(() => el.classList.remove("active-flash"), 400);
+        });
+      }
+
+      function resetChallenge(wordOverride) {
+        stopChallengeAnimation();
+        if (wordOverride && CHALLENGE_WORDS.includes(wordOverride)) {
+          challengeState.word = wordOverride;
+        }
+        challengeState.deque = challengeState.word.split("");
+        challengeState.pairs = [];
+        challengeState.phase = "running";
+        challengeState.mismatchEnds = null;
+        hidePredictBox($("challenge-predict-box"));
+        renderChallenge();
+      }
+
+      function createPalindromeCard(letter, opts) {
+        const card = document.createElement("div");
+        const isMiddle = Boolean(opts && opts.isMiddle);
+        const isMismatch = Boolean(opts && opts.isMismatch);
+        card.className =
+          "lane-item" +
+          (isMiddle ? " middle-card" : "") +
+          (isMismatch ? " blocked-shake" : "");
+
+        const center = document.createElement("span");
+        center.className = "item-letter";
+        center.textContent = letter;
+
+        const role = document.createElement("span");
+        role.className = "item-role";
+        role.textContent = opts && opts.role ? opts.role : "";
+
+        card.appendChild(center);
+        card.appendChild(role);
+        return card;
+      }
+
+      function makePairIcon(isMatch) {
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("width", "14");
+        svg.setAttribute("height", "14");
+        svg.setAttribute("viewBox", "0 0 16 16");
+        svg.setAttribute("fill", "none");
+        svg.setAttribute("aria-hidden", "true");
+
+        const path = document.createElementNS(svgNS, "path");
+        path.setAttribute("stroke", "currentColor");
+        path.setAttribute("stroke-width", "2.2");
+        path.setAttribute("stroke-linecap", "round");
+        path.setAttribute("stroke-linejoin", "round");
+        path.setAttribute("d", isMatch ? "M3 8.5L6.5 12L13 4.5" : "M4 4L12 12M12 4L4 12");
+        svg.appendChild(path);
+        return svg;
+      }
+
+      function renderChallenge() {
+        $("challenge-word-select").value = challengeState.word;
+        $("challenge-panel").setAttribute("data-completed", challengeState.firstCompletionDone ? "true" : "false");
+
+        const frontIconLetter = $("challenge-front-icon-letter");
+        const backIconLetter = $("challenge-back-icon-letter");
+        if (frontIconLetter && backIconLetter) {
+          if (challengeState.phase === "not-palindrome" && challengeState.mismatchEnds) {
+            frontIconLetter.textContent = challengeState.mismatchEnds.front;
+            backIconLetter.textContent = challengeState.mismatchEnds.back;
+          } else if (challengeState.deque.length > 0) {
+            frontIconLetter.textContent = challengeState.deque[0];
+            backIconLetter.textContent = challengeState.deque[challengeState.deque.length - 1];
+          } else {
+            frontIconLetter.textContent = "";
+            backIconLetter.textContent = "";
+          }
+        }
+
+        const corridor = $("challenge-corridor");
+        corridor.innerHTML = "";
+
+        if (challengeState.phase === "not-palindrome" && challengeState.mismatchEnds) {
+          const { front, back, middle } = challengeState.mismatchEnds;
+          corridor.appendChild(createPalindromeCard(front, { isMismatch: true, role: "front" }));
+          middle.forEach((letter) => {
+            corridor.appendChild(createPalindromeCard(letter, { role: "" }));
+          });
+          corridor.appendChild(createPalindromeCard(back, { isMismatch: true, role: "back" }));
+        } else if (challengeState.deque.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "corridor-empty-msg";
+          empty.textContent = "Empty deque \u2014 all pairs matched";
+          corridor.appendChild(empty);
+        } else if (challengeState.deque.length === 1) {
+          corridor.appendChild(
+            createPalindromeCard(challengeState.deque[0], {
+              isMiddle: true,
+              role: "middle letter, nothing to compare"
+            })
+          );
+        } else {
+          challengeState.deque.forEach((letter, idx) => {
+            const role = idx === 0 ? "front" : idx === challengeState.deque.length - 1 ? "back" : "";
+            corridor.appendChild(createPalindromeCard(letter, { role }));
+          });
+        }
+
+        // Matched pairs table/list
+        const pairsList = $("challenge-pairs-list");
+        pairsList.innerHTML = "";
+        if (challengeState.pairs.length === 0) {
+          const emptyRow = document.createElement("div");
+          emptyRow.className = "pairs-empty";
+          emptyRow.textContent = "No pairs compared yet.";
+          pairsList.appendChild(emptyRow);
+        } else {
+          challengeState.pairs.forEach((pair) => {
+            const row = document.createElement("div");
+            row.className = "pair-row" + (pair.match ? "" : " pair-mismatch");
+
+            const fEl = document.createElement("span");
+            fEl.textContent = pair.front;
+
+            const bEl = document.createElement("span");
+            bEl.textContent = pair.back;
+
+            const resEl = document.createElement("span");
+            resEl.className = "pair-result " + (pair.match ? "is-match" : "is-miss");
+            resEl.appendChild(makePairIcon(pair.match));
+            const labelSpan = document.createElement("span");
+            labelSpan.textContent = pair.match ? "Match" : "Different";
+            resEl.appendChild(labelSpan);
+
+            row.appendChild(fEl);
+            row.appendChild(bEl);
+            row.appendChild(resEl);
+            pairsList.appendChild(row);
+          });
+          pairsList.scrollTop = pairsList.scrollHeight;
+        }
+
+        syncChallengeControls();
+
+        // Verdict box
+        const verdictEl = $("challenge-verdict");
+        verdictEl.className = "result-verdict";
+        if (challengeState.phase === "palindrome") {
+          verdictEl.classList.add("palindrome");
+          verdictEl.textContent = "Yes! Every front letter matched its back letter.";
+        } else if (challengeState.phase === "not-palindrome" && challengeState.mismatchEnds) {
+          verdictEl.classList.add("not-palindrome");
+          const { front, back } = challengeState.mismatchEnds;
+          verdictEl.textContent = `No: ${front} (front) and ${back} (back) are different.`;
+        } else if (challengeState.isRunning) {
+          verdictEl.textContent = "Comparing both ends step by step...";
+        } else {
+          verdictEl.textContent = "Press Next step to remove the first and last letter and compare them.";
+        }
+      }
+
+      function ensureFirstEndPrediction(callback) {
+        if (!globalState.predictFirst || challengeState.phase !== "running" || challengeState.deque.length < 2) {
+          callback();
+          return;
+        }
+
+        const front = challengeState.deque[0];
+        const back = challengeState.deque[challengeState.deque.length - 1];
+        const isMatch = front === back;
+        const ruleKey = isMatch ? "palindromeMatch" : "palindromeMismatch";
+        if (globalState.predictedRules[ruleKey]) {
+          callback();
+          return;
+        }
+
+        stopChallengeAnimation();
+        renderChallenge();
+        const explainText = isMatch
+          ? `Front is ${front} and back is ${back}, so they match.`
+          : `Front is ${front} and back is ${back}, so they are different.`;
+
+        showPredictPrompt(
+          $("challenge-predict-box"),
+          $("challenge-predict-question"),
+          $("challenge-predict-options"),
+          $("challenge-predict-feedback"),
+          "After removeFirst() and removeLast(), will the two letters match?",
+          [
+            {
+              label: "Yes, they match",
+              correct: isMatch,
+              explain: explainText
+            },
+            {
+              label: "No, they are different",
+              correct: !isMatch,
+              explain: explainText
+            }
+          ],
+          () => {
+            globalState.predictedRules[ruleKey] = true;
+            callback();
+          }
+        );
+      }
+
+      function completePalindromeSuccess() {
+        stopChallengeAnimation();
+        challengeState.phase = "palindrome";
+        challengeState.firstCompletionDone = true;
+        renderChallenge();
+        const middleMsg =
+          challengeState.deque.length === 1
+            ? `Only ${challengeState.deque[0]} is left in the middle \u2014 ${challengeState.word} is a palindrome.`
+            : `All pairs matched \u2014 ${challengeState.word} is a palindrome.`;
+        setStatus(
+          $("challenge-status-bar"),
+          $("challenge-status-badge"),
+          $("challenge-status-text"),
+          "Compare",
+          middleMsg,
+          false
+        );
+      }
+
+      function handleZeroOrOneLeft(fromLastRoundMsg) {
+        if (challengeState.deque.length === 0) {
+          completePalindromeSuccess();
+          if (fromLastRoundMsg) {
+            setStatus(
+              $("challenge-status-bar"),
+              $("challenge-status-badge"),
+              $("challenge-status-text"),
+              "Compare",
+              `${fromLastRoundMsg} Deque is now empty: all pairs match.`,
+              false
+            );
+          }
+          return false;
+        }
+
+        if (challengeState.deque.length === 1) {
+          if (globalState.predictFirst && !globalState.predictedRules.palindromeMiddleOne) {
+            stopChallengeAnimation();
+            renderChallenge();
+            if (fromLastRoundMsg) {
+              setStatus(
+                $("challenge-status-bar"),
+                $("challenge-status-badge"),
+                $("challenge-status-text"),
+                "Compare",
+                fromLastRoundMsg,
+                false
+              );
+            }
+            showPredictPrompt(
+              $("challenge-predict-box"),
+              $("challenge-predict-question"),
+              $("challenge-predict-options"),
+              $("challenge-predict-feedback"),
+              "Only one letter is left. What should we do?",
+              [
+                {
+                  label: "Nothing, it matches itself",
+                  correct: true,
+                  explain: "A single middle letter has no other end to compare with, so it matches itself."
+                },
+                {
+                  label: "Compare it with a blank",
+                  correct: false,
+                  explain: "Nothing needs to be compared: the middle letter sits at the center and reads the same forwards and backwards."
+                }
+              ],
+              () => {
+                globalState.predictedRules.palindromeMiddleOne = true;
+                completePalindromeSuccess();
+              }
+            );
+            return false;
+          }
+
+          completePalindromeSuccess();
+          if (fromLastRoundMsg) {
+            setStatus(
+              $("challenge-status-bar"),
+              $("challenge-status-badge"),
+              $("challenge-status-text"),
+              "Compare",
+              `${fromLastRoundMsg} Only ${challengeState.deque[0]} is left in the middle.`,
+              false
+            );
+          }
+          return false;
+        }
+
+        return true;
+      }
+
+      function stepChallengeInternal() {
+        if (challengeState.phase !== "running") return false;
+        if (challengeState.deque.length <= 1) {
+          return handleZeroOrOneLeft("");
+        }
+
+        const front = challengeState.deque.shift();
+        const back = challengeState.deque.pop();
+        const match = front === back;
+        challengeState.pairs.push({ front, back, match });
+        flashChallengePortals();
+
+        if (!match) {
+          challengeState.mismatchEnds = {
+            front,
+            back,
+            middle: challengeState.deque.slice()
+          };
+          stopChallengeAnimation();
+          challengeState.phase = "not-palindrome";
+          challengeState.firstCompletionDone = true;
+          renderChallenge();
+          setStatus(
+            $("challenge-status-bar"),
+            $("challenge-status-badge"),
+            $("challenge-status-text"),
+            "Compare",
+            `removeFirst() gave ${front}, removeLast() gave ${back}: they are different.`,
+            true
+          );
+          return false;
+        }
+
+        const stepMsg = `removeFirst() gave ${front}, removeLast() gave ${back}: they match.`;
+        if (challengeState.deque.length <= 1) {
+          return handleZeroOrOneLeft(stepMsg);
+        }
+
+        renderChallenge();
+        setStatus(
+          $("challenge-status-bar"),
+          $("challenge-status-badge"),
+          $("challenge-status-text"),
+          "Compare",
+          stepMsg,
+          false
+        );
+        return true;
+      }
+
+      function stepChallengeNext() {
+        if (challengeState.isRunning || isChallengePromptOpen() || challengeState.phase !== "running") return;
+        ensureFirstEndPrediction(() => {
+          stepChallengeInternal();
+        });
+      }
+
+      function runChallengeAll() {
+        if (challengeState.isRunning || isChallengePromptOpen() || challengeState.phase !== "running") return;
+        const tick = () => {
+          ensureFirstEndPrediction(() => {
+            if (challengeState.phase !== "running") return;
+            if (prefersReducedMotion()) {
+              challengeState.isRunning = true;
+              renderChallenge();
+              while (challengeState.phase === "running") {
+                const needPred =
+                  challengeState.deque.length >= 2 &&
+                  globalState.predictFirst &&
+                  !globalState.predictedRules[
+                    challengeState.deque[0] === challengeState.deque[challengeState.deque.length - 1]
+                      ? "palindromeMatch"
+                      : "palindromeMismatch"
+                  ];
+                if (needPred) {
+                  stopChallengeAnimation();
+                  tick();
+                  return;
+                }
+                if (!stepChallengeInternal()) break;
+              }
+              if (!isChallengePromptOpen()) {
+                stopChallengeAnimation();
+                renderChallenge();
+              }
+              return;
+            }
+            challengeState.isRunning = true;
+            renderChallenge();
+            const hasMore = stepChallengeInternal();
+            if (!hasMore) return;
+            if (!challengeState.runTimer) {
+              challengeState.runTimer = setInterval(tick, 600);
+            }
+          });
+        };
+        tick();
+      }
+
+      /* Wire Widget 2 Controls */
+      $("btn-challenge-step").addEventListener("click", stepChallengeNext);
+      $("btn-challenge-run").addEventListener("click", runChallengeAll);
+
+      $("challenge-word-select").addEventListener("change", () => {
+        if (isChallengePromptOpen()) {
+          $("challenge-word-select").value = challengeState.word;
+          return;
+        }
+        const selectedWord = $("challenge-word-select").value;
+        resetChallenge(selectedWord);
+        setStatus(
+          $("challenge-status-bar"),
+          $("challenge-status-badge"),
+          $("challenge-status-text"),
+          "Ready",
+          `Deque loaded with ${challengeState.word} \u2014 compare the front and back letters.`,
+          false
+        );
+      });
+
+      $("btn-challenge-reset").addEventListener("click", () => {
+        if (isChallengePromptOpen()) return;
+        resetChallenge();
+        setStatus(
+          $("challenge-status-bar"),
+          $("challenge-status-badge"),
+          $("challenge-status-text"),
+          "Reset",
+          `Deque reset to ${challengeState.word} \u2014 compare the front and back letters.`,
+          false
+        );
+      });
+
+      /* Initial Boot */
+      initLane(0);
+      renderLane();
+      resetChallenge();
+    })();
+  </script>
+</body>
+</html>
