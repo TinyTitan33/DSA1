@@ -110,6 +110,7 @@
       font-size: 0.86rem;
       font-weight: 600;
       cursor: pointer;
+      touch-action: manipulation;
       transition: background-color 0.14s ease, color 0.14s ease, transform 0.1s ease;
     }
 
@@ -117,8 +118,10 @@
       display: none !important;
     }
 
-    .tab-btn:hover {
-      background: var(--paper-alt);
+    @media (hover: hover) {
+      .tab-btn:hover {
+        background: var(--paper-alt);
+      }
     }
 
     .tab-btn.active {
@@ -143,11 +146,14 @@
       font-weight: 600;
       cursor: pointer;
       user-select: none;
+      touch-action: manipulation;
       transition: background-color 0.12s ease, transform 0.08s ease, border-color 0.12s ease;
     }
 
-    .btn:hover:not(:disabled) {
-      background: var(--paper-alt);
+    @media (hover: hover) {
+      .btn:hover:not(:disabled) {
+        background: var(--paper-alt);
+      }
     }
 
     .btn:active:not(:disabled) {
@@ -164,8 +170,10 @@
       color: var(--surface);
     }
 
-    .btn-ink:hover:not(:disabled) {
-      background: #2f2d2b;
+    @media (hover: hover) {
+      .btn-ink:hover:not(:disabled) {
+        background: #2f2d2b;
+      }
     }
 
     .btn-subtle {
@@ -175,9 +183,11 @@
       font-weight: 600;
     }
 
-    .btn-subtle:hover:not(:disabled) {
-      border-color: var(--ink);
-      color: var(--ink);
+    @media (hover: hover) {
+      .btn-subtle:hover:not(:disabled) {
+        border-color: var(--ink);
+        color: var(--ink);
+      }
     }
 
     .btn-accent-outline {
@@ -186,8 +196,10 @@
       background: var(--vermilion-tint);
     }
 
-    .btn-accent-outline:hover:not(:disabled) {
-      background: #fae2dd;
+    @media (hover: hover) {
+      .btn-accent-outline:hover:not(:disabled) {
+        background: #fae2dd;
+      }
     }
 
     /* Panels / Widgets */
@@ -226,7 +238,8 @@
       flex-wrap: wrap;
       align-items: baseline;
       gap: 10px;
-      flex: 1 1 280px;
+      flex: 1 1 220px;
+      min-width: 0;
     }
 
     .stepper-count {
@@ -320,7 +333,7 @@
     }
 
     .widget-title-group {
-      flex: 1 1 280px;
+      flex: 1 1 220px;
       min-width: 0;
     }
 
@@ -343,6 +356,7 @@
 
     .segmented {
       display: inline-flex;
+      max-width: 100%;
       border: 1.5px solid var(--ink);
       border-radius: var(--radius-sm);
       overflow: hidden;
@@ -360,6 +374,7 @@
       font-size: 0.86rem;
       font-weight: 600;
       cursor: pointer;
+      touch-action: manipulation;
     }
 
     .seg-btn:last-child {
@@ -395,7 +410,8 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 10px;
+      min-height: 42px;
+      padding: 8px 12px;
       border: 1px solid var(--rule);
       border-radius: var(--radius-sm);
       background: var(--paper);
@@ -404,11 +420,14 @@
       font-weight: 600;
       color: var(--ink-muted);
       cursor: pointer;
+      touch-action: manipulation;
     }
 
-    .contract-details summary:hover {
-      border-color: var(--ink);
-      color: var(--ink);
+    @media (hover: hover) {
+      .contract-details summary:hover {
+        border-color: var(--ink);
+        color: var(--ink);
+      }
     }
 
     .contract-note {
@@ -538,6 +557,8 @@
       min-height: 124px;
       overflow-x: auto;
       overflow-y: visible;
+      overscroll-behavior-x: contain;
+      -webkit-overflow-scrolling: touch;
     }
 
     .corridor-items {
@@ -591,12 +612,19 @@
       justify-content: center;
       cursor: pointer;
       user-select: none;
+      touch-action: manipulation;
       box-shadow: 2px 2px 0 var(--ink);
       transition: transform 0.16s ease, border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
     }
 
-    .lane-item:hover {
-      transform: translateY(-2px);
+    @media (hover: hover) {
+      .lane-item:hover {
+        transform: translateY(-2px);
+      }
+    }
+
+    .lane-item:active {
+      transform: translateY(1px);
     }
 
     .lane-item .item-letter {
@@ -815,9 +843,10 @@
       border-radius: 3px;
       background: var(--surface);
       color: var(--ink);
-      padding: 4px 6px;
-      min-height: 30px;
+      padding: 4px 8px;
+      min-height: 36px;
       cursor: pointer;
+      touch-action: manipulation;
     }
 
     /* Predict-First Prompt Box */
@@ -876,11 +905,18 @@
       font-weight: 600;
       cursor: pointer;
       text-align: left;
+      touch-action: manipulation;
       transition: all 0.12s ease;
     }
 
-    .predict-opt:hover:not(:disabled) {
-      background: var(--paper-alt);
+    @media (hover: hover) {
+      .predict-opt:hover:not(:disabled) {
+        background: var(--paper-alt);
+      }
+    }
+
+    .predict-opt:active:not(:disabled) {
+      transform: translateY(1px);
     }
 
     .predict-opt.wrong-choice {
@@ -1235,6 +1271,22 @@
       .backing-slots {
         gap: 6px;
       }
+
+      .tab-btn {
+        padding: 8px 10px;
+        font-size: 0.84rem;
+      }
+
+      .segmented {
+        width: 100%;
+        flex-wrap: wrap;
+      }
+
+      .seg-btn {
+        flex: 1 1 0;
+        padding: 8px 8px;
+        text-align: center;
+      }
     }
 
     /* Keyboard Focus Visibility */
@@ -1381,7 +1433,7 @@
               <span class="backing-title" id="backing-title">Circular Array Backing</span>
               <span class="backing-note" id="backing-note">Fixed capacity of 6 for illustration. Java&rsquo;s ArrayDeque grows automatically.</span>
             </div>
-            <button type="button" id="setup-wrap-btn" class="btn btn-subtle" style="min-height:34px; padding:4px 10px;">
+            <button type="button" id="setup-wrap-btn" class="btn btn-subtle">
               Show me the wrap-around
             </button>
           </div>
