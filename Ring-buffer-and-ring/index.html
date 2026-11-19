@@ -1,0 +1,3852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ring Buffer &amp; Ring — Why a Queue in an Array Wraps</title>
+  <style>
+    :root {
+      --paper: #f1f4ef;
+      --paper-alt: #e4ebe0;
+      --surface: #fafbf9;
+      --ink: #17211a;
+      --ink-muted: #4a574d;
+      --ink-faint: #6c7a70;
+      --rule: #c5d0c4;
+      --forest: #1e3a29;
+      --forest-tint: #eaf1e7;
+      --forest-soft: #dce7d8;
+      --vermilion: #c2410c;
+      --vermilion-tint: #ffedd5;
+      --vermilion-soft: rgba(194, 65, 12, 0.15);
+      --font-sans: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      --font-serif: "Georgia", "Times New Roman", serif;
+      --font-mono: "JetBrains Mono", "SFMono-Regular", "Consolas", "Liberation Mono", Menlo, monospace;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --shadow-paper: 0 2px 0 rgba(23, 33, 26, 0.08);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--paper);
+      background-image:
+        linear-gradient(to right, rgba(23, 33, 26, 0.035) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(23, 33, 26, 0.035) 1px, transparent 1px);
+      background-size: 24px 24px;
+      color: var(--ink);
+      font-family: var(--font-sans);
+      line-height: 1.45;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .app-shell {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 20px 16px 36px;
+    }
+
+    /* Masthead & Minimal Right-Aligned Progress Bar */
+    .masthead {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 20px;
+      background: var(--surface);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-md);
+      padding: 12px 18px;
+      box-shadow: var(--shadow-paper);
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: clamp(1.18rem, 2.2vw, 1.45rem);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+    }
+
+    .progress-nav {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: auto;
+    }
+
+    .progress-label {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+      white-space: nowrap;
+    }
+
+    .tabs.progress-track {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .tab-btn {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 24px;
+      padding: 0;
+      border: none;
+      border-radius: 3px;
+      background: transparent;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .tab-btn::after {
+      content: "";
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--ink-muted);
+      border: 1px solid var(--ink-muted);
+      transition: background-color 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+    }
+
+    @media (hover: hover) {
+      .tab-btn:hover:not(:disabled)::after {
+        background: var(--ink);
+        border-color: var(--ink);
+      }
+    }
+
+    .tab-btn.active::after {
+      height: 10px;
+      background: var(--ink);
+      border-color: var(--ink);
+    }
+
+    .tab-btn:disabled {
+      cursor: not-allowed;
+    }
+
+    .tab-btn:disabled::after {
+      background: var(--paper-alt);
+      border-color: var(--rule);
+    }
+
+    /* Widget Card */
+    .widget-card {
+      background: var(--surface);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+      box-shadow: var(--shadow-paper);
+    }
+
+    /* Balanced Top Row Above Stage (Title & Instruction Only) */
+    .widget-top-row {
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .step-header-left {
+      min-width: 0;
+    }
+
+    .step-title {
+      margin: 0 0 6px;
+      font-family: var(--font-serif);
+      font-size: 1.14rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .step-task-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 6px 12px;
+    }
+
+    .step-task {
+      flex: 1 1 260px;
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 600;
+      line-height: 1.4;
+      color: var(--ink);
+    }
+
+    .goal-pill {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      color: var(--ink-muted);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .goal-pill.is-done {
+      border-color: var(--forest);
+      background: var(--forest-tint);
+      color: var(--forest);
+    }
+
+    /* Dual Stage (Line main stage + Read-only Circle thumbnail after bend) */
+    .stage-dual {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 156px;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .stage-dual-main {
+      min-width: 0;
+    }
+
+    .mini-ring-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 6px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      pointer-events: none;
+    }
+
+    .mini-ring-svg {
+      width: 140px;
+      height: 140px;
+      display: block;
+    }
+
+    .mini-ring-caption {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+      letter-spacing: 0.02em;
+    }
+
+    /* Count Readout Directly Under Stage */
+    .stage-count {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      margin: 0 0 10px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+    }
+
+    .stage-count-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      background: var(--paper);
+      color: var(--ink);
+      font-weight: 600;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .metric-changed {
+      border-color: var(--forest) !important;
+      box-shadow: 0 0 0 2px rgba(30, 58, 41, 0.28);
+      animation: pillPulse 0.65s ease;
+    }
+
+    svg .metric-changed {
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    @keyframes pillPulse {
+      0% { transform: scale(1.06); }
+      100% { transform: scale(1); }
+    }
+
+    /* Small Legend / Bridge Line Directly Under Stage */
+    .stage-footnote {
+      margin: -4px 0 12px;
+      padding: 6px 10px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--ink-muted);
+      text-align: center;
+    }
+
+    .stage-footnote.is-accent {
+      border-color: var(--forest);
+      background: var(--forest-tint);
+      color: var(--ink);
+    }
+
+    .stage-footnote strong {
+      color: var(--ink);
+    }
+
+    /* Stage */
+    .stage {
+      background: var(--paper);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-md);
+      padding: 16px 14px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+
+    .stage.stage-shake {
+      animation: shakeX 0.4s ease;
+    }
+
+    /* Line View */
+    .line-view-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .array-row-wrap {
+      position: relative;
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+    }
+
+    .array-grid {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .cell-card {
+      position: relative;
+      min-width: 0;
+      min-height: 108px;
+      padding: 7px 6px 8px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      text-align: center;
+      box-shadow: 2px 2px 0 rgba(23, 33, 26, 0.12);
+      transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .cell-card.is-occupied {
+      background: var(--forest-tint);
+      box-shadow: 2px 2px 0 var(--ink);
+    }
+
+    .cell-card.is-free-unreachable {
+      border-style: dashed;
+      border-color: var(--vermilion);
+      background: repeating-linear-gradient(
+        -45deg,
+        var(--vermilion-tint),
+        var(--vermilion-tint) 6px,
+        var(--surface) 6px,
+        var(--surface) 12px
+      );
+    }
+
+    .cell-card.is-accent {
+      border-color: var(--vermilion);
+      border-width: 2px;
+      box-shadow: 2px 2px 0 var(--vermilion);
+      animation: popIn 0.22s ease;
+    }
+
+    .cell-index {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+    }
+
+    .cell-card.is-accent .cell-index,
+    .cell-card.is-free-unreachable .cell-index {
+      color: var(--vermilion);
+    }
+
+    .cell-value {
+      font-family: var(--font-serif);
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1.1;
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--ink);
+    }
+
+    .cell-value.is-empty-val {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--ink-faint);
+    }
+
+    .cell-card.is-free-unreachable .cell-value.is-empty-val,
+    .cell-card.is-sentinel-gap .cell-value.is-empty-val {
+      color: var(--vermilion);
+      font-weight: 700;
+    }
+
+    .cell-card.is-sentinel-gap {
+      border-style: dashed;
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+    }
+
+    .cell-card.is-sentinel-gap .cell-index {
+      color: var(--vermilion);
+    }
+
+    .cell-card.is-accent .cell-value {
+      color: var(--vermilion);
+    }
+
+    .cell-markers {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      min-height: 40px;
+      width: 100%;
+    }
+
+    .ptr-tag {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      max-width: 100%;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      line-height: 1.15;
+      white-space: nowrap;
+    }
+
+    .ptr-sub {
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      opacity: 0.85;
+    }
+
+    .ptr-head {
+      background: #1e3a29;
+      color: var(--surface);
+    }
+
+    .ptr-tail {
+      border: 1.5px solid var(--ink);
+      background: var(--paper);
+      color: var(--ink);
+    }
+
+    .ptr-accent {
+      background: var(--vermilion);
+      border-color: var(--vermilion);
+      color: #ffffff;
+    }
+
+    .ptr-accent .ptr-sub {
+      opacity: 0.96;
+    }
+
+    /* End Wall Marker when tail == capacity in Step 1 */
+    .end-wall-slot {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 10px;
+      border-left: 6px solid var(--ink);
+      background: var(--surface);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+      min-width: 74px;
+      text-align: center;
+      gap: 4px;
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .end-wall-slot.is-blocked {
+      border-left-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+      animation: wallFlash 0.5s ease 2;
+    }
+
+    @keyframes wallFlash {
+      0%, 100% {
+        background: var(--vermilion-tint);
+        box-shadow: none;
+      }
+      50% {
+        background: #fed7aa;
+        box-shadow: 0 0 0 2px rgba(194, 65, 12, 0.35);
+      }
+    }
+
+    /* Wrap Arc Bar under Line View */
+    .wrap-connector {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 12px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+      transition: border-color 0.2s ease, background-color 0.2s ease;
+    }
+
+    .wrap-connector.is-accent {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .wrap-connector svg {
+      flex-shrink: 0;
+      width: 100%;
+      max-width: 220px;
+      height: 28px;
+      display: block;
+    }
+
+    /* Circle View SVG */
+    .circle-view-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .circle-svg {
+      width: 100%;
+      max-width: 490px;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .circle-caption {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+      text-align: center;
+    }
+
+    /* Handout Fix Panel (Step 3) */
+    .handout-panel {
+      background: var(--paper);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+
+    .handout-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .handout-title {
+      font-family: var(--font-mono);
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .handout-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip-btn {
+      min-height: 42px;
+      padding: 6px 12px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .chip-btn.active {
+      background: var(--ink);
+      color: var(--surface);
+    }
+
+    .chip-btn.is-wrong-pair.active {
+      background: var(--vermilion);
+      border-color: var(--vermilion);
+      color: #ffffff;
+    }
+
+    .handout-compare {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .compare-box {
+      padding: 9px 11px;
+      border: 1.5px solid var(--rule);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+    }
+
+    .compare-box.is-ambiguous {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+    }
+
+    .compare-box strong {
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .handout-verdict {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--ink-muted);
+    }
+
+    .handout-verdict.is-accent {
+      color: var(--vermilion);
+      font-weight: 700;
+    }
+
+    /* Growth Cost Strip & Animation Strip (Step 4) */
+    .cost-strip {
+      background: var(--paper);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .cost-metrics {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+    }
+
+    .cost-note {
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+    }
+
+    .growth-strip {
+      background: var(--paper);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }
+
+    .growth-strip-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px 12px;
+      margin-bottom: 6px;
+    }
+
+    .growth-strip-title {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .growth-caption {
+      margin: 4px 0 8px;
+      padding: 5px 10px;
+      border-left: 3px solid var(--vermilion);
+      background: var(--surface);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    /* Step Takeaway + Guided Next Button */
+    .takeaway-bar {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border: 1.5px solid var(--forest);
+      border-left: 6px solid var(--forest);
+      border-radius: var(--radius-sm);
+      background: var(--forest-tint);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 18px;
+    }
+
+    .takeaway-body {
+      flex: 1 1 280px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    .takeaway-kicker {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 3px;
+      background: var(--forest);
+      color: #ffffff;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .takeaway-text {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: 1.02rem;
+      font-weight: 700;
+      line-height: 1.42;
+      color: var(--ink);
+    }
+
+    .takeaway-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      margin-left: auto;
+    }
+
+    .takeaway-bar.is-just-revealed {
+      animation: takeawayFlash 1.2s ease;
+    }
+
+    @keyframes takeawayFlash {
+      0% {
+        background: var(--forest-soft);
+        box-shadow: 0 0 0 2px var(--forest);
+      }
+      100% {
+        background: var(--forest-tint);
+        box-shadow: none;
+      }
+    }
+
+    .growth-row-label {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--ink-muted);
+      margin: 6px 0 4px;
+    }
+
+    .growth-mini-grid {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      gap: 5px;
+    }
+
+    .growth-mini-cell {
+      border: 1px solid var(--ink);
+      border-radius: 3px;
+      background: var(--surface);
+      padding: 4px 2px;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      min-height: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .growth-mini-cell .gm-idx {
+      font-size: 0.68rem;
+      color: var(--ink-faint);
+    }
+
+    .growth-mini-cell .gm-val {
+      font-family: var(--font-serif);
+      font-weight: 700;
+      font-size: 0.92rem;
+    }
+
+    .growth-mini-cell.is-copying {
+      border-color: var(--vermilion);
+      border-width: 2px;
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+    }
+
+    .growth-mini-cell.is-copied {
+      background: var(--paper-alt);
+    }
+
+    /* Ring Line View */
+    .ring-line-nodes {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 4px;
+    }
+
+    .ring-node-box {
+      position: relative;
+      min-width: 66px;
+      min-height: 82px;
+      padding: 8px 10px;
+      border: 2px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      box-shadow: 2px 2px 0 var(--ink);
+    }
+
+    .ring-node-box.is-p {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      box-shadow: 2px 2px 0 var(--vermilion);
+    }
+
+    .ring-node-val {
+      font-family: var(--font-serif);
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .ring-node-tag {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+    }
+
+    .ring-node-box.is-p .ring-node-tag,
+    .ring-node-box.is-p .ring-node-val {
+      color: var(--vermilion);
+    }
+
+    .ring-link-arrow {
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+    }
+
+    .ring-empty-box {
+      width: 100%;
+      padding: 28px 14px;
+      border: 2px dashed var(--vermilion);
+      border-radius: var(--radius-sm);
+      background: var(--vermilion-tint);
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 0.86rem;
+      font-weight: 700;
+      color: var(--vermilion);
+    }
+
+    /* Predict-First Prompt */
+    .predict-box {
+      display: none;
+      margin-bottom: 12px;
+      scroll-margin-top: 12px;
+      scroll-margin-bottom: 16px;
+      padding: 13px 15px;
+      border: 2px solid var(--ink);
+      border-left: 6px solid var(--vermilion);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      animation: popIn 0.2s ease;
+    }
+
+    .predict-box.visible {
+      display: block;
+    }
+
+    .predict-kicker {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      color: var(--vermilion);
+      margin-bottom: 4px;
+    }
+
+    .predict-question {
+      font-weight: 700;
+      font-size: 0.94rem;
+      margin: 0 0 10px;
+    }
+
+    .predict-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .predict-opt {
+      min-height: 42px;
+      padding: 8px 13px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      touch-action: manipulation;
+      transition: background-color 0.12s ease;
+    }
+
+    @media (hover: hover) {
+      .predict-opt:hover:not(:disabled) {
+        background: var(--paper-alt);
+      }
+    }
+
+    .predict-opt.wrong-choice {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+      animation: shakeX 0.35s ease;
+    }
+
+    .predict-opt.right-choice {
+      background: var(--ink);
+      color: var(--surface);
+    }
+
+    .predict-feedback {
+      margin-top: 8px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      min-height: 18px;
+    }
+
+    .predict-feedback.wrong {
+      color: var(--vermilion);
+    }
+
+    /* Controls (Spread Out Directly Under Stage) */
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 16px;
+      margin-bottom: 12px;
+    }
+
+    .controls-primary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .controls-secondary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 42px;
+      padding: 8px 14px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      touch-action: manipulation;
+      transition: background-color 0.12s ease, transform 0.08s ease;
+    }
+
+    @media (hover: hover) {
+      .btn:hover:not(:disabled) {
+        background: var(--paper-alt);
+      }
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+
+    .btn-ink {
+      background: var(--ink);
+      color: var(--surface);
+    }
+
+    @media (hover: hover) {
+      .btn-ink:hover:not(:disabled) {
+        background: #243529;
+      }
+    }
+
+    .btn-pulse:not(:disabled) {
+      animation: btnPulse 1.6s ease-in-out infinite;
+    }
+
+    @keyframes btnPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(30, 58, 41, 0.42), 0 0 0 0 rgba(194, 65, 12, 0.28);
+      }
+      55% {
+        box-shadow: 0 0 0 4px rgba(30, 58, 41, 0.28), 0 0 0 8px rgba(194, 65, 12, 0.16);
+      }
+    }
+
+    .btn-subtle {
+      border-color: var(--ink-faint);
+      color: var(--ink-muted);
+      font-family: var(--font-sans);
+      font-weight: 600;
+    }
+
+    .btn-compact {
+      min-height: 36px;
+      padding: 5px 10px;
+      border: 1px solid var(--rule);
+      background: var(--paper);
+      color: var(--ink-muted);
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .letter-picker {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 42px;
+      padding: 4px 10px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .letter-picker select {
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      font-weight: 700;
+      border: 1px solid var(--ink-faint);
+      border-radius: 3px;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 4px 8px;
+      min-height: 34px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    /* One-Line Status Bar (Sole aria-live Region) */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding: 9px 12px;
+      border: 1.5px solid var(--rule);
+      border-left: 4px solid var(--ink-muted);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      min-height: 42px;
+    }
+
+    .status-bar.status-accent {
+      border-color: var(--vermilion);
+      border-left-width: 4px;
+      background: var(--surface);
+    }
+
+    .status-bar.status-success {
+      border-color: var(--forest);
+      border-left-width: 4px;
+      background: var(--surface);
+    }
+
+    .status-text {
+      flex: 1 1 auto;
+      color: var(--ink);
+    }
+
+    .status-bar.status-accent .status-text {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .status-bar.status-success .status-text {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    /* Animations */
+    @keyframes shakeX {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-6px); }
+      40% { transform: translateX(5px); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(3px); }
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.94); opacity: 0.7; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Responsive Breakpoints */
+    @media (max-width: 640px) {
+      .app-shell {
+        padding: 10px 10px 24px;
+      }
+
+      .masthead {
+        padding: 10px 12px;
+        margin-bottom: 10px;
+      }
+
+      .widget-card {
+        padding: 12px;
+      }
+
+      .stage-dual {
+        grid-template-columns: minmax(0, 1fr);
+        justify-items: stretch;
+        gap: 10px;
+      }
+
+      .mini-ring-panel {
+        justify-self: center;
+        padding: 4px 8px;
+      }
+
+      .mini-ring-svg {
+        width: 100px;
+        height: 100px;
+      }
+
+      .circle-svg {
+        max-height: 295px;
+      }
+
+      .array-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .array-grid.array-grid-16 {
+        grid-template-columns: repeat(8, 52px);
+        gap: 4px;
+        width: max-content;
+      }
+
+      .array-row-wrap {
+        flex-direction: column;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 3px;
+      }
+
+      .end-wall-slot {
+        border-left: none;
+        border-top: 6px solid var(--ink);
+        border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+        flex-direction: row;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      .end-wall-slot.is-blocked {
+        border-left-color: transparent;
+        border-top-color: var(--vermilion);
+      }
+
+      .growth-mini-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .handout-compare {
+        grid-template-columns: 1fr;
+      }
+
+      .wrap-connector {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .app-shell {
+        padding: 8px 8px 22px;
+      }
+
+      .masthead,
+      .widget-card {
+        padding: 10px;
+      }
+
+      .stage {
+        padding: 12px 10px;
+      }
+
+      .tab-btn {
+        width: 24px;
+      }
+
+      .cell-card {
+        min-height: 84px;
+        padding: 5px 4px 6px;
+      }
+
+      .ptr-tag {
+        padding: 2px 4px;
+        font-size: 0.67rem;
+      }
+
+      .ptr-sub {
+        font-size: 0.59rem;
+      }
+
+      .takeaway-text {
+        font-size: 0.96rem;
+      }
+    }
+
+    /* Keyboard Focus Visibility */
+    .tab-btn:focus-visible,
+    .btn:focus-visible,
+    .chip-btn:focus-visible,
+    .predict-opt:focus-visible,
+    .letter-picker select:focus-visible,
+    .predict-box:focus-visible,
+    .status-bar:focus-visible,
+    .step-title:focus-visible {
+      outline: 3px solid var(--vermilion);
+      outline-offset: 2px;
+    }
+
+    /* Reduced Motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+
+      .btn-pulse:not(:disabled) {
+        animation: none !important;
+        outline: 3px solid var(--forest);
+        outline-offset: 2px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="masthead">
+      <h1>Ring Buffer &amp; Ring</h1>
+
+      <nav class="progress-nav" aria-label="Lesson progress">
+        <span id="progress-label" class="progress-label">Step 1 / 4</span>
+        <div class="tabs progress-track" role="tablist" aria-label="Lesson Steps">
+          <button type="button" id="tab-step-1" class="tab-btn active" role="tab" aria-selected="true" aria-controls="widget-panel" aria-label="Step 1: Crawl and wrap" title="Step 1: Crawl and wrap" tabindex="0" data-step="1"></button>
+          <button type="button" id="tab-step-2" class="tab-btn" role="tab" aria-selected="false" aria-controls="widget-panel" aria-label="Step 2: Empty or full" title="Step 2: Empty or full" tabindex="-1" data-step="2" disabled></button>
+          <button type="button" id="tab-step-3" class="tab-btn" role="tab" aria-selected="false" aria-controls="widget-panel" aria-label="Step 3: Growth" title="Step 3: Growth" tabindex="-1" data-step="3" disabled></button>
+          <button type="button" id="tab-step-4" class="tab-btn" role="tab" aria-selected="false" aria-controls="widget-panel" aria-label="Step 4: Linked ring (Bonus)" title="Step 4: Linked ring (Bonus)" tabindex="-1" data-step="4" disabled></button>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <section id="widget-panel" class="widget-card" role="tabpanel" aria-labelledby="tab-step-1">
+        <!-- Step Title + Instruction Only Above Stage -->
+        <div class="widget-top-row">
+          <div class="step-header-left">
+            <p class="step-title" id="step-title" tabindex="-1">1. Crawl and wrap</p>
+            <div class="step-task-row">
+              <p class="step-task" id="step-task">What happens when tail hits the wall? Press offer(x) until it reaches the end, then press once more to connect around.</p>
+              <span id="step-goal-pill" class="goal-pill">Hit wall &amp; wrap (0/3)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Visualization Stage -->
+        <div id="stage" class="stage" role="region" aria-label="8-Cell Array — Crawl Mode (Wrap Off)"></div>
+
+        <!-- Under-Stage Count Readout -->
+        <div id="stage-count" class="stage-count"></div>
+
+        <!-- Under-Stage Single-Line Note (Step 5 Bridge) -->
+        <p id="stage-footnote" class="stage-footnote" hidden></p>
+
+        <!-- Predict-First Prompt (only when asking something beyond the instruction; shown BEFORE controls activate) -->
+        <div id="predict-box" class="predict-box" tabindex="-1">
+          <div class="predict-kicker">Predict first</div>
+          <p class="predict-question" id="predict-question"></p>
+          <div class="predict-options" id="predict-options"></div>
+          <div class="predict-feedback" id="predict-feedback"></div>
+        </div>
+
+        <!-- Controls Directly Under Stage -->
+        <div class="controls-row">
+          <div class="controls-primary" id="controls-primary">
+            <label class="letter-picker" id="letter-picker" for="letter-select">
+              <span>x =</span>
+              <select id="letter-select" aria-label="Letter to insert" autocomplete="off"></select>
+            </label>
+
+            <!-- Buffer Controls (Steps 1 & 3) -->
+            <button type="button" id="btn-offer" class="btn btn-ink buffer-ctrl">offer(x)</button>
+            <button type="button" id="btn-poll" class="btn buffer-ctrl">poll()</button>
+            <button type="button" id="btn-enable-wrap" class="btn btn-ink wrap-unlock-ctrl" hidden>Let the end connect to the start</button>
+            <button type="button" id="btn-bend-ring" class="btn btn-ink bend-ctrl" hidden>Bend the array into a ring</button>
+            <button type="button" id="btn-copy-next" class="btn btn-ink growth-ctrl" hidden>Copy next</button>
+            <button type="button" id="btn-copy-play-all" class="btn growth-ctrl" hidden>Play all</button>
+
+            <!-- Step 3 Controls (Only Fill & Empty) -->
+            <button type="button" id="btn-fill-all" class="btn btn-ink step3-ctrl" hidden>Fill all cells</button>
+            <button type="button" id="btn-empty-all" class="btn step3-ctrl" hidden>Empty all cells</button>
+
+            <!-- Ring Mode Controls (Step 5) -->
+            <button type="button" id="btn-ring-next" class="btn btn-ink ring-ctrl" hidden>p.next()</button>
+            <button type="button" id="btn-ring-add" class="btn ring-ctrl" hidden>add(x)</button>
+            <button type="button" id="btn-ring-remove" class="btn ring-ctrl" hidden>removeNext()</button>
+            <button type="button" id="btn-ring-empty" class="btn btn-subtle ring-ctrl" hidden>Empty ring</button>
+          </div>
+
+          <div class="controls-secondary">
+            <button type="button" id="btn-retest" class="btn btn-compact" hidden>Quiz me again</button>
+            <button type="button" id="btn-reset" class="btn btn-compact">Reset</button>
+          </div>
+        </div>
+
+        <!-- One-Line Status Message (Sole aria-live Region) -->
+        <div id="status-bar" class="status-bar" aria-live="polite" tabindex="-1">
+          <span class="status-text" id="status-text">Queue sits in cells 2..5; cells 0 and 1 are free at the front.</span>
+        </div>
+
+        <!-- Step 3: Fix Panel (revealed only after Beat 1 prediction) -->
+        <div id="handout-panel" class="handout-panel" hidden>
+          <div class="handout-head">
+            <span class="handout-title">Two ways to tell empty from full:</span>
+            <div class="handout-chips" role="group" aria-label="Choose empty vs full fix">
+              <button type="button" class="chip-btn active" data-fix="count">Keep a count</button>
+              <button type="button" class="chip-btn" data-fix="leave-one">Leave one slot empty (7/8)</button>
+            </div>
+          </div>
+          <div class="handout-compare" id="handout-compare"></div>
+          <div class="handout-verdict" id="handout-verdict"></div>
+        </div>
+
+        <!-- Step 4: Growth Amortized Cost Strip (hidden until first doubling) -->
+        <div id="cost-strip" class="cost-strip" hidden>
+          <div class="cost-metrics" id="cost-metrics"></div>
+          <div class="cost-note" id="cost-note"></div>
+        </div>
+
+        <!-- Step 4: Growth Copy Strip (hidden until doubling starts/finishes) -->
+        <div id="growth-strip" class="growth-strip" hidden>
+          <div class="growth-strip-head">
+            <span class="growth-strip-title" id="growth-strip-title">Doubling 8 &rarr; 16 and copying elements in queue order from head:</span>
+            <button type="button" id="btn-replay-growth" class="btn btn-compact" hidden>Replay copy</button>
+          </div>
+          <p class="growth-caption" id="growth-caption" hidden></p>
+          <div class="growth-row-label">Old array (8 cells)</div>
+          <div class="growth-mini-grid" id="growth-old-grid"></div>
+          <div class="growth-row-label">New array (16 cells &mdash; unrolled from index 0)</div>
+          <div class="growth-mini-grid" id="growth-new-grid"></div>
+        </div>
+
+        <!-- Step Takeaway + Guided Next Button -->
+        <div id="step-takeaway" class="takeaway-bar" hidden>
+          <div class="takeaway-body">
+            <span class="takeaway-kicker">Key takeaway</span>
+            <p class="takeaway-text" id="takeaway-text"></p>
+          </div>
+          <div class="takeaway-actions">
+            <button type="button" id="btn-takeaway-next" class="btn btn-ink">Next step &rarr;</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+      const $ = (id) => document.getElementById(id);
+
+      const STEPS = {
+        1: {
+          title: "1. Crawl and wrap",
+          heading: "8-Cell Array — Crawl and Wrap",
+          task: "What happens when tail hits the wall? Press offer(x) until it reaches the end, press once more, then wrap around.",
+          takeaway: "Without wrap, free space behind head is wasted. Wrapping with (index + 1) mod capacity lets tail reuse it."
+        },
+        2: {
+          title: "2. Empty or full?",
+          heading: "8-Cell Ring Buffer — Empty or Full?",
+          task: "Can head and tail alone tell empty from full? Fill all cells, then empty them to compare.",
+          takeaway: "Both empty and full give head == tail, so we either keep a count or leave one slot permanently empty."
+        },
+        3: {
+          title: "3. Growth",
+          heading: "Ring Buffer — Doubling When Full",
+          task: "All 8 cells are full. Double capacity to 16 with offer(x), then add two more items.",
+          takeaway: "After doubling, the next 8 offers (including the one that triggered the doubling) need no further copying, so adding stays amortized O(1)."
+        },
+        4: {
+          title: "4. Linked ring (Bonus)",
+          heading: "Linked Ring (2.5) — Same Idea, Linked Version",
+          task: "Follow p round a 4-node circle: step p.next() and test what replaces an end-of-list marker.",
+          takeaway: "Linked rings wrap with p = p.next instead of (i + 1) % n, delete after p in O(1) via removeNext(), and use isEmpty instead of an end-of-list marker."
+        }
+      };
+
+      const STEP_PRED_KEYS = {
+        1: [],
+        2: [],
+        3: ["growthUnroll"],
+        4: ["ringCycleCount"]
+      };
+
+      const state = {
+        step: 1,
+        visitedSteps: new Set([1]),
+        stepInteracted: { 1: false, 2: false, 3: false, 4: false },
+        stepCompleted: { 1: false, 2: false, 3: false, 4: false },
+        step1Phase: "crawl", // "crawl" | "connect-ready" | "wrap-line" | "bend-ready" | "bent-ring"
+        isBentToRing: false,
+        isMorphingToRing: false,
+        morphRafId: null,
+        // Ring buffer state (steps 1-3)
+        capacity: 8,
+        buffer: new Array(8).fill(null),
+        head: 2,
+        tail: 6,
+        count: 4,
+        nextCharIdx: 4, // 'E'
+        accentCells: [],
+        unreachableFrontCells: [],
+        blockedAtEnd: false,
+        justWrapped: null, // { from, to } | null
+        isCopyingGrowth: false,
+        isAutoPlayingGrowth: false,
+        growthTimer: null,
+        growthOverlay: null,
+        lastGrowthSnapshot: null,
+        growthStats: {
+          offers: 8,
+          copies: 0,
+          hasDoubled: false
+        },
+        // Step 2 two-beat state
+        step3Fix: "count", // "count" | "leave-one"
+        step3SawFull: false,
+        step3SawEmpty: false,
+        step3FixUnlocked: false,
+        // Progressive takeaway reveal
+        takeawayRevealed: {
+          1: false,
+          2: false,
+          3: false,
+          4: false
+        },
+        takeawayFresh: false,
+        // Step 4 Ring state
+        ringNodes: ["A", "B", "C", "D"],
+        ringP: 0,
+        ringLaps: 0,
+        ringNextIdx: 4,
+        ringAccentNode: -1,
+        ringLastTransition: null, // { from, to, wrapped } | null
+        ringStepActive: false,
+        // Predict-first tracking (kept only where the prompt asks something beyond the task, shown before controls activate)
+        predicted: {
+          growthUnroll: false,
+          ringCycleCount: false
+        },
+        status: {
+          text: "",
+          tone: false
+        },
+        telemetrySnapshot: null,
+        changedMetrics: []
+      };
+
+      function revealTakeaway(stepNum) {
+        state.stepCompleted[stepNum] = true;
+        if (!state.takeawayRevealed[stepNum]) {
+          state.takeawayRevealed[stepNum] = true;
+          state.takeawayFresh = true;
+        }
+      }
+
+      function markStepInteracted() {
+        if (!state.stepInteracted[state.step]) {
+          state.stepInteracted[state.step] = true;
+        }
+      }
+
+      function resetStepPredictions(stepNum) {
+        (STEP_PRED_KEYS[stepNum] || []).forEach((key) => {
+          state.predicted[key] = false;
+        });
+      }
+
+      function hasAnsweredStepPrediction(stepNum) {
+        return (STEP_PRED_KEYS[stepNum] || []).some((key) => Boolean(state.predicted[key]));
+      }
+
+      function prefersReducedMotion() {
+        return Boolean(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      }
+
+      function isStep1WrapActive() {
+        return (
+          state.step === 1 &&
+          (state.step1Phase === "wrap-line" || state.step1Phase === "bend-ready" || state.step1Phase === "bent-ring")
+        );
+      }
+
+      function currentViewMode() {
+        if (state.step === 1) return state.isBentToRing ? "circle" : "line";
+        if (state.step === 2 || state.step === 3) return "dual";
+        return "circle";
+      }
+
+      function isPredictOpen() {
+        return $("predict-box").classList.contains("visible");
+      }
+
+      function hidePredict() {
+        const box = $("predict-box");
+        if (box._revealTimer) {
+          clearTimeout(box._revealTimer);
+          box._revealTimer = null;
+        }
+        box.classList.remove("visible");
+        syncControls();
+      }
+
+      function shuffle(list) {
+        const copy = list.slice();
+        for (let i = copy.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const tmp = copy[i];
+          copy[i] = copy[j];
+          copy[j] = tmp;
+        }
+        return copy;
+      }
+
+      function showPredict(question, options, onCorrect) {
+        const box = $("predict-box");
+        if (box._revealTimer) {
+          clearTimeout(box._revealTimer);
+          box._revealTimer = null;
+        }
+        $("predict-question").textContent = question;
+        const optsEl = $("predict-options");
+        const fbEl = $("predict-feedback");
+        optsEl.innerHTML = "";
+        fbEl.textContent = "";
+        fbEl.className = "predict-feedback";
+        box.classList.add("visible");
+        syncControls();
+
+        shuffle(options).forEach((opt) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "predict-opt";
+          btn.textContent = opt.label;
+          btn.addEventListener("click", () => {
+            if (opt.correct) {
+              btn.classList.add("right-choice");
+              fbEl.className = "predict-feedback";
+              fbEl.textContent = "Correct — " + opt.explain;
+              Array.from(optsEl.querySelectorAll("button")).forEach((b) => {
+                b.disabled = true;
+              });
+              box._revealTimer = setTimeout(() => {
+                box._revealTimer = null;
+                box.classList.remove("visible");
+                syncControls();
+                onCorrect();
+              }, prefersReducedMotion() ? 120 : 340);
+            } else {
+              btn.classList.add("wrong-choice");
+              fbEl.className = "predict-feedback wrong";
+              fbEl.textContent = "Not quite — " + opt.explain;
+            }
+          });
+          optsEl.appendChild(btn);
+        });
+
+        requestAnimationFrame(() => {
+          box.scrollIntoView({
+            block: "nearest",
+            behavior: prefersReducedMotion() ? "auto" : "smooth"
+          });
+          box.focus({ preventScroll: true });
+        });
+      }
+
+      function populateLetters() {
+        const sel = $("letter-select");
+        sel.innerHTML = "";
+        ALPHABET.forEach((ch) => {
+          const opt = document.createElement("option");
+          opt.value = ch;
+          opt.textContent = ch;
+          sel.appendChild(opt);
+        });
+      }
+
+      function syncLetterSelect() {
+        const idx = state.step === 4 ? state.ringNextIdx : state.nextCharIdx;
+        $("letter-select").value = ALPHABET[idx % ALPHABET.length];
+      }
+
+      function consumeSelectedLetter() {
+        const sel = $("letter-select");
+        const ch = sel.value || "A";
+        const idx = ALPHABET.indexOf(ch);
+        const next = (idx + 1) % ALPHABET.length;
+        if (state.step === 4) {
+          state.ringNextIdx = next;
+        } else {
+          state.nextCharIdx = next;
+        }
+        sel.value = ALPHABET[next];
+        return ch;
+      }
+
+      function applyStatusDom() {
+        const bar = $("status-bar");
+        $("status-text").textContent = state.status.text;
+        bar.classList.toggle("status-accent", state.status.tone === true || state.status.tone === "warn");
+        bar.classList.toggle("status-success", state.status.tone === "success");
+      }
+
+      function setStatus(text, tone) {
+        state.status = { text, tone: tone || false };
+        applyStatusDom();
+      }
+
+      function clearGrowthAnimation() {
+        if (state.growthTimer) {
+          clearTimeout(state.growthTimer);
+          state.growthTimer = null;
+        }
+        state.isCopyingGrowth = false;
+        state.isAutoPlayingGrowth = false;
+        state.growthOverlay = null;
+      }
+
+      function clearMorphAnimation() {
+        if (state.morphRafId) {
+          cancelAnimationFrame(state.morphRafId);
+          state.morphRafId = null;
+        }
+        state.isMorphingToRing = false;
+      }
+
+      function initStep(stepNum, options) {
+        const isReset = Boolean(options && options.isReset);
+        clearGrowthAnimation();
+        clearMorphAnimation();
+        hidePredict();
+        state.step = stepNum;
+        state.visitedSteps.add(stepNum);
+        state.accentCells = [];
+        state.unreachableFrontCells = [];
+        state.blockedAtEnd = false;
+        state.justWrapped = null;
+        state.step1Phase = "crawl";
+        state.isBentToRing = false;
+        state.ringAccentNode = -1;
+        state.ringLastTransition = null;
+        state.ringStepActive = false;
+        state.lastGrowthSnapshot = null;
+        state.takeawayFresh = false;
+        if (isReset) {
+          state.stepCompleted[stepNum] = false;
+        }
+        state.takeawayRevealed[stepNum] = Boolean(state.stepCompleted[stepNum]);
+        state.stepInteracted[stepNum] = false;
+        state.telemetrySnapshot = null;
+        state.changedMetrics = [];
+
+        if (stepNum === 1) {
+          state.capacity = 8;
+          state.buffer = [null, null, "A", "B", "C", "D", null, null];
+          state.head = 2;
+          state.tail = 6;
+          state.count = 4;
+          state.nextCharIdx = 4; // E
+          setStatus("Queue sits in cells 2..5; cells 0 and 1 are free at the front.", false);
+        } else if (stepNum === 2) {
+          state.capacity = 8;
+          state.buffer = [null, null, "A", "B", "C", "D", null, null];
+          state.head = 2;
+          state.tail = 6;
+          state.count = 4;
+          state.nextCharIdx = 4; // E
+          state.step3Fix = "count";
+          state.step3SawFull = !isReset && Boolean(state.stepCompleted[2]);
+          state.step3SawEmpty = !isReset && Boolean(state.stepCompleted[2]);
+          state.step3FixUnlocked = Boolean(state.stepCompleted[2]);
+          setStatus("Queue has 4 items (head = 2, tail = 6).", false);
+        } else if (stepNum === 3) {
+          state.capacity = 8;
+          state.buffer = ["G", "H", "A", "B", "C", "D", "E", "F"];
+          state.head = 2;
+          state.tail = 2;
+          state.count = 8;
+          state.nextCharIdx = 8; // I
+          state.growthStats = { offers: 8, copies: 0, hasDoubled: false };
+          setStatus("All 8 cells are full; offer(I) doubles capacity to 16.", false);
+        } else if (stepNum === 4) {
+          state.ringNodes = ["A", "B", "C", "D"];
+          state.ringP = 0;
+          state.ringLaps = 0;
+          state.ringNextIdx = 4; // E
+          setStatus("Pointer p starts at A in a 4-node circle.", false);
+        }
+
+        syncLetterSelect();
+        render();
+
+        if (stepNum === 3 && !state.predicted.growthUnroll) {
+          const ch = $("letter-select").value;
+          showPredict(
+            `All 8 cells are full (head = ${state.head}, tail = ${state.tail}). How should offer(${ch}) rearrange the 8 existing items when doubling to 16?`,
+            [
+              {
+                label: `Copy 8 items in queue order from head into 0..7, then add ${ch} at cell 8`,
+                correct: true,
+                explain: "doubling unrolls the wrapped ring starting at head so the new buffer sits cleanly in 0..7."
+              },
+              {
+                label: "Copy raw indices 0..7 directly into new 0..7 and keep head = 2, tail = 2",
+                correct: false,
+                explain: "raw copying splits the wrapped tail away from head into the middle of the new array."
+              },
+              {
+                label: `Overwrite head (cell ${state.head}) with ${ch}`,
+                correct: false,
+                explain: "a growing queue doubles capacity instead of dropping the oldest element."
+              }
+            ],
+            () => {
+              state.predicted.growthUnroll = true;
+              setStatus(`Unroll order confirmed — press offer(${ch}) to watch doubling.`, "success");
+              render();
+              const offerBtn = $("btn-offer");
+              if (offerBtn) offerBtn.focus({ preventScroll: true });
+            }
+          );
+        } else if (stepNum === 4 && !state.predicted.ringCycleCount) {
+          const curVal = state.ringNodes[state.ringP];
+          const n = state.ringNodes.length;
+          showPredict(
+            `p is at ${curVal} in this ${n}-node ring. How many p.next() calls bring p back to ${curVal}?`,
+            [
+              {
+                label: `${n} calls — p steps through all ${n} links around the closed circle`,
+                correct: true,
+                explain: `every node has a successor, so ${n} consecutive p.next() steps bring p right back to ${curVal}.`
+              },
+              {
+                label: `${n - 1} calls — one fewer than the ring size`,
+                correct: false,
+                explain: `${n - 1} steps leave p one node behind ${curVal}; you need all ${n} links to close the loop.`
+              },
+              {
+                label: "Cannot return — p stops at the end of the ring",
+                correct: false,
+                explain: "a ring has no end; p.next() runs round the circle forever."
+              }
+            ],
+            () => {
+              state.predicted.ringCycleCount = true;
+              setStatus(`Correct (${n} steps) — press p.next() to walk the circle.`, "success");
+              render();
+              const nextRingBtn = $("btn-ring-next");
+              if (nextRingBtn) nextRingBtn.focus({ preventScroll: true });
+            }
+          );
+        }
+      }
+
+      /* =============================
+         BUFFER OPERATIONS (STEPS 1-4)
+      ============================= */
+      function triggerStageShake() {
+        const st = $("stage");
+        st.classList.remove("stage-shake");
+        void st.offsetWidth;
+        st.classList.add("stage-shake");
+      }
+
+      function executeCrawlOffer() {
+        state.accentCells = [];
+        state.unreachableFrontCells = [];
+        state.blockedAtEnd = false;
+        state.justWrapped = null;
+
+        if (state.tail === state.capacity) {
+          if (state.head > 0) {
+            state.blockedAtEnd = true;
+            for (let i = 0; i < state.head; i++) {
+              state.unreachableFrontCells.push(i);
+            }
+            state.step1Phase = "connect-ready";
+            triggerStageShake();
+            setStatus("Can’t add. Space is free at the front, but we can’t reach it.", true);
+            render();
+            return;
+          }
+          state.blockedAtEnd = true;
+          triggerStageShake();
+          setStatus("All 8 cells are full; press poll() to free cell 0.", true);
+          render();
+          return;
+        }
+
+        const ch = consumeSelectedLetter();
+        const writtenIdx = state.tail;
+        state.buffer[writtenIdx] = ch;
+        state.tail += 1;
+        state.count += 1;
+        state.accentCells = [writtenIdx];
+        if (state.tail === state.capacity && state.head > 0) {
+          setStatus(`Added ${ch} at cell ${writtenIdx}; tail hit the end wall (${state.tail}).`, true);
+        } else {
+          setStatus(`Added ${ch} at cell ${writtenIdx}; tail moved to ${state.tail}.`, false);
+        }
+        render();
+      }
+
+      function enableStep1Wrap() {
+        if (state.step !== 1 || state.step1Phase !== "connect-ready") return;
+        state.step1Phase = "wrap-line";
+        state.blockedAtEnd = false;
+        state.unreachableFrontCells = [];
+        state.tail = state.tail % state.capacity;
+        state.accentCells = [state.tail];
+        state.justWrapped = { from: state.capacity - 1, to: state.tail };
+        const nextCh = $("letter-select").value || ALPHABET[state.nextCharIdx % ALPHABET.length];
+        setStatus(`Wall gone — (7 + 1) mod 8 sends tail to cell ${state.tail}. Press offer(${nextCh}) to reuse it.`, "success");
+        render();
+      }
+
+      function handleStep1Offer() {
+        executeCrawlOffer();
+      }
+
+      function handleStep1Poll() {
+        state.accentCells = [];
+        state.unreachableFrontCells = [];
+        state.blockedAtEnd = false;
+        state.justWrapped = null;
+
+        if (state.count === 0) {
+          triggerStageShake();
+          setStatus("Queue is empty; nothing to poll().", true);
+          render();
+          return;
+        }
+
+        const freedIdx = state.head;
+        const val = state.buffer[freedIdx];
+        state.buffer[freedIdx] = null;
+        state.head += 1;
+        state.count -= 1;
+        state.accentCells = [freedIdx];
+        setStatus(`Removed ${val} from cell ${freedIdx}; head moved to ${state.head}.`, false);
+        render();
+      }
+
+      function executeWrapOffer() {
+        state.accentCells = [];
+        state.unreachableFrontCells = [];
+        state.blockedAtEnd = false;
+        state.justWrapped = null;
+
+        if (state.step === 2 && state.step3FixUnlocked && state.step3Fix === "leave-one") {
+          const sentinelNext = (state.tail + 1) % state.capacity;
+          if (state.count >= state.capacity - 1 || sentinelNext === state.head) {
+            triggerStageShake();
+            setStatus(`Cell ${state.tail} stays empty so tail never meets head (${state.head}).`, true);
+            render();
+            return;
+          }
+        }
+
+        if (state.count === state.capacity) {
+          triggerStageShake();
+          setStatus(`All ${state.capacity} cells are full; poll() to free a cell.`, true);
+          render();
+          return;
+        }
+
+        const ch = consumeSelectedLetter();
+        const writtenIdx = state.tail;
+        const nextTail = (state.tail + 1) % state.capacity;
+        const didWrap = writtenIdx === state.capacity - 1 && nextTail === 0;
+
+        state.buffer[writtenIdx] = ch;
+        state.tail = nextTail;
+        state.count += 1;
+        if (state.step === 3) {
+          state.growthStats.offers += 1;
+          if (state.growthStats.hasDoubled && state.growthStats.offers >= 11) {
+            revealTakeaway(3);
+          }
+        }
+
+        if (state.step === 2 && state.count === state.capacity) {
+          state.step3SawFull = true;
+        }
+
+        if (state.step === 1 && state.step1Phase === "wrap-line") {
+          state.step1Phase = "bend-ready";
+          state.accentCells = [writtenIdx];
+          state.justWrapped = { from: state.capacity - 1, to: writtenIdx };
+          setStatus(`Added ${ch} at cell ${writtenIdx} — wrapped around and reused free space! Now bend it into a ring.`, "success");
+          render();
+          return;
+        }
+
+        if (didWrap) {
+          state.accentCells = [writtenIdx];
+          state.justWrapped = { from: writtenIdx, to: 0 };
+          setStatus(`Added ${ch} at cell ${writtenIdx}; tail wrapped to cell 0.`, "success");
+        } else {
+          state.accentCells = [writtenIdx];
+          if (state.step === 3 && state.growthStats.hasDoubled) {
+            setStatus(`Added ${ch} at cell ${writtenIdx} with 0 copies (cap: ${state.capacity}).`, false);
+          } else {
+            setStatus(`Added ${ch} at cell ${writtenIdx}; tail moved to ${state.tail}.`, false);
+          }
+        }
+        render();
+        maybeTriggerStep3Predict();
+      }
+
+      function handleWrappedOffer() {
+        if (state.step === 3 && state.count === state.capacity) {
+          if (state.capacity >= 16) {
+            triggerStageShake();
+            setStatus("All 16 cells are full; use Replay copy or Reset.", true);
+            render();
+            return;
+          }
+          startGrowthAnimation();
+          return;
+        }
+
+        executeWrapOffer();
+      }
+
+      function handleWrappedPoll() {
+        state.accentCells = [];
+        state.unreachableFrontCells = [];
+        state.blockedAtEnd = false;
+        state.justWrapped = null;
+
+        if (state.count === 0) {
+          triggerStageShake();
+          setStatus("Queue is empty; nothing to poll().", true);
+          render();
+          return;
+        }
+
+        const freedIdx = state.head;
+        const val = state.buffer[freedIdx];
+        const nextHead = (state.head + 1) % state.capacity;
+        const wrapped = freedIdx === state.capacity - 1 && nextHead === 0;
+        state.buffer[freedIdx] = null;
+        state.head = nextHead;
+        state.count -= 1;
+        state.accentCells = [freedIdx];
+
+        if (state.step === 2 && state.count === 0) {
+          state.step3SawEmpty = true;
+          state.accentCells = [state.head];
+          setStatus(`Removed ${val}; head = ${state.head} and tail = ${state.tail} now match.`, true);
+        } else if (wrapped) {
+          state.justWrapped = { from: freedIdx, to: 0 };
+          setStatus(`Removed ${val} from cell ${freedIdx}; head wrapped to cell 0.`, "success");
+        } else {
+          setStatus(`Removed ${val} from cell ${freedIdx}; head moved to ${state.head}.`, false);
+        }
+        render();
+        maybeTriggerStep3Predict();
+      }
+
+      /* Step 2: Two-Beat Discovery -> Fix */
+      function maybeTriggerStep3Predict() {
+        if (
+          state.step === 2 &&
+          state.step3SawFull &&
+          state.step3SawEmpty
+        ) {
+          if (!state.step3FixUnlocked) {
+            state.step3FixUnlocked = true;
+            setStatus("head == tail cannot tell empty from full; compare the two fixes below.", "success");
+          }
+          revealTakeaway(2);
+          render();
+        }
+      }
+
+      function executeFillUsableSentinel() {
+        state.accentCells = [];
+        state.justWrapped = null;
+        if (state.count === state.capacity) {
+          const gapIdx = (state.head + state.capacity - 1) % state.capacity;
+          state.buffer[gapIdx] = null;
+          state.tail = gapIdx;
+          state.count = state.capacity - 1;
+        } else {
+          while (state.count < state.capacity - 1) {
+            const ch = consumeSelectedLetter();
+            state.buffer[state.tail] = ch;
+            state.tail = (state.tail + 1) % state.capacity;
+            state.count += 1;
+          }
+        }
+        state.accentCells = [state.tail];
+        setStatus(`Cell ${state.tail} stays empty so (tail + 1) mod 8 == head (${state.head}).`, true);
+        render();
+      }
+
+      function handleFillAll() {
+        if (state.step3FixUnlocked && state.step3Fix === "leave-one") {
+          executeFillUsableSentinel();
+          return;
+        }
+        state.accentCells = [];
+        state.justWrapped = null;
+        while (state.count < state.capacity) {
+          const ch = consumeSelectedLetter();
+          state.buffer[state.tail] = ch;
+          state.tail = (state.tail + 1) % state.capacity;
+          state.count += 1;
+        }
+        state.step3SawFull = true;
+        state.accentCells = [state.head];
+        const tailNote = !state.step3FixUnlocked && !state.step3SawEmpty
+          ? "; now press Empty all cells."
+          : " — same pointers as empty.";
+        setStatus(`Filled all 8 cells (head = ${state.head}, tail = ${state.tail})${tailNote}`, true);
+        render();
+        maybeTriggerStep3Predict();
+      }
+
+      function handleEmptyAll() {
+        state.buffer = new Array(state.capacity).fill(null);
+        state.tail = state.head;
+        state.count = 0;
+        state.justWrapped = null;
+        state.step3SawEmpty = true;
+        state.accentCells = [state.head];
+        const tailNote = !state.step3FixUnlocked && !state.step3SawFull
+          ? "; now press Fill all cells."
+          : " — same pointers as full.";
+        setStatus(`Emptied all cells (head = ${state.head}, tail = ${state.tail})${tailNote}`, true);
+        render();
+        maybeTriggerStep3Predict();
+      }
+
+      /* Step 4: Step-Through & Slower Doubling 8 -> 16 */
+      function startGrowthCopySession(snapshot, isReplay) {
+        clearGrowthAnimation();
+        const oldBuffer = snapshot.oldBuffer.slice();
+        const oldHead = snapshot.oldHead;
+        const addedChar = snapshot.addedChar;
+        const firstVal = oldBuffer[oldHead];
+
+        state.isCopyingGrowth = true;
+        state.isAutoPlayingGrowth = false;
+        state.growthOverlay = {
+          oldBuffer,
+          oldHead,
+          addedChar,
+          isReplay,
+          newBuffer: new Array(16).fill(null),
+          nextK: 0,
+          oldIdx: -1,
+          newIdx: -1,
+          isDone: false,
+          caption: `Ready: press Copy next to move ${firstVal} from old cell ${oldHead} \u2192 new cell 0 (1/8).`
+        };
+        setStatus(`Doubling to 16: press Copy next to unroll 8 items from head (cell ${oldHead}).`, "success");
+        render();
+      }
+
+      function stepGrowthCopy() {
+        const ov = state.growthOverlay;
+        if (state.step !== 3 || !ov || ov.isDone) return false;
+
+        const oldCap = 8;
+        const k = ov.nextK;
+        if (k >= oldCap) return false;
+
+        const oldIdx = (ov.oldHead + k) % oldCap;
+        const val = ov.oldBuffer[oldIdx];
+        ov.newBuffer[k] = val;
+        ov.oldIdx = oldIdx;
+        ov.newIdx = k;
+        ov.nextK = k + 1;
+
+        if (ov.nextK < oldCap) {
+          ov.caption = `Copying ${val} from old cell ${oldIdx} \u2192 new cell ${k} (${k + 1}/8)`;
+          setStatus(`Copying ${k + 1}/8: ${val} from old cell ${oldIdx} \u2192 new cell ${k}.`, "success");
+          syncControls();
+          renderGrowthStrip();
+          return true;
+        }
+
+        // 8th element copied: commit resized buffer (if first time) and reveal cost strip
+        if (!ov.isReplay) {
+          const doubled = ov.newBuffer.slice();
+          doubled[8] = ov.addedChar;
+          state.capacity = 16;
+          state.buffer = doubled;
+          state.head = 0;
+          state.tail = 9;
+          state.count = 9;
+          state.growthStats.offers += 1;
+          state.growthStats.copies += 8;
+          state.growthStats.hasDoubled = true;
+        } else {
+          ov.newBuffer = state.buffer.slice();
+        }
+        ov.isDone = true;
+        if (state.growthTimer) {
+          clearTimeout(state.growthTimer);
+          state.growthTimer = null;
+        }
+        state.isCopyingGrowth = false;
+        state.isAutoPlayingGrowth = false;
+        state.accentCells = [8];
+        state.justWrapped = null;
+        ov.caption = ov.isReplay
+          ? `Copied ${val} from old cell ${oldIdx} \u2192 new cell ${k} (8/8) — replay complete.`
+          : `Copied ${val} from old cell ${oldIdx} \u2192 new cell ${k} (8/8), then placed ${ov.addedChar} at new cell 8.`;
+        setStatus(
+          ov.isReplay
+            ? `Replayed the 8-item copy from head (${ov.oldHead}) into 0..7.`
+            : `Doubled to 16, copied 8 items into 0..7, and added ${ov.addedChar} at cell 8. Add two more!`,
+          "success"
+        );
+        render();
+        return false;
+      }
+
+      function startGrowthAutoPlay() {
+        const ov = state.growthOverlay;
+        if (state.step !== 3 || !state.isCopyingGrowth || !ov || ov.isDone || state.isAutoPlayingGrowth) return;
+        state.isAutoPlayingGrowth = true;
+        syncControls();
+        const stepDelay = prefersReducedMotion() ? 40 : 620;
+
+        function tick() {
+          if (state.step !== 3 || !state.isCopyingGrowth || !state.isAutoPlayingGrowth) return;
+          const more = stepGrowthCopy();
+          if (more && state.isAutoPlayingGrowth) {
+            state.growthTimer = setTimeout(tick, stepDelay);
+          }
+        }
+
+        tick();
+      }
+
+      function startGrowthAnimation() {
+        const snapshot = {
+          oldBuffer: state.buffer.slice(),
+          oldHead: state.head,
+          addedChar: consumeSelectedLetter()
+        };
+        state.lastGrowthSnapshot = snapshot;
+        startGrowthCopySession(snapshot, false);
+      }
+
+      function replayGrowthAnimation() {
+        if (!state.lastGrowthSnapshot || state.isCopyingGrowth) return;
+        startGrowthCopySession(state.lastGrowthSnapshot, true);
+      }
+
+      /* =============================
+         RING MODE OPERATIONS (STEP 5)
+      ============================= */
+      function executeRingNext() {
+        state.ringAccentNode = -1;
+        state.ringLastTransition = null;
+        state.ringStepActive = true;
+
+        if (state.ringNodes.length === 0) {
+          triggerStageShake();
+          setStatus("Ring is empty; press add(x) to insert a node.", true);
+          render();
+          return;
+        }
+
+        const n = state.ringNodes.length;
+        const from = state.ringP;
+        const to = (from + 1) % n;
+        const wrapped = from === n - 1;
+        state.ringP = to;
+        if (wrapped) {
+          state.ringLaps += 1;
+        }
+        state.ringAccentNode = to;
+        state.ringLastTransition = { from, to, wrapped };
+
+        if (wrapped) {
+          revealTakeaway(4);
+          setStatus(`Pointer p looped from ${state.ringNodes[from]} back to ${state.ringNodes[to]} (lap ${state.ringLaps}).`, "success");
+        } else {
+          setStatus(`Pointer p moved from ${state.ringNodes[from]} to ${state.ringNodes[to]}.`, false);
+        }
+        render();
+      }
+
+      function handleRingNext() {
+        executeRingNext();
+      }
+
+      function handleRingAdd() {
+        state.ringStepActive = false;
+        if (state.ringNodes.length >= 12) {
+          triggerStageShake();
+          setStatus("Kept at 12 nodes for readability; use removeNext() or Reset.", true);
+          render();
+          return;
+        }
+        const ch = consumeSelectedLetter();
+        state.ringLastTransition = null;
+
+        if (state.ringNodes.length === 0) {
+          state.ringNodes = [ch];
+          state.ringP = 0;
+          state.ringAccentNode = 0;
+          setStatus(`Inserted ${ch} into empty ring; isEmpty is now false.`, false);
+        } else {
+          const insertIdx = state.ringP + 1;
+          const afterNode = state.ringNodes[state.ringP];
+          state.ringNodes.splice(insertIdx, 0, ch);
+          state.ringAccentNode = insertIdx;
+          setStatus(`Inserted ${ch} after p (${afterNode}) in O(1).`, false);
+        }
+        render();
+      }
+
+      function executeRingRemoveNext() {
+        state.ringLastTransition = null;
+        state.ringStepActive = false;
+        const n = state.ringNodes.length;
+        if (n === 0) {
+          triggerStageShake();
+          setStatus("Ring is already empty; press add(x) to insert.", true);
+          render();
+          return;
+        }
+        if (n === 1) {
+          const removed = state.ringNodes.splice(0, 1)[0];
+          state.ringP = -1;
+          state.ringAccentNode = -1;
+          setStatus(`Deleted sole node ${removed}; ring is now empty.`, true);
+          render();
+          return;
+        }
+
+        const pVal = state.ringNodes[state.ringP];
+        const targetIdx = (state.ringP + 1) % n;
+        const removed = state.ringNodes.splice(targetIdx, 1)[0];
+        if (targetIdx < state.ringP) {
+          state.ringP -= 1;
+        }
+        const newNextIdx = (state.ringP + 1) % state.ringNodes.length;
+        const newNextVal = state.ringNodes[newNextIdx];
+        state.ringAccentNode = state.ringP;
+        state.ringLastTransition = { from: state.ringP, to: newNextIdx, wrapped: false };
+        setStatus(`Deleted ${removed} after ${pVal} in O(1); ${pVal}.next now points to ${newNextVal}.`, false);
+        render();
+      }
+
+      function executeRingEmpty() {
+        state.ringNodes = [];
+        state.ringP = -1;
+        state.ringLaps = 0;
+        state.ringAccentNode = -1;
+        state.ringLastTransition = null;
+        state.ringStepActive = false;
+        setStatus("Ring is empty; isEmpty replaces \"end of list\".", true);
+        render();
+      }
+
+      function handleRingEmptyOrLastRemove(actionFn) {
+        actionFn();
+      }
+
+      /* =============================
+         RENDERING
+      ============================= */
+      function renderBufferLineView() {
+        const cap = state.capacity;
+        const wrap = document.createElement("div");
+        wrap.className = "line-view-wrap";
+
+        const rowWrap = document.createElement("div");
+        rowWrap.className = "array-row-wrap";
+
+        const grid = document.createElement("div");
+        grid.className = "array-grid" + (cap === 16 ? " array-grid-16" : "");
+
+        for (let i = 0; i < cap; i++) {
+          const cell = document.createElement("div");
+          cell.className = "cell-card";
+          const val = state.buffer[i];
+          const isOccupied = val !== null;
+          const isAccent = state.accentCells.includes(i);
+          const isUnreachableFree = state.unreachableFrontCells.includes(i);
+          const isSentinelGap =
+            state.step === 2 &&
+            state.step3FixUnlocked &&
+            state.step3Fix === "leave-one" &&
+            !isOccupied &&
+            state.tail === i &&
+            state.count === state.capacity - 1;
+
+          if (isOccupied) cell.classList.add("is-occupied");
+          if (isUnreachableFree) cell.classList.add("is-free-unreachable");
+          if (isSentinelGap) cell.classList.add("is-sentinel-gap");
+          if (isAccent) cell.classList.add("is-accent");
+
+          const idxEl = document.createElement("div");
+          idxEl.className = "cell-index";
+          idxEl.textContent = `[${i}]`;
+
+          const valEl = document.createElement("div");
+          valEl.className = "cell-value";
+          if (isOccupied) {
+            valEl.textContent = val;
+          } else {
+            valEl.classList.add("is-empty-val");
+            valEl.textContent = isUnreachableFree ? "FREE" : (isSentinelGap ? "GAP" : "-");
+          }
+
+          const markersEl = document.createElement("div");
+          markersEl.className = "cell-markers";
+
+          const isHead = state.head === i;
+          const isTail = state.tail === i;
+          const ch = state.changedMetrics;
+          const showNextFree = !state.stepInteracted[state.step];
+
+          if (isHead && isTail) {
+            const tag = document.createElement("span");
+            const changed = ch.includes("head") || ch.includes("tail");
+            tag.className = "ptr-tag ptr-accent" + (changed ? " metric-changed" : "");
+            tag.innerHTML = "\u2191 head <span class=\"ptr-sub\">= tail</span>";
+            markersEl.appendChild(tag);
+          } else {
+            if (isHead) {
+              const hTag = document.createElement("span");
+              hTag.className = "ptr-tag ptr-head" + (ch.includes("head") ? " metric-changed" : "");
+              hTag.textContent = "\u2191 head";
+              markersEl.appendChild(hTag);
+            }
+            if (isTail) {
+              const tTag = document.createElement("span");
+              tTag.className = "ptr-tag ptr-tail" + ((state.justWrapped && state.justWrapped.to === i) || isSentinelGap ? " ptr-accent" : "") + (ch.includes("tail") ? " metric-changed" : "");
+              tTag.innerHTML = isSentinelGap
+                ? `\u2191 tail<span class="ptr-sub">gap</span>`
+                : (showNextFree ? `\u2191 tail<span class="ptr-sub">(next free)</span>` : "\u2191 tail");
+              markersEl.appendChild(tTag);
+            }
+          }
+
+          cell.appendChild(idxEl);
+          cell.appendChild(valEl);
+          cell.appendChild(markersEl);
+          grid.appendChild(cell);
+        }
+
+        rowWrap.appendChild(grid);
+
+        if (state.step === 1 && !isStep1WrapActive()) {
+          const endWall = document.createElement("div");
+          endWall.className = "end-wall-slot" + (state.blockedAtEnd ? " is-blocked" : "");
+          const wallTitle = document.createElement("span");
+          wallTitle.textContent = "END WALL";
+          endWall.appendChild(wallTitle);
+
+          if (state.tail === cap) {
+            const tTag = document.createElement("span");
+            tTag.className = "ptr-tag ptr-tail" + (state.blockedAtEnd ? " ptr-accent" : "") + (state.changedMetrics.includes("tail") ? " metric-changed" : "");
+            tTag.textContent = "\u2191 tail";
+            endWall.appendChild(tTag);
+          }
+          if (state.head === cap) {
+            const hTag = document.createElement("span");
+            hTag.className = "ptr-tag ptr-head" + (state.changedMetrics.includes("head") ? " metric-changed" : "");
+            hTag.textContent = "\u2191 head";
+            endWall.appendChild(hTag);
+          }
+          rowWrap.appendChild(endWall);
+        }
+
+        wrap.appendChild(rowWrap);
+
+        // Wrap arc indicator when wrap is ON in Step 1 (and on wrap jump in Steps 2-3)
+        if (isStep1WrapActive() || (state.step >= 2 && state.justWrapped)) {
+          const bar = document.createElement("div");
+          bar.className = "wrap-connector" + (state.justWrapped ? " is-accent" : "");
+          const msg = document.createElement("span");
+          msg.textContent = state.justWrapped
+            ? `Wrap jump: cell ${state.justWrapped.from} -> cell ${state.justWrapped.to}`
+            : `After cell ${cap - 1}, index wraps back to cell 0.`;
+
+          const svgNS = "http://www.w3.org/2000/svg";
+          const svg = document.createElementNS(svgNS, "svg");
+          svg.setAttribute("viewBox", "0 0 220 30");
+          svg.setAttribute("aria-hidden", "true");
+          const stroke = state.justWrapped ? "#c2410c" : "#4a574d";
+          svg.innerHTML =
+            `<path d="M 196 6 C 196 25, 24 25, 24 11" fill="none" stroke="${stroke}" stroke-width="${state.justWrapped ? "2.6" : "2"}" stroke-dasharray="${state.justWrapped ? "none" : "5 4"}" />` +
+            `<polygon points="24,4 19,12 29,12" fill="${stroke}" />` +
+            `<text x="110" y="14" text-anchor="middle" font-family="monospace" font-size="10" font-weight="700" fill="${stroke}">${cap - 1} -> 0</text>`;
+          bar.appendChild(msg);
+          bar.appendChild(svg);
+          wrap.appendChild(bar);
+        }
+
+        return wrap;
+      }
+
+      function svgEl(tag, attrs, textContent) {
+        const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+        if (attrs) {
+          Object.keys(attrs).forEach((k) => {
+            el.setAttribute(k, String(attrs[k]));
+          });
+        }
+        if (textContent !== undefined) {
+          el.textContent = textContent;
+        }
+        return el;
+      }
+
+      function renderBufferCircleView() {
+        const cap = state.capacity;
+        const wrap = document.createElement("div");
+        wrap.className = "circle-view-wrap";
+
+        const svg = svgEl("svg", {
+          class: "circle-svg",
+          viewBox: "0 0 510 410",
+          role: "img",
+          "aria-label": `${cap}-cell ring buffer circle diagram`
+        });
+
+        const cx = 255;
+        const cy = 205;
+        const ringR = cap === 16 ? 132 : 112;
+        const cellR = cap === 16 ? 19 : 26;
+
+        const isCrawlCircle = state.step === 1 && !isStep1WrapActive();
+
+        // Track circle
+        svg.appendChild(svgEl("circle", {
+          cx,
+          cy,
+          r: ringR,
+          fill: "none",
+          stroke: "#c5d0c4",
+          "stroke-width": "2",
+          "stroke-dasharray": isCrawlCircle ? "4 4" : "none"
+        }));
+
+        // Center readout (pointers live on the cells)
+        svg.appendChild(svgEl("text", {
+          x: cx,
+          y: cy + 4,
+          "text-anchor": "middle",
+          "font-family": "var(--font-mono)",
+          "font-size": "12",
+          "font-weight": "700",
+          fill: "#4a574d"
+        }, `${state.count} / ${cap} used`));
+
+        // Draw blocked barrier between cap-1 and 0 in crawl mode
+        if (isCrawlCircle) {
+          const angleWall = -Math.PI / 2 - Math.PI / cap;
+          const x1 = cx + (ringR - 22) * Math.cos(angleWall);
+          const y1 = cy + (ringR - 22) * Math.sin(angleWall);
+          const x2 = cx + (ringR + 22) * Math.cos(angleWall);
+          const y2 = cy + (ringR + 22) * Math.sin(angleWall);
+          svg.appendChild(svgEl("line", {
+            x1, y1, x2, y2,
+            stroke: state.blockedAtEnd ? "#c2410c" : "#17211a",
+            "stroke-width": "4",
+            "stroke-linecap": "round"
+          }));
+          const wx = cx + (ringR + 36) * Math.cos(angleWall);
+          const wy = cy + (ringR + 36) * Math.sin(angleWall);
+          svg.appendChild(svgEl("text", {
+            x: wx,
+            y: wy,
+            "text-anchor": "middle",
+            "dominant-baseline": "central",
+            "font-family": "var(--font-mono)",
+            "font-size": "10",
+            "font-weight": "700",
+            fill: state.blockedAtEnd ? "#c2410c" : "#4a574d"
+          }, state.tail === cap ? "WALL (tail=8)" : "WALL"));
+        }
+
+        // Curved wrap arrow on Step 2 wrap (along track between cap-1 and 0 with tangent arrowhead)
+        if (state.justWrapped) {
+          const stepAng = (Math.PI * 2) / cap;
+          const aStartCenter = -Math.PI / 2 - stepAng;
+          const aEndCenter = -Math.PI / 2;
+          const padS = Math.asin(Math.min(0.9, (cellR + 3) / ringR));
+          const padE = Math.asin(Math.min(0.9, (cellR + 4) / ringR));
+          const useTrack = (aEndCenter - padE) - (aStartCenter + padS) > 0.14;
+          const arcR = useTrack ? ringR : (ringR - cellR - 11);
+          const sA = useTrack ? (aStartCenter + padS) : (aStartCenter + 0.08);
+          const eA = useTrack ? (aEndCenter - padE) : (aEndCenter - 0.12);
+          const sx = cx + arcR * Math.cos(sA);
+          const sy = cy + arcR * Math.sin(sA);
+          const ex = cx + arcR * Math.cos(eA);
+          const ey = cy + arcR * Math.sin(eA);
+          const tx = -Math.sin(eA);
+          const ty = Math.cos(eA);
+          const nx = Math.cos(eA);
+          const ny = Math.sin(eA);
+          const lineEx = ex - tx * 6;
+          const lineEy = ey - ty * 6;
+          const b1x = ex - tx * 9 + nx * 4.5;
+          const b1y = ey - ty * 9 + ny * 4.5;
+          const b2x = ex - tx * 9 - nx * 4.5;
+          const b2y = ey - ty * 9 - ny * 4.5;
+          svg.appendChild(svgEl("path", {
+            d: `M ${sx} ${sy} A ${arcR} ${arcR} 0 0 1 ${lineEx} ${lineEy}`,
+            fill: "none",
+            stroke: "#c2410c",
+            "stroke-width": "2.8",
+            "stroke-linecap": "round"
+          }));
+          svg.appendChild(svgEl("polygon", {
+            points: `${ex},${ey} ${b1x},${b1y} ${b2x},${b2y}`,
+            fill: "#c2410c"
+          }));
+        }
+
+        // Draw cells clockwise starting at top (-PI/2)
+        for (let i = 0; i < cap; i++) {
+          const angle = -Math.PI / 2 + (i / cap) * Math.PI * 2;
+          const x = cx + ringR * Math.cos(angle);
+          const y = cy + ringR * Math.sin(angle);
+          const val = state.buffer[i];
+          const isOccupied = val !== null;
+          const isAccent = state.accentCells.includes(i);
+          const isFreeUnreach = state.unreachableFrontCells.includes(i);
+          const isSentinelGap =
+            state.step === 2 &&
+            state.step3FixUnlocked &&
+            state.step3Fix === "leave-one" &&
+            !isOccupied &&
+            state.tail === i &&
+            state.count === state.capacity - 1;
+
+          let fill = isOccupied ? "#eaf1e7" : "#fafbf9";
+          let stroke = "#17211a";
+          let strokeDash = "none";
+          if (isFreeUnreach || isSentinelGap) {
+            fill = "#ffedd5";
+            stroke = "#c2410c";
+            strokeDash = "4 3";
+          } else if (isAccent) {
+            stroke = "#c2410c";
+          }
+
+          svg.appendChild(svgEl("circle", {
+            cx: x,
+            cy: y,
+            r: cellR,
+            fill,
+            stroke,
+            "stroke-width": isOccupied || isAccent || isFreeUnreach || isSentinelGap ? "2.2" : "1.4",
+            "stroke-dasharray": strokeDash
+          }));
+
+          // Index label inside top of circle
+          svg.appendChild(svgEl("text", {
+            x,
+            y: y - (cap === 16 ? 7 : 10),
+            "text-anchor": "middle",
+            "font-family": "var(--font-mono)",
+            "font-size": cap === 16 ? "9" : "10",
+            "font-weight": "700",
+            fill: isAccent || isFreeUnreach || isSentinelGap ? "#c2410c" : "#6c7a70"
+          }, String(i)));
+
+          // Value
+          svg.appendChild(svgEl("text", {
+            x,
+            y: y + (cap === 16 ? 7 : 8),
+            "text-anchor": "middle",
+            "font-family": isOccupied ? "var(--font-serif)" : "var(--font-mono)",
+            "font-size": isOccupied ? (cap === 16 ? "14" : "18") : "10",
+            "font-weight": "700",
+            fill: isAccent || isFreeUnreach || isSentinelGap ? "#c2410c" : (isOccupied ? "#17211a" : "#6c7a70")
+          }, isOccupied ? val : (isFreeUnreach ? "FREE" : (isSentinelGap ? "GAP" : "-"))));
+
+          // Markers outside the ring (inward arrow + label on cells)
+          const isHead = state.head === i;
+          const isTail = state.tail === i;
+          if (isHead || isTail) {
+            const isBoth = isHead && isTail;
+            const tailAccent = isBoth || (isTail && ((state.justWrapped && state.justWrapped.to === i) || isSentinelGap));
+            const ch = state.changedMetrics;
+            const ptrChanged = (isHead && ch.includes("head")) || (isTail && ch.includes("tail"));
+            const pColor = tailAccent ? "#c2410c" : (ptrChanged ? "#1e3a29" : "#17211a");
+
+            let line1 = "";
+            let line2 = "";
+            if (isBoth) {
+              line1 = "head = tail";
+            } else if (isHead) {
+              line1 = "head";
+            } else {
+              line1 = "tail";
+              line2 = isSentinelGap ? "gap" : (!state.stepInteracted[state.step] ? "(next free)" : "");
+            }
+
+            const boxW = line2 ? 82 : Math.max(54, line1.length * 7.2 + 14);
+            const boxH = line2 ? 28 : 22;
+            const ux = Math.cos(angle);
+            const uy = Math.sin(angle);
+            const tx = -uy;
+            const ty = ux;
+            const arrowTipR = ringR + cellR + 4;
+            const arrowStemEndR = ringR + cellR + 16;
+            const boxDistR = arrowStemEndR + (Math.abs(ux) * boxW + Math.abs(uy) * boxH) / 2 + 2;
+            const px = cx + boxDistR * ux;
+            const py = cy + boxDistR * uy;
+            const lx1 = cx + arrowTipR * ux;
+            const ly1 = cy + arrowTipR * uy;
+            const lx2 = cx + arrowStemEndR * ux;
+            const ly2 = cy + arrowStemEndR * uy;
+
+            svg.appendChild(svgEl("line", {
+              x1: lx2, y1: ly2, x2: lx1 + ux * 5, y2: ly1 + uy * 5,
+              stroke: pColor,
+              "stroke-width": ptrChanged ? "2.6" : "2"
+            }));
+            svg.appendChild(svgEl("polygon", {
+              points: `${lx1},${ly1} ${lx1 + ux * 7 + tx * 4},${ly1 + uy * 7 + ty * 4} ${lx1 + ux * 7 - tx * 4},${ly1 + uy * 7 - ty * 4}`,
+              fill: pColor
+            }));
+            const rectAttrs = {
+              x: px - boxW / 2,
+              y: py - boxH / 2,
+              width: boxW,
+              height: boxH,
+              rx: 3,
+              fill: tailAccent ? "#c2410c" : (isHead ? "#1e3a29" : (ptrChanged ? "#dce7d8" : "#fafbf9")),
+              stroke: pColor,
+              "stroke-width": ptrChanged ? "2.4" : "1.5"
+            };
+            if (ptrChanged) rectAttrs.class = "metric-changed";
+            svg.appendChild(svgEl("rect", rectAttrs));
+            svg.appendChild(svgEl("text", {
+              x: px,
+              y: line2 ? py - 2 : py + 4,
+              "text-anchor": "middle",
+              "font-family": "var(--font-mono)",
+              "font-size": "10.5",
+              "font-weight": "700",
+              fill: tailAccent || isHead ? "#ffffff" : (ptrChanged ? "#1e3a29" : "#17211a")
+            }, line1));
+            if (line2) {
+              svg.appendChild(svgEl("text", {
+                x: px,
+                y: py + 9,
+                "text-anchor": "middle",
+                "font-family": "var(--font-mono)",
+                "font-size": "8.5",
+                "font-weight": "600",
+                fill: tailAccent ? "#ffffff" : "#4a574d"
+              }, line2));
+            }
+          }
+        }
+
+        wrap.appendChild(svg);
+
+        const capNote = document.createElement("div");
+        capNote.className = "circle-caption";
+        capNote.textContent = "Same array shown as a circle — index 0 follows right after index " + (cap - 1) + ".";
+        wrap.appendChild(capNote);
+        return wrap;
+      }
+
+      /* =============================
+         RING MODE RENDERING (STEP 5)
+      ============================= */
+      function renderRingCircleView() {
+        const nodes = state.ringNodes;
+        const wrap = document.createElement("div");
+        wrap.className = "circle-view-wrap";
+
+        const svg = svgEl("svg", {
+          class: "circle-svg",
+          viewBox: "0 0 460 390",
+          role: "img",
+          "aria-label": "Ring data structure circle diagram"
+        });
+
+        const cx = 230;
+        const cy = 195;
+
+        if (nodes.length === 0) {
+          svg.appendChild(svgEl("circle", {
+            cx, cy, r: 96,
+            fill: "#ffedd5",
+            stroke: "#c2410c",
+            "stroke-width": "2.5",
+            "stroke-dasharray": "6 5"
+          }));
+          svg.appendChild(svgEl("text", {
+            x: cx, y: cy - 6,
+            "text-anchor": "middle",
+            "font-family": "var(--font-mono)",
+            "font-size": "14",
+            "font-weight": "700",
+            fill: "#c2410c"
+          }, "isEmpty: true"));
+          svg.appendChild(svgEl("text", {
+            x: cx, y: cy + 16,
+            "text-anchor": "middle",
+            "font-family": "var(--font-sans)",
+            "font-size": "12",
+            "font-weight": "600",
+            fill: "#c2410c"
+          }, "Replaces \"end of list\" — call add(x)"));
+          wrap.appendChild(svg);
+          return wrap;
+        }
+
+        const n = nodes.length;
+        const ringR = n === 1 ? 0 : (n >= 9 ? 124 : 116);
+        const nodeR = n >= 9 ? 20 : 24;
+
+        // Center text
+        if (n > 1) {
+          svg.appendChild(svgEl("text", {
+            x: cx, y: cy - 14,
+            "text-anchor": "middle",
+            "font-family": "var(--font-mono)",
+            "font-size": "12",
+            "font-weight": "700",
+            fill: "#17211a"
+          }, `size = ${n}`));
+          svg.appendChild(svgEl("text", {
+            x: cx, y: cy + 3,
+            "text-anchor": "middle",
+            "font-family": "var(--font-mono)",
+            "font-size": "11",
+            "font-weight": "700",
+            fill: "#4a574d"
+          }, "isEmpty: false"));
+          svg.appendChild(svgEl("text", {
+            x: cx, y: cy + 20,
+            "text-anchor": "middle",
+            "font-family": "var(--font-mono)",
+            "font-size": "10",
+            "font-weight": "600",
+            fill: "#6c7a70"
+          }, "p.next() loops"));
+        }
+
+        // Draw directed edges between consecutive nodes
+        if (n === 1) {
+          svg.appendChild(svgEl("path", {
+            d: `M ${cx + 18} ${cy - 18} C ${cx + 76} ${cy - 72}, ${cx + 76} ${cy + 72}, ${cx + 22} ${cy + 18}`,
+            fill: "none",
+            stroke: "#c2410c",
+            "stroke-width": "2.2"
+          }));
+          svg.appendChild(svgEl("circle", { cx: cx + 22, cy: cy + 18, r: 3.5, fill: "#c2410c" }));
+          svg.appendChild(svgEl("text", {
+            x: cx + 76, y: cy + 4,
+            "font-family": "var(--font-mono)",
+            "font-size": "11",
+            "font-weight": "700",
+            fill: "#c2410c"
+          }, "next()"));
+        } else {
+          const stepAngle = (Math.PI * 2) / n;
+          const rawPadAngle = Math.asin(Math.min(0.9, (nodeR + 5) / ringR));
+          const padAngle = Math.min(stepAngle * 0.42, rawPadAngle);
+          for (let i = 0; i < n; i++) {
+            const nextI = (i + 1) % n;
+            const a1 = -Math.PI / 2 + (i / n) * Math.PI * 2;
+            const a2 = -Math.PI / 2 + ((i + 1) / n) * Math.PI * 2;
+            const sAngle = a1 + padAngle;
+            const eAngle = a2 - padAngle;
+            const sx = cx + ringR * Math.cos(sAngle);
+            const sy = cy + ringR * Math.sin(sAngle);
+            const ex = cx + ringR * Math.cos(eAngle);
+            const ey = cy + ringR * Math.sin(eAngle);
+            const isActiveEdge = state.ringLastTransition && state.ringLastTransition.from === i && state.ringLastTransition.to === nextI;
+
+            svg.appendChild(svgEl("path", {
+              d: `M ${sx} ${sy} A ${ringR} ${ringR} 0 0 1 ${ex} ${ey}`,
+              fill: "none",
+              stroke: isActiveEdge ? "#c2410c" : "#4a574d",
+              "stroke-width": isActiveEdge ? "3" : "1.8"
+            }));
+
+            // Arrowhead at (ex, ey) tangent clockwise
+            const tx = -Math.sin(eAngle);
+            const ty = Math.cos(eAngle);
+            const nx = Math.cos(eAngle);
+            const ny = Math.sin(eAngle);
+            const b1x = ex - tx * 8 + nx * 4;
+            const b1y = ey - ty * 8 + ny * 4;
+            const b2x = ex - tx * 8 - nx * 4;
+            const b2y = ey - ty * 8 - ny * 4;
+            svg.appendChild(svgEl("polygon", {
+              points: `${ex},${ey} ${b1x},${b1y} ${b2x},${b2y}`,
+              fill: isActiveEdge ? "#c2410c" : "#4a574d"
+            }));
+          }
+        }
+
+        // Draw nodes
+        for (let i = 0; i < n; i++) {
+          const angle = -Math.PI / 2 + (i / n) * Math.PI * 2;
+          const x = n === 1 ? cx : cx + ringR * Math.cos(angle);
+          const y = n === 1 ? cy : cy + ringR * Math.sin(angle);
+          const isP = state.ringP === i;
+          const isAccent = state.ringAccentNode === i || isP;
+
+          svg.appendChild(svgEl("circle", {
+            cx: x,
+            cy: y,
+            r: nodeR,
+            fill: isAccent ? "#ffedd5" : "#eaf1e7",
+            stroke: isAccent ? "#c2410c" : "#17211a",
+            "stroke-width": isP ? "2.8" : "2"
+          }));
+
+          svg.appendChild(svgEl("text", {
+            x,
+            y: y + 6,
+            "text-anchor": "middle",
+            "font-family": "var(--font-serif)",
+            "font-size": "18",
+            "font-weight": "700",
+            fill: isAccent ? "#c2410c" : "#17211a"
+          }, nodes[i]));
+
+          if (isP) {
+            const pAngle = n === 1 ? -Math.PI / 2 : angle;
+            const pDist = (n === 1 ? 0 : ringR) + nodeR + 34;
+            const px = cx + pDist * Math.cos(pAngle);
+            const py = cy + pDist * Math.sin(pAngle);
+            const lx1 = cx + ((n === 1 ? 0 : ringR) + nodeR + 4) * Math.cos(pAngle);
+            const ly1 = cy + ((n === 1 ? 0 : ringR) + nodeR + 4) * Math.sin(pAngle);
+            const lx2 = cx + (pDist - 12) * Math.cos(pAngle);
+            const ly2 = cy + (pDist - 12) * Math.sin(pAngle);
+            const ux = Math.cos(pAngle);
+            const uy = Math.sin(pAngle);
+            const tx = -uy;
+            const ty = ux;
+            const pChanged = state.changedMetrics.includes("p");
+
+            svg.appendChild(svgEl("line", {
+              x1: lx2, y1: ly2, x2: lx1 + ux * 5, y2: ly1 + uy * 5,
+              stroke: "#c2410c",
+              "stroke-width": "2.4"
+            }));
+            svg.appendChild(svgEl("polygon", {
+              points: `${lx1},${ly1} ${lx1 + ux * 7 + tx * 4},${ly1 + uy * 7 + ty * 4} ${lx1 + ux * 7 - tx * 4},${ly1 + uy * 7 - ty * 4}`,
+              fill: "#c2410c"
+            }));
+            const rAttrs = {
+              x: px - 32, y: py - 11, width: 64, height: 22, rx: 3,
+              fill: "#c2410c"
+            };
+            if (pChanged) rAttrs.class = "metric-changed";
+            svg.appendChild(svgEl("rect", rAttrs));
+            svg.appendChild(svgEl("text", {
+              x: px, y: py + 4,
+              "text-anchor": "middle",
+              "font-family": "var(--font-mono)",
+              "font-size": "11",
+              "font-weight": "700",
+              fill: "#ffffff"
+            }, `p -> ${nodes[i]}`));
+          }
+        }
+
+        wrap.appendChild(svg);
+        const capNote = document.createElement("div");
+        capNote.className = "circle-caption";
+        capNote.textContent = "A ring has no start or end: p.next() loops continuously and add(x) inserts after p.";
+        wrap.appendChild(capNote);
+        return wrap;
+      }
+
+      function renderBufferCircleMini() {
+        const cap = state.capacity;
+        const panel = document.createElement("div");
+        panel.className = "mini-ring-panel";
+        panel.setAttribute("aria-hidden", "true");
+
+        const svg = svgEl("svg", {
+          class: "mini-ring-svg",
+          viewBox: "0 0 180 180"
+        });
+
+        const cx = 90;
+        const cy = 90;
+        const ringR = cap === 16 ? 54 : 50;
+        const cellR = cap === 16 ? 7 : 11;
+
+        svg.appendChild(svgEl("circle", {
+          cx, cy, r: ringR,
+          fill: "none",
+          stroke: "#c5d0c4",
+          "stroke-width": "1.5"
+        }));
+
+        svg.appendChild(svgEl("text", {
+          x: cx,
+          y: cy + 4,
+          "text-anchor": "middle",
+          "font-family": "var(--font-mono)",
+          "font-size": "11",
+          "font-weight": "700",
+          fill: "#4a574d"
+        }, `${state.count}/${cap}`));
+
+        for (let i = 0; i < cap; i++) {
+          const angle = -Math.PI / 2 + (i / cap) * Math.PI * 2;
+          const ux = Math.cos(angle);
+          const uy = Math.sin(angle);
+          const x = cx + ringR * ux;
+          const y = cy + ringR * uy;
+          const val = state.buffer[i];
+          const isOcc = val !== null;
+          const isAccent = state.accentCells.includes(i);
+          const isSentinelGap =
+            state.step === 2 &&
+            state.step3FixUnlocked &&
+            state.step3Fix === "leave-one" &&
+            !isOcc &&
+            state.tail === i &&
+            state.count === state.capacity - 1;
+
+          svg.appendChild(svgEl("circle", {
+            cx: x, cy: y, r: cellR,
+            fill: isSentinelGap ? "#ffedd5" : (isOcc ? "#eaf1e7" : "#fafbf9"),
+            stroke: isSentinelGap || isAccent ? "#c2410c" : (isOcc ? "#17211a" : "#8c998f"),
+            "stroke-width": isOcc || isAccent || isSentinelGap ? "1.6" : "1",
+            "stroke-dasharray": isSentinelGap ? "2.5 2" : "none"
+          }));
+
+          if (cap === 8 && isOcc) {
+            svg.appendChild(svgEl("text", {
+              x, y: y + 3.5,
+              "text-anchor": "middle",
+              "font-family": "var(--font-serif)",
+              "font-size": "10",
+              "font-weight": "700",
+              fill: isAccent ? "#c2410c" : "#17211a"
+            }, val));
+          }
+
+          const isHead = state.head === i;
+          const isTail = state.tail === i;
+          if (isHead || isTail) {
+            const pr = ringR + cellR + 11;
+            const px = cx + pr * ux;
+            const py = cy + pr * uy;
+            const isBoth = isHead && isTail;
+            const label = isBoth ? "H=T" : (isHead ? "H" : "T");
+            const bw = isBoth ? 24 : 14;
+            const bh = 14;
+            const fill = isBoth || (isTail && ((state.justWrapped && state.justWrapped.to === i) || isSentinelGap))
+              ? "#c2410c"
+              : (isHead ? "#1e3a29" : "#17211a");
+            svg.appendChild(svgEl("rect", {
+              x: px - bw / 2, y: py - bh / 2,
+              width: bw, height: bh, rx: 3, fill
+            }));
+            svg.appendChild(svgEl("text", {
+              x: px, y: py + 3.5,
+              "text-anchor": "middle",
+              "font-family": "var(--font-mono)",
+              "font-size": "8",
+              "font-weight": "700",
+              fill: "#ffffff"
+            }, label));
+          }
+        }
+
+        panel.appendChild(svg);
+        const capEl = document.createElement("div");
+        capEl.className = "mini-ring-caption";
+        capEl.textContent = "Ring mirror";
+        panel.appendChild(capEl);
+        return panel;
+      }
+
+      function renderStageDual() {
+        const dual = document.createElement("div");
+        dual.className = "stage-dual";
+
+        const main = document.createElement("div");
+        main.className = "stage-dual-main";
+        main.appendChild(renderBufferLineView());
+
+        dual.appendChild(main);
+        dual.appendChild(renderBufferCircleMini());
+        return dual;
+      }
+
+      function renderMorphFrame(svg, progress) {
+        const cap = state.capacity;
+        const cx = 255;
+        const cy = 205;
+        const ringR = 112;
+        const e = progress < 0.5
+          ? 2 * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+        // Fade circular track in as cells bend around
+        svg.appendChild(svgEl("circle", {
+          cx, cy, r: ringR,
+          fill: "none",
+          stroke: "#c5d0c4",
+          "stroke-width": "2",
+          opacity: e.toFixed(3)
+        }));
+
+        for (let i = 0; i < cap; i++) {
+          const x0 = 45 + i * 60;
+          const y0 = 195;
+          const angle = -Math.PI / 2 + (i / cap) * Math.PI * 2;
+          const x1 = cx + ringR * Math.cos(angle);
+          const y1 = cy + ringR * Math.sin(angle);
+          const arcLift = (i >= 2 && i <= 5 ? 1 : -1) * Math.sin(e * Math.PI) * 24;
+          const x = x0 + (x1 - x0) * e;
+          const y = y0 + (y1 - y0) * e + arcLift;
+          const r = 21 + 5 * e;
+
+          const val = state.buffer[i];
+          const isOccupied = val !== null;
+          const isAccent = state.accentCells.includes(i);
+
+          svg.appendChild(svgEl("circle", {
+            cx: x, cy: y, r,
+            fill: isOccupied ? "#eaf1e7" : "#fafbf9",
+            stroke: isAccent ? "#c2410c" : "#17211a",
+            "stroke-width": isOccupied || isAccent ? "2.2" : "1.4"
+          }));
+
+          svg.appendChild(svgEl("text", {
+            x, y: y - 9,
+            "text-anchor": "middle",
+            "font-family": "var(--font-mono)",
+            "font-size": "10",
+            "font-weight": "700",
+            fill: isAccent ? "#c2410c" : "#6c7a70"
+          }, String(i)));
+
+          svg.appendChild(svgEl("text", {
+            x, y: y + 8,
+            "text-anchor": "middle",
+            "font-family": isOccupied ? "var(--font-serif)" : "var(--font-mono)",
+            "font-size": isOccupied ? "17" : "10",
+            "font-weight": "700",
+            fill: isAccent ? "#c2410c" : (isOccupied ? "#17211a" : "#6c7a70")
+          }, isOccupied ? val : "-"));
+
+          const isHead = state.head === i;
+          const isTail = state.tail === i;
+          if (isHead || isTail) {
+            const label = isHead && isTail ? "head = tail" : (isHead ? "head" : "tail");
+            const bx0 = x0;
+            const by0 = y0 + 38;
+            const ux = Math.cos(angle);
+            const uy = Math.sin(angle);
+            const bw = Math.max(54, label.length * 7.2 + 14);
+            const bh = 22;
+            const dist = ringR + 42 + (Math.abs(ux) * bw + Math.abs(uy) * bh) / 2 + 2;
+            const bx1 = cx + dist * ux;
+            const by1 = cy + dist * uy;
+            const bx = bx0 + (bx1 - bx0) * e;
+            const by = by0 + (by1 - by0) * e + arcLift;
+            const isTAccent = isTail && state.justWrapped && state.justWrapped.to === i;
+
+            svg.appendChild(svgEl("rect", {
+              x: bx - bw / 2, y: by - bh / 2,
+              width: bw, height: bh, rx: 3,
+              fill: (isHead && isTail) || isTAccent ? "#c2410c" : (isHead ? "#1e3a29" : "#fafbf9"),
+              stroke: (isHead && isTail) || isTAccent ? "#c2410c" : "#17211a",
+              "stroke-width": "1.5"
+            }));
+            svg.appendChild(svgEl("text", {
+              x: bx, y: by + 4,
+              "text-anchor": "middle",
+              "font-family": "var(--font-mono)",
+              "font-size": "10.5",
+              "font-weight": "700",
+              fill: isHead || isTAccent ? "#ffffff" : "#17211a"
+            }, label));
+          }
+        }
+      }
+
+      function startMorphToRing() {
+        clearMorphAnimation();
+        if (prefersReducedMotion()) {
+          state.isBentToRing = true;
+          state.step1Phase = "bent-ring";
+          revealTakeaway(1);
+          setStatus("Same 8 cells. The ring is just the line with the end connected to the start.", "success");
+          render();
+          return;
+        }
+
+        state.isMorphingToRing = true;
+        setStatus("Bending the 8-cell line into a closed ring...", "success");
+        syncControls();
+
+        const stage = $("stage");
+        stage.innerHTML = "";
+        const wrap = document.createElement("div");
+        wrap.className = "circle-view-wrap";
+        const svg = svgEl("svg", {
+          class: "circle-svg",
+          viewBox: "0 0 510 410",
+          role: "img",
+          "aria-label": "Morphing line array into a circle"
+        });
+        wrap.appendChild(svg);
+        stage.appendChild(wrap);
+
+        const duration = 680;
+        const startTime = performance.now();
+
+        function tick(now) {
+          if (!state.isMorphingToRing) return;
+          const p = Math.min(1, (now - startTime) / duration);
+          renderMorphFrame(svg, p);
+          if (p < 1) {
+            state.morphRafId = requestAnimationFrame(tick);
+          } else {
+            state.isMorphingToRing = false;
+            state.morphRafId = null;
+            state.isBentToRing = true;
+            state.step1Phase = "bent-ring";
+            revealTakeaway(1);
+            setStatus("Same 8 cells. The ring is just the line with the end connected to the start.", "success");
+            render();
+          }
+        }
+
+        renderMorphFrame(svg, 0);
+        state.morphRafId = requestAnimationFrame(tick);
+      }
+
+      /* =============================
+         STEP 3 FIX PANEL (BEAT 2)
+      ============================= */
+      function renderHandoutPanel() {
+        const panel = $("handout-panel");
+        if (state.step !== 2 || !state.step3FixUnlocked) {
+          panel.hidden = true;
+          return;
+        }
+        panel.hidden = false;
+
+        Array.from(panel.querySelectorAll(".chip-btn")).forEach((btn) => {
+          btn.classList.toggle("active", btn.getAttribute("data-fix") === state.step3Fix);
+        });
+
+        const h = state.head;
+        const n = state.count;
+        const compare = $("handout-compare");
+        const verdict = $("handout-verdict");
+
+        if (state.step3Fix === "count") {
+          const derivedTail = (h + n) % state.capacity;
+          compare.innerHTML =
+            `<div class="compare-box"><strong>Empty (0/8):</strong>head = ${h}, tail = ${h}, count = 0</div>` +
+            `<div class="compare-box"><strong>Full (8/8):</strong>head = ${h}, tail = ${h}, count = 8</div>`;
+          verdict.className = "handout-verdict";
+          verdict.textContent = `Keeping count separates empty (count == 0) from full (count == 8) even when head == tail, and tail = (${h} + ${n}) mod 8 = ${derivedTail}.`;
+        } else {
+          const sentinelFullTail = (h + state.capacity - 1) % state.capacity;
+          compare.innerHTML =
+            `<div class="compare-box"><strong>Empty (0/7 usable):</strong>tail == head (${h})</div>` +
+            `<div class="compare-box"><strong>Full (7/7 usable):</strong>tail = ${sentinelFullTail}; (tail + 1) mod 8 == head (${h})</div>`;
+          verdict.className = "handout-verdict";
+          verdict.textContent = "Leaving 1 slot permanently empty (max 7 items in 8 cells) prevents tail from ever catching head when full — no count variable needed.";
+        }
+      }
+
+      /* =============================
+         STEP 4 COST & GROWTH STRIP
+      ============================= */
+      function renderCostStrip() {
+        const strip = $("cost-strip");
+        if (state.step !== 3 || !state.growthStats.hasDoubled || state.isCopyingGrowth) {
+          strip.hidden = true;
+          return;
+        }
+        strip.hidden = false;
+        const { offers, copies } = state.growthStats;
+        const avg = offers > 0 ? (copies / offers).toFixed(2) : "0.00";
+        $("cost-metrics").innerHTML =
+          `<span class="metric-pill">offers so far: <strong>${offers}</strong></span>` +
+          `<span class="metric-pill metric-accent">copies so far: <strong>${copies}</strong></span>` +
+          `<span class="metric-pill">copies / offer: <strong>${avg}</strong></span>`;
+
+        if (state.count === 9) {
+          $("cost-note").textContent = `Doubling copied 8 items once (avg ${avg} copies/offer); the remaining 7 free slots need 0 further copies.`;
+        } else {
+          $("cost-note").textContent = `Each offer into the remaining free slots needs 0 copies, lowering copies/offer to ${avg}.`;
+        }
+      }
+
+      function renderGrowthStrip() {
+        const strip = $("growth-strip");
+        if (state.step !== 3 || !state.growthOverlay) {
+          strip.hidden = true;
+          return;
+        }
+        strip.hidden = false;
+        const ov = state.growthOverlay;
+        const replayBtn = $("btn-replay-growth");
+        replayBtn.hidden = !ov.isDone;
+        replayBtn.disabled = state.isCopyingGrowth || isPredictOpen();
+
+        $("growth-strip-title").textContent = ov.isDone
+          ? `Doubled 8 -> 16: old items unrolled from head (${ov.oldHead}) into 0..7 + ${state.lastGrowthSnapshot ? state.lastGrowthSnapshot.addedChar : ""} at [8]`
+          : "Doubling 8 -> 16 and copying elements in queue order from head:";
+
+        const capEl = $("growth-caption");
+        capEl.textContent = ov.caption || "";
+        capEl.hidden = !ov.caption;
+
+        const oldGrid = $("growth-old-grid");
+        const newGrid = $("growth-new-grid");
+        oldGrid.innerHTML = "";
+        newGrid.innerHTML = "";
+
+        for (let i = 0; i < 8; i++) {
+          const cell = document.createElement("div");
+          cell.className = "growth-mini-cell" + (ov.oldIdx === i ? " is-copying" : "");
+          cell.innerHTML = `<span class="gm-idx">[${i}]${i === ov.oldHead ? " head" : ""}</span><span class="gm-val">${ov.oldBuffer[i] || "-"}</span>`;
+          oldGrid.appendChild(cell);
+        }
+
+        for (let i = 0; i < 16; i++) {
+          const cell = document.createElement("div");
+          const val = ov.newBuffer[i];
+          cell.className = "growth-mini-cell";
+          if (ov.newIdx === i) cell.classList.add("is-copying");
+          else if (val !== null) cell.classList.add("is-copied");
+          cell.innerHTML = `<span class="gm-idx">[${i}]</span><span class="gm-val">${val || "-"}</span>`;
+          newGrid.appendChild(cell);
+        }
+      }
+
+      /* =============================
+         CONTROLS & TELEMETRY SYNC
+      ============================= */
+      function getStepGoalInfo() {
+        const s = state.step;
+        if (s === 1) {
+          if (state.stepCompleted[1] || state.isBentToRing) {
+            return { text: "\u2713 Wrapped into a ring (3/3)", done: true };
+          }
+          if (state.step1Phase === "bend-ready") {
+            return { text: "Bend into a ring (2/3)", done: false };
+          }
+          if (state.step1Phase === "connect-ready" || state.step1Phase === "wrap-line") {
+            return { text: "Connect ends & wrap (1/3)", done: false };
+          }
+          return { text: "Hit wall & wrap (0/3)", done: false };
+        }
+        if (s === 2) {
+          if (state.stepCompleted[2]) {
+            return { text: "\u2713 Both give head == tail (2/2)", done: true };
+          }
+          const hits = (state.step3SawFull ? 1 : 0) + (state.step3SawEmpty ? 1 : 0);
+          return { text: `Fill it, then empty it (${hits}/2)`, done: false };
+        }
+        if (s === 3) {
+          if (state.stepCompleted[3]) {
+            return { text: "\u2713 Doubled & added 2 (3/3)", done: true };
+          }
+          const hits = !state.growthStats.hasDoubled
+            ? 0
+            : Math.min(3, 1 + Math.max(0, state.growthStats.offers - 9));
+          return { text: `Double it, then add two more (${hits}/3)`, done: false };
+        }
+        return state.stepCompleted[4]
+          ? { text: "\u2713 Loop walked (1/1)", done: true }
+          : { text: "Walk a full loop (0/1)", done: false };
+      }
+
+      function syncControls() {
+        const copying = state.isCopyingGrowth;
+        const locked = isPredictOpen() || state.isMorphingToRing || (copying && state.isAutoPlayingGrowth);
+        const s = state.step;
+        const showConnectBtn = !locked && s === 1 && state.step1Phase === "connect-ready";
+        const showBendBtn = !locked && s === 1 && state.step1Phase === "bend-ready" && !state.isBentToRing;
+        const showCopyStepBtns = !locked && s === 3 && copying && !state.isAutoPlayingGrowth;
+
+        const offerBtn = $("btn-offer");
+        const pollBtn = $("btn-poll");
+        const enableWrapBtn = $("btn-enable-wrap");
+        const bendBtn = $("btn-bend-ring");
+        const copyNextBtn = $("btn-copy-next");
+        const copyPlayBtn = $("btn-copy-play-all");
+        const fillBtn = $("btn-fill-all");
+        const emptyBtn = $("btn-empty-all");
+        const ringNextBtn = $("btn-ring-next");
+        const ringAddBtn = $("btn-ring-add");
+        const ringRemBtn = $("btn-ring-remove");
+        const ringEmptyBtn = $("btn-ring-empty");
+
+        let showOffer = false;
+        let showPoll = false;
+        let showFill = false;
+        let showEmpty = false;
+        let showRingNext = false;
+        let showRingExtras = false;
+        let showPicker = false;
+        let primaryId = null;
+
+        if (!locked) {
+          if (s === 1) {
+            if (showConnectBtn) {
+              primaryId = "btn-enable-wrap";
+            } else if (showBendBtn) {
+              primaryId = "btn-bend-ring";
+            } else if (state.step1Phase === "wrap-line") {
+              showOffer = true;
+              showPicker = true;
+              primaryId = "btn-offer";
+            } else {
+              showOffer = true;
+              showPoll = true;
+              showPicker = true;
+              primaryId = "btn-offer";
+            }
+          } else if (s === 2) {
+            if (!state.step3SawFull) {
+              showFill = true;
+              primaryId = "btn-fill-all";
+            } else if (!state.step3SawEmpty) {
+              showEmpty = true;
+              primaryId = "btn-empty-all";
+            } else {
+              showFill = true;
+              showEmpty = true;
+              primaryId = "btn-fill-all";
+            }
+          } else if (s === 3) {
+            if (showCopyStepBtns) {
+              primaryId = "btn-copy-next";
+            } else {
+              showOffer = true;
+              showPicker = true;
+              primaryId = "btn-offer";
+            }
+          } else if (s === 4) {
+            showRingNext = true;
+            showRingExtras = Boolean(state.stepCompleted[4]);
+            showPicker = showRingExtras;
+            primaryId = "btn-ring-next";
+          }
+        }
+
+        offerBtn.hidden = !showOffer;
+        offerBtn.disabled = false;
+        offerBtn.classList.toggle("btn-ink", primaryId === "btn-offer");
+
+        pollBtn.hidden = !showPoll;
+        pollBtn.disabled = false;
+
+        enableWrapBtn.hidden = !showConnectBtn;
+        enableWrapBtn.disabled = false;
+
+        bendBtn.hidden = !showBendBtn;
+        bendBtn.disabled = false;
+
+        copyNextBtn.hidden = !showCopyStepBtns;
+        copyNextBtn.disabled = false;
+
+        copyPlayBtn.hidden = !showCopyStepBtns;
+        copyPlayBtn.disabled = false;
+
+        fillBtn.hidden = !showFill;
+        fillBtn.disabled = false;
+        fillBtn.classList.toggle("btn-ink", primaryId === "btn-fill-all");
+        fillBtn.textContent = s === 2 && state.step3FixUnlocked && state.step3Fix === "leave-one"
+          ? "Fill usable (7/8)"
+          : "Fill all cells";
+
+        emptyBtn.hidden = !showEmpty;
+        emptyBtn.disabled = false;
+        emptyBtn.classList.toggle("btn-ink", primaryId === "btn-empty-all");
+
+        ringNextBtn.hidden = !showRingNext;
+        ringNextBtn.disabled = false;
+        ringNextBtn.classList.toggle("btn-ink", primaryId === "btn-ring-next");
+
+        [ringAddBtn, ringRemBtn, ringEmptyBtn].forEach((btn) => {
+          btn.hidden = !showRingExtras;
+          btn.disabled = false;
+        });
+
+        $("letter-picker").hidden = !showPicker;
+        $("letter-select").disabled = !showPicker;
+
+        const retestBtn = $("btn-retest");
+        retestBtn.hidden = locked || copying || !hasAnsweredStepPrediction(s);
+        retestBtn.disabled = false;
+
+        const replayBtn = $("btn-replay-growth");
+        if (replayBtn) {
+          replayBtn.hidden = locked || copying || !state.lastGrowthSnapshot;
+          replayBtn.disabled = false;
+        }
+
+        const nextBtn = $("btn-takeaway-next");
+        if (nextBtn) {
+          nextBtn.disabled = locked || copying;
+        }
+
+        ["btn-offer", "btn-enable-wrap", "btn-bend-ring", "btn-copy-next", "btn-fill-all", "btn-empty-all", "btn-ring-next"].forEach((id) => {
+          const el = $(id);
+          if (el) {
+            const shouldPulse = !locked && id === primaryId && (
+              id === "btn-enable-wrap" ||
+              id === "btn-bend-ring" ||
+              id === "btn-copy-next" ||
+              id === "btn-empty-all" ||
+              (s === 1 && state.step1Phase === "wrap-line") ||
+              (s === 3 && state.growthStats.hasDoubled && !state.stepCompleted[3]) ||
+              !state.stepInteracted[s]
+            );
+            el.classList.toggle("btn-pulse", shouldPulse);
+          }
+        });
+
+        $("btn-reset").disabled = false;
+      }
+
+      function updateTelemetryChanges() {
+        const cur = state.step === 4
+          ? {
+              step: 4,
+              p: state.ringNodes.length === 0 ? "none" : state.ringNodes[state.ringP],
+              count: state.ringNodes.length,
+              laps: state.ringLaps
+            }
+          : {
+              step: state.step,
+              head: state.head,
+              tail: state.tail,
+              count: `${state.count}/${state.capacity}`
+            };
+        const prev = state.telemetrySnapshot;
+        if (prev && prev.step === cur.step) {
+          const changed = [];
+          Object.keys(cur).forEach((k) => {
+            if (k !== "step" && cur[k] !== prev[k]) changed.push(k);
+          });
+          if (changed.length > 0) {
+            state.changedMetrics = changed;
+          }
+        } else {
+          state.changedMetrics = [];
+        }
+        state.telemetrySnapshot = cur;
+      }
+
+      function renderStageCount() {
+        const countEl = $("stage-count");
+        const ch = state.changedMetrics;
+        if (state.step === 4) {
+          const isEmpty = state.ringNodes.length === 0;
+          const pPart = isEmpty ? "empty" : `p \u2192 ${state.ringNodes[state.ringP]}`;
+          const changed = ch.includes("p") || ch.includes("count") || ch.includes("laps");
+          countEl.innerHTML = `<span class="stage-count-pill${changed ? " metric-changed" : ""}">${pPart} \u00b7 ${state.ringNodes.length} nodes \u00b7 laps: ${state.ringLaps}</span>`;
+          return;
+        }
+        const changed = ch.includes("count");
+        countEl.innerHTML = `<span class="stage-count-pill${changed ? " metric-changed" : ""}">${state.count} / ${state.capacity} used</span>`;
+      }
+
+      function render() {
+        const meta = STEPS[state.step];
+        $("progress-label").textContent = state.step === 4 ? "Step 4 / 4 \u00b7 Bonus" : `Step ${state.step} / 4`;
+        $("step-title").textContent = meta.title;
+        $("step-task").textContent = meta.task;
+        const goal = getStepGoalInfo();
+        const goalEl = $("step-goal-pill");
+        goalEl.textContent = goal.text;
+        goalEl.classList.toggle("is-done", goal.done);
+        $("widget-panel").setAttribute("aria-labelledby", `tab-step-${state.step}`);
+        $("stage").setAttribute("aria-label", meta.heading);
+
+        updateTelemetryChanges();
+
+        // Takeaway + Guided Next / Start over button (strictly when goal is met)
+        const takeawayEl = $("step-takeaway");
+        const showTakeaway = Boolean(state.stepCompleted[state.step]);
+        $("takeaway-text").textContent = meta.takeaway;
+        $("btn-takeaway-next").textContent = state.step < 4 ? "Next step \u2192" : "Start over";
+        takeawayEl.hidden = !showTakeaway;
+        if (showTakeaway && state.takeawayFresh) {
+          takeawayEl.classList.remove("is-just-revealed");
+          void takeawayEl.offsetWidth;
+          takeawayEl.classList.add("is-just-revealed");
+          state.takeawayFresh = false;
+        } else if (!showTakeaway) {
+          takeawayEl.classList.remove("is-just-revealed");
+        }
+
+        // Progress bar segments (only visited steps are enabled/clickable)
+        document.querySelectorAll(".tab-btn").forEach((btn) => {
+          const stepNum = Number(btn.getAttribute("data-step"));
+          const active = stepNum === state.step;
+          const visited = state.visitedSteps.has(stepNum);
+          btn.disabled = !visited;
+          btn.classList.toggle("active", active);
+          btn.setAttribute("aria-selected", String(active));
+          btn.setAttribute("tabindex", active ? "0" : "-1");
+        });
+
+        // View mode derived automatically from step & one-way ring bend
+        const viewMode = currentViewMode();
+
+        // Under-stage footnote (Step 4 array-vs-linked bridge only)
+        const footnote = $("stage-footnote");
+        const isRing = state.step === 4;
+        if (isRing) {
+          footnote.hidden = false;
+          footnote.classList.toggle("is-accent", state.ringStepActive);
+          footnote.innerHTML = "Array: <strong>i = (i + 1) % n</strong> &nbsp;&nbsp;|&nbsp;&nbsp; Linked: <strong>p = p.next</strong>";
+        } else {
+          footnote.hidden = true;
+          footnote.classList.remove("is-accent");
+        }
+
+        if (!state.isMorphingToRing) {
+          const stage = $("stage");
+          stage.innerHTML = "";
+          if (isRing) {
+            stage.appendChild(renderRingCircleView());
+          } else if (viewMode === "dual") {
+            stage.appendChild(renderStageDual());
+          } else if (viewMode === "circle") {
+            stage.appendChild(renderBufferCircleView());
+          } else {
+            stage.appendChild(renderBufferLineView());
+          }
+        }
+
+        renderStageCount();
+
+        renderHandoutPanel();
+        renderCostStrip();
+        renderGrowthStrip();
+        syncControls();
+
+        applyStatusDom();
+      }
+
+      /* =============================
+         EVENT WIRING
+      ============================= */
+      const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
+      tabButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const stepNum = Number(btn.getAttribute("data-step"));
+          if (btn.disabled || !state.visitedSteps.has(stepNum)) return;
+          if (stepNum && stepNum !== state.step) {
+            initStep(stepNum);
+          }
+        });
+        btn.addEventListener("keydown", (e) => {
+          const enabledTabs = tabButtons.filter((b) => !b.disabled);
+          if (enabledTabs.length <= 1) return;
+          const curIdx = enabledTabs.indexOf(btn);
+          if (curIdx === -1) return;
+          let nextIdx = null;
+          if (e.key === "ArrowRight") nextIdx = (curIdx + 1) % enabledTabs.length;
+          else if (e.key === "ArrowLeft") nextIdx = (curIdx - 1 + enabledTabs.length) % enabledTabs.length;
+          else if (e.key === "Home") nextIdx = 0;
+          else if (e.key === "End") nextIdx = enabledTabs.length - 1;
+          if (nextIdx !== null) {
+            e.preventDefault();
+            const targetBtn = enabledTabs[nextIdx];
+            initStep(Number(targetBtn.getAttribute("data-step")));
+            targetBtn.focus();
+          }
+        });
+      });
+
+      $("btn-takeaway-next").addEventListener("click", () => {
+        if (state.step < 4) {
+          initStep(state.step + 1);
+        } else {
+          Object.keys(state.predicted).forEach((k) => {
+            state.predicted[k] = false;
+          });
+          Object.keys(state.takeawayRevealed).forEach((s) => {
+            state.takeawayRevealed[s] = false;
+            state.stepCompleted[s] = false;
+            state.stepInteracted[s] = false;
+          });
+          initStep(1, { isReset: true });
+        }
+        if (!isPredictOpen()) {
+          const titleEl = $("step-title");
+          if (titleEl) {
+            titleEl.scrollIntoView({
+              block: "nearest",
+              behavior: prefersReducedMotion() ? "auto" : "smooth"
+            });
+            titleEl.focus({ preventScroll: true });
+          }
+        }
+      });
+
+      $("btn-offer").addEventListener("click", () => {
+        markStepInteracted();
+        if (state.step === 1 && !isStep1WrapActive()) handleStep1Offer();
+        else handleWrappedOffer();
+      });
+
+      $("btn-enable-wrap").addEventListener("click", () => {
+        markStepInteracted();
+        enableStep1Wrap();
+      });
+
+      $("btn-bend-ring").addEventListener("click", () => {
+        markStepInteracted();
+        startMorphToRing();
+      });
+
+      $("btn-poll").addEventListener("click", () => {
+        markStepInteracted();
+        if (state.step === 1 && !isStep1WrapActive()) handleStep1Poll();
+        else handleWrappedPoll();
+      });
+
+      $("btn-copy-next").addEventListener("click", () => {
+        markStepInteracted();
+        stepGrowthCopy();
+      });
+      $("btn-copy-play-all").addEventListener("click", () => {
+        markStepInteracted();
+        startGrowthAutoPlay();
+      });
+
+      $("btn-fill-all").addEventListener("click", () => {
+        markStepInteracted();
+        handleFillAll();
+      });
+      $("btn-empty-all").addEventListener("click", () => {
+        markStepInteracted();
+        handleEmptyAll();
+      });
+      $("btn-replay-growth").addEventListener("click", replayGrowthAnimation);
+
+      document.querySelectorAll("#handout-panel .chip-btn").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          state.step3Fix = chip.getAttribute("data-fix");
+          if (state.step3Fix === "leave-one" && state.count === state.capacity) {
+            executeFillUsableSentinel();
+          } else {
+            if (state.step3Fix === "count") {
+              setStatus(`Keeping count (${state.count}) separates empty (0) from full (8).`, false);
+            } else {
+              setStatus("Press Fill usable (7/8) to leave 1 slot empty before head.", false);
+            }
+            render();
+          }
+        });
+      });
+
+      $("btn-ring-next").addEventListener("click", () => {
+        markStepInteracted();
+        handleRingNext();
+      });
+      $("btn-ring-add").addEventListener("click", () => {
+        markStepInteracted();
+        handleRingAdd();
+      });
+      $("btn-ring-remove").addEventListener("click", () => {
+        markStepInteracted();
+        if (state.ringNodes.length <= 1) {
+          handleRingEmptyOrLastRemove(executeRingRemoveNext);
+        } else {
+          executeRingRemoveNext();
+        }
+      });
+      $("btn-ring-empty").addEventListener("click", () => {
+        markStepInteracted();
+        handleRingEmptyOrLastRemove(executeRingEmpty);
+      });
+
+      $("btn-retest").addEventListener("click", () => {
+        resetStepPredictions(state.step);
+        initStep(state.step, { isReset: true });
+      });
+
+      $("btn-reset").addEventListener("click", () => {
+        initStep(state.step, { isReset: true });
+      });
+
+      populateLetters();
+      initStep(1);
+    })();
+  </script>
+</body>
+</html>
