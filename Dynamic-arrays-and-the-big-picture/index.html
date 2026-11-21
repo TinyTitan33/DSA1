@@ -1,0 +1,3208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dynamic Arrays and the Big Picture</title>
+  <style>
+    :root {
+      --paper: #f5f2eb;
+      --paper-alt: #eae5db;
+      --surface: #fcfbf8;
+      --ink: #161514;
+      --ink-muted: #4a4743;
+      --ink-faint: #78736d;
+      --rule: #ccc6ba;
+      --vermilion: #c93b1b;
+      --vermilion-tint: #fbeae5;
+      --vermilion-soft: rgba(201, 59, 27, 0.16);
+      --font-sans: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      --font-serif: "Georgia", "Times New Roman", serif;
+      --font-mono: "JetBrains Mono", "SFMono-Regular", "Consolas", "Liberation Mono", Menlo, monospace;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --shadow-paper: 0 2px 0 rgba(22, 21, 20, 0.08);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--paper);
+      background-image:
+        linear-gradient(to right, rgba(22, 21, 20, 0.035) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(22, 21, 20, 0.035) 1px, transparent 1px);
+      background-size: 24px 24px;
+      color: var(--ink);
+      font-family: var(--font-sans);
+      line-height: 1.45;
+      -webkit-tap-highlight-color: transparent;
+      overflow-x: hidden;
+    }
+
+    .app-shell {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 16px 14px 32px;
+    }
+
+    /* Masthead */
+    .masthead {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 18px;
+      background: var(--surface);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-md);
+      padding: 13px 16px;
+      box-shadow: var(--shadow-paper);
+      margin-bottom: 12px;
+    }
+
+    .masthead-copy {
+      min-width: 0;
+      flex: 1 1 260px;
+    }
+
+    h1 {
+      margin: 0 0 2px;
+      font-family: var(--font-serif);
+      font-size: clamp(1.18rem, 2.4vw, 1.45rem);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+    }
+
+    .subtitle {
+      margin: 0;
+      font-size: 0.88rem;
+      color: var(--ink-muted);
+    }
+
+    .step-counter-pill {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 5px 11px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      color: var(--ink);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Consecutive Vertical Step Tabs (Never Side-by-Side) */
+    .steps-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .step-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tab-btn {
+      appearance: none;
+      width: 100%;
+      min-height: 46px;
+      padding: 9px 14px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-md);
+      background: var(--paper-alt);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 0.92rem;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px 12px;
+      box-shadow: var(--shadow-paper);
+      transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+    }
+
+    .tab-btn:hover {
+      background: var(--surface);
+    }
+
+    .tab-btn[aria-selected="true"] {
+      background: var(--ink);
+      color: var(--surface);
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+      box-shadow: none;
+    }
+
+    .tab-btn.is-ready:not([aria-selected="true"]) {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+    }
+
+    .tab-left {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .tab-num {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border: 1px solid currentColor;
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+    }
+
+    .tab-state {
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      border: 1px solid currentColor;
+      opacity: 0.9;
+      white-space: nowrap;
+    }
+
+    /* Step Panels (Flattened, Uncluttered Paper Surface) */
+    .panel {
+      background: var(--surface);
+      border: 1.5px solid var(--ink);
+      border-top: 0;
+      border-radius: 0 0 var(--radius-md) var(--radius-md);
+      padding: 15px 16px;
+      box-shadow: var(--shadow-paper);
+    }
+
+    .panel[hidden] {
+      display: none;
+    }
+
+    .panel-lead {
+      margin: 0 0 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--rule);
+      font-family: var(--font-serif);
+      font-size: 0.98rem;
+      color: var(--ink);
+    }
+
+    /* Buttons & Interactive Controls */
+    button {
+      font-family: inherit;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .btn {
+      appearance: none;
+      min-height: 44px;
+      padding: 8px 14px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease, transform 0.06s ease;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: var(--paper-alt);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--ink);
+      color: var(--surface);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #2c2a28;
+    }
+
+    .btn-accent {
+      border-color: var(--vermilion);
+      background: var(--vermilion);
+      color: var(--surface);
+    }
+
+    .btn-accent:hover:not(:disabled) {
+      background: #ad3115;
+    }
+
+    .btn-sm {
+      min-height: 44px;
+      padding: 6px 11px;
+      font-size: 0.82rem;
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 2px solid var(--vermilion);
+      outline-offset: 2px;
+    }
+
+    .segmented {
+      display: inline-flex;
+      flex-wrap: wrap;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      background: var(--paper-alt);
+    }
+
+    .seg-btn {
+      appearance: none;
+      min-height: 44px;
+      padding: 7px 12px;
+      border: 0;
+      border-right: 1px solid var(--rule);
+      background: transparent;
+      color: var(--ink-muted);
+      font-size: 0.83rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .seg-btn:last-child {
+      border-right: 0;
+    }
+
+    .seg-btn[aria-pressed="true"] {
+      background: var(--ink);
+      color: var(--surface);
+    }
+
+    .controls-grid {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 14px;
+      margin-bottom: 12px;
+    }
+
+    .slider-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 44px;
+      padding: 4px 12px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+    }
+
+    .slider-label {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+
+    input[type="range"] {
+      accent-color: var(--ink);
+      width: 120px;
+      min-height: 30px;
+      cursor: pointer;
+    }
+
+    /* Flat Inline Readout Strip (Replaces 5 Nested Cards) */
+    .readout-strip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 18px;
+      padding: 9px 12px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 0.84rem;
+      margin-bottom: 12px;
+    }
+
+    .readout-item {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 5px;
+      color: var(--ink-muted);
+    }
+
+    .readout-item strong {
+      font-size: 0.96rem;
+      color: var(--ink);
+    }
+
+    .readout-item.is-vermilion {
+      color: var(--vermilion);
+    }
+
+    .readout-item.is-vermilion strong {
+      color: var(--vermilion);
+    }
+
+    /* Capacity Bar */
+    .cap-bar-wrap {
+      margin-bottom: 12px;
+    }
+
+    .cap-bar-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--ink-muted);
+      margin-bottom: 5px;
+    }
+
+    .cap-track {
+      position: relative;
+      height: 16px;
+      width: 100%;
+      background: var(--paper-alt);
+      border: 1.5px solid var(--ink);
+      border-radius: 3px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .cap-fill-stable {
+      height: 100%;
+      background: var(--ink);
+      transition: width 0.2s ease;
+    }
+
+    .cap-fill-just {
+      height: 100%;
+      background: var(--vermilion);
+      transition: width 0.2s ease;
+    }
+
+    .no-transition {
+      transition: none !important;
+    }
+
+    /* Slots Stage */
+    .slots-stage {
+      padding: 12px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      margin-bottom: 12px;
+    }
+
+    .slots-caption {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--ink-muted);
+      margin-bottom: 8px;
+    }
+
+    .event-badge {
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .event-badge.is-vermilion {
+      color: var(--vermilion);
+    }
+
+    .slots-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: flex-end;
+    }
+
+    .slot-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      min-width: 36px;
+    }
+
+    .slot-cell {
+      width: 38px;
+      height: 38px;
+      border: 1.5px solid var(--ink);
+      border-radius: 3px;
+      background: var(--surface);
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .slot-cell.is-empty {
+      border-style: dashed;
+      border-color: var(--rule);
+      background: var(--paper-alt);
+      color: var(--ink-faint);
+      font-weight: 400;
+    }
+
+    .slot-cell.is-copied {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+    }
+
+    .slot-cell.is-new {
+      border-color: var(--vermilion);
+      background: var(--vermilion);
+      color: var(--surface);
+    }
+
+    .slot-cell.is-reserved {
+      border-style: dashed;
+      border-color: var(--ink);
+      background: var(--paper);
+      color: var(--ink-faint);
+    }
+
+    .slot-idx {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      color: var(--ink-faint);
+    }
+
+    .slot-ellipsis {
+      min-height: 38px;
+      padding: 0 8px;
+      display: inline-flex;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--ink-muted);
+      background: var(--paper-alt);
+      border: 1px dashed var(--rule);
+      border-radius: 3px;
+      margin-bottom: 16px;
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    /* Step 2: Predict-First & 1,000-Element Copy Race */
+    .predict-box {
+      padding: 12px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      margin-bottom: 12px;
+    }
+
+    .predict-box.is-nudge {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+    }
+
+    .predict-prompt {
+      margin: 0 0 10px;
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: var(--ink);
+    }
+
+    .predict-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 8px;
+    }
+
+    .predict-opt {
+      appearance: none;
+      min-height: 46px;
+      padding: 10px 12px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .predict-opt:hover:not(:disabled) {
+      background: var(--paper-alt);
+    }
+
+    .predict-opt.is-chosen-right {
+      background: var(--ink);
+      color: var(--surface);
+      border-color: var(--ink);
+    }
+
+    .predict-opt.is-chosen-wrong {
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+      border-color: var(--vermilion);
+    }
+
+    .predict-opt.is-answer-reveal {
+      border-width: 2px;
+      border-color: var(--ink);
+      background: var(--surface);
+    }
+
+    .predict-verdict {
+      margin: 10px 0 0;
+      padding: 8px 10px;
+      border-left: 3px solid var(--ink);
+      background: var(--surface);
+      font-size: 0.86rem;
+      color: var(--ink);
+    }
+
+    .predict-verdict.is-wrong {
+      border-left-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+    }
+
+    .race-area[hidden] {
+      display: none;
+    }
+
+    .race-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+      margin-bottom: 12px;
+    }
+
+    .race-lanes {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .lane-card {
+      background: var(--paper);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      padding: 11px 12px;
+      min-width: 0;
+    }
+
+    .lane-card.is-heavy {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+    }
+
+    .lane-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 7px;
+      font-family: var(--font-mono);
+      font-size: 0.83rem;
+      font-weight: 700;
+    }
+
+    .lane-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      margin: 8px 0 6px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+    }
+
+    .lane-stats strong {
+      color: var(--ink);
+      font-size: 0.92rem;
+    }
+
+    .lane-card.is-heavy .lane-copy-val {
+      color: var(--vermilion);
+    }
+
+    .lane-formula {
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      color: var(--ink-muted);
+      margin: 0;
+    }
+
+    .chart-wrap {
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px 6px;
+      margin-bottom: 12px;
+    }
+
+    .chart-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      color: var(--ink-muted);
+      margin-bottom: 4px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .swatch {
+      width: 16px;
+      height: 3px;
+      display: inline-block;
+      background: var(--ink);
+    }
+
+    .swatch.vermilion {
+      background: var(--vermilion);
+    }
+
+    .swatch.dashed {
+      background: transparent;
+      border-top: 2px dashed var(--ink-faint);
+      height: 0;
+    }
+
+    .copies-svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    /* Step 3: Access Map (Clean Hairline Rows) */
+    .access-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 14px;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .legend-keys {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--ink);
+    }
+
+    .key-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .key-box {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 22px;
+      padding: 0 5px;
+      border: 1px solid var(--ink);
+      border-radius: 3px;
+      background: var(--paper);
+      font-weight: 700;
+      font-size: 0.74rem;
+    }
+
+    .strips-list {
+      display: flex;
+      flex-direction: column;
+      border-top: 1px solid var(--rule);
+      margin-bottom: 12px;
+    }
+
+    .structure-row {
+      display: grid;
+      grid-template-columns: 185px minmax(0, 1fr);
+      gap: 8px 14px;
+      align-items: center;
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--rule);
+      transition: background-color 0.14s ease;
+    }
+
+    .structure-row.is-best {
+      background: var(--vermilion-tint);
+      border-left: 3px solid var(--vermilion);
+      border-bottom-color: rgba(201, 59, 27, 0.35);
+      padding-left: 9px;
+    }
+
+    .struct-meta {
+      min-width: 0;
+    }
+
+    .struct-name-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .struct-name {
+      font-family: var(--font-serif);
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .best-badge {
+      display: none;
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: var(--vermilion);
+      color: var(--surface);
+      text-transform: uppercase;
+    }
+
+    .structure-row.is-best .best-badge {
+      display: inline-block;
+    }
+
+    .struct-rule {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--ink-muted);
+      margin-top: 2px;
+    }
+
+    .struct-kind {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      color: var(--ink-muted);
+      margin-top: 3px;
+    }
+
+    .ring-controls {
+      margin-top: 6px;
+    }
+
+    .strip-area {
+      min-width: 0;
+    }
+
+    .index-row {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+
+    .idx-cell {
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+    }
+
+    .cells-strip {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 6px;
+      position: relative;
+    }
+
+    .cells-strip.has-arrows {
+      gap: 12px;
+    }
+
+    .map-cell {
+      appearance: none;
+      min-height: 46px;
+      padding: 4px 2px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font-family: var(--font-mono);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+      position: relative;
+      transition: background-color 0.12s ease, border-color 0.12s ease;
+    }
+
+    .map-cell:hover {
+      background: var(--paper-alt);
+    }
+
+    .map-cell.is-locked {
+      border-style: dashed;
+      border-color: var(--rule);
+      background: var(--paper);
+      color: var(--ink-faint);
+    }
+
+    .map-cell.is-cursor {
+      border-width: 2px;
+      border-color: var(--ink);
+      background: var(--surface);
+      box-shadow: inset 0 0 0 1px var(--ink);
+    }
+
+    .map-cell.is-probed-ok {
+      border-color: var(--ink);
+      background: var(--ink);
+      color: var(--surface);
+    }
+
+    .map-cell.is-probed-warn {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+    }
+
+    .map-cell.is-probed-blocked {
+      border-color: var(--vermilion);
+      background: var(--vermilion);
+      color: var(--surface);
+    }
+
+    .cell-letters {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .cell-sub {
+      font-size: 0.62rem;
+      color: var(--ink-faint);
+      line-height: 1.1;
+    }
+
+    .map-cell.is-probed-ok .cell-sub,
+    .map-cell.is-probed-blocked .cell-sub {
+      color: rgba(252, 251, 248, 0.86);
+    }
+
+    .map-cell.is-probed-warn .cell-sub {
+      color: var(--vermilion);
+    }
+
+    .cells-strip.has-arrows .map-cell:not(:last-child)::after {
+      content: "->";
+      position: absolute;
+      right: -13px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      color: var(--ink-muted);
+      pointer-events: none;
+    }
+
+    .cells-strip.has-arrows .map-cell.is-rewired-arrow:not(:last-child)::after {
+      color: var(--vermilion);
+      font-weight: 700;
+      transform: translateY(-50%) scale(1.2);
+    }
+
+    .map-cell.is-shift-right {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+      animation: shiftRight 0.28s ease;
+    }
+
+    .map-cell.is-shift-left {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+      animation: shiftLeft 0.28s ease;
+    }
+
+    .map-cell.is-new-slot {
+      border-color: var(--vermilion);
+      background: var(--vermilion);
+      color: var(--surface);
+    }
+
+    .struct-kind.is-vermilion {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+    }
+
+    @keyframes shiftRight {
+      0% { transform: translateX(-10px); }
+      100% { transform: translateX(0); }
+    }
+
+    @keyframes shiftLeft {
+      0% { transform: translateX(10px); }
+      100% { transform: translateX(0); }
+    }
+
+    .ring-wrap-bar {
+      margin-top: 5px;
+      padding: 3px 8px;
+      border: 1px dashed var(--rule);
+      border-top: 0;
+      border-radius: 0 0 4px 4px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--ink-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .ring-wrap-bar.is-wrapped {
+      border-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+      font-weight: 700;
+    }
+
+    .ring-predict-banner {
+      margin-top: 8px;
+      padding: 10px;
+      background: var(--surface);
+      border: 1.5px solid var(--vermilion);
+      border-radius: var(--radius-sm);
+    }
+
+    .ring-predict-banner[hidden] {
+      display: none;
+    }
+
+    /* Step 4: Visual Job Explorer */
+    .jobs-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .job-btn {
+      appearance: none;
+      min-height: 62px;
+      padding: 8px 10px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      color: var(--ink);
+      text-align: left;
+      font-size: 0.84rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    }
+
+    .job-btn:hover {
+      background: var(--paper-alt);
+    }
+
+    .job-btn[aria-pressed="true"] {
+      border-color: var(--vermilion);
+      background: var(--vermilion);
+      color: var(--surface);
+    }
+
+    .job-icon {
+      width: 34px;
+      height: 34px;
+      flex-shrink: 0;
+      display: block;
+    }
+
+    .job-meta {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .job-sub {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 400;
+      opacity: 0.86;
+    }
+
+    /* Live Visual Job Stage */
+    .job-stage {
+      background: var(--paper);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .job-stage-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px 12px;
+      margin-bottom: 10px;
+    }
+
+    .job-stage-title {
+      font-family: var(--font-serif);
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .job-stage-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .job-svg {
+      display: block;
+      width: 100%;
+      max-width: 640px;
+      height: auto;
+      margin: 0 auto 8px;
+      background: var(--surface);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+    }
+
+    .job-reason-line {
+      margin: 0;
+      padding: 8px 10px;
+      background: var(--surface);
+      border-left: 3px solid var(--ink);
+      font-size: 0.86rem;
+      color: var(--ink);
+    }
+
+    .job-reason-line.is-active {
+      border-left-color: var(--vermilion);
+      background: var(--vermilion-tint);
+    }
+
+    /* Compact Matched Structure Strip on Step 4 */
+    .match-map {
+      border-top: 1px solid var(--rule);
+      margin-bottom: 12px;
+    }
+
+    .match-row {
+      display: grid;
+      grid-template-columns: 162px minmax(0, 1fr);
+      gap: 8px 12px;
+      align-items: center;
+      padding: 7px 8px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .match-row.is-best {
+      background: var(--vermilion-tint);
+      border-left: 3px solid var(--vermilion);
+      padding-left: 9px;
+    }
+
+    .match-name {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 5px 6px;
+      font-family: var(--font-serif);
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .match-row.is-best .best-badge {
+      display: inline-block;
+    }
+
+    .match-cells {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 5px;
+    }
+
+    .match-cell {
+      min-height: 28px;
+      border: 1px solid var(--ink);
+      border-radius: 3px;
+      background: var(--surface);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--ink);
+    }
+
+    .match-cell.is-locked {
+      border-style: dashed;
+      border-color: var(--rule);
+      background: var(--paper);
+      color: var(--ink-faint);
+    }
+
+    .match-row.is-best .match-cell:not(.is-locked) {
+      border-color: var(--vermilion);
+      color: var(--vermilion);
+    }
+
+    /* Widget Footer: Status + Back / Reset / Next */
+    .widget-footer {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--rule);
+    }
+
+    .status-line {
+      flex: 1 1 250px;
+      min-height: 44px;
+      padding: 8px 12px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-left: 3px solid var(--ink);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+    }
+
+    .status-line.is-vermilion {
+      border-left-color: var(--vermilion);
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+    }
+
+    .footer-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* Closing Bridge Strip */
+    .closing-strip {
+      background: var(--ink);
+      color: var(--surface);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-md);
+      padding: 15px 18px;
+      box-shadow: var(--shadow-paper);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px 18px;
+    }
+
+    .closing-strip[hidden] {
+      display: none;
+    }
+
+    .bridge-quote {
+      margin: 0 0 4px;
+      font-family: var(--font-mono);
+      font-size: clamp(0.95rem, 2vw, 1.08rem);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .bridge-detail {
+      margin: 0;
+      font-size: 0.84rem;
+      color: #d7d2c8;
+    }
+
+    .next-page-pill {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 9px 13px;
+      border: 1.5px solid var(--surface);
+      border-radius: var(--radius-sm);
+      color: var(--surface);
+      background: transparent;
+      white-space: nowrap;
+    }
+
+    /* Responsive Breakpoints */
+    @media (max-width: 700px) {
+      .race-lanes {
+        grid-template-columns: 1fr;
+      }
+
+      .structure-row,
+      .match-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+
+      .cells-strip.has-arrows {
+        gap: 9px;
+      }
+
+      .cells-strip.has-arrows .map-cell:not(:last-child)::after {
+        right: -11px;
+        font-size: 0.6rem;
+      }
+
+      .jobs-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 480px) {
+      .app-shell {
+        padding: 10px 10px 26px;
+      }
+
+      .panel {
+        padding: 12px;
+      }
+
+      .slot-cell {
+        width: 34px;
+        height: 34px;
+        font-size: 0.76rem;
+      }
+
+      .cell-letters {
+        font-size: 0.72rem;
+      }
+
+      .jobs-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="masthead">
+      <div class="masthead-copy">
+        <h1>Dynamic Arrays and the Big Picture</h1>
+        <p class="subtitle">Growing an array costs copies. Which structure you pick decides which cells you can touch.</p>
+      </div>
+      <span class="step-counter-pill" id="masthead-step-pill">Step 1 of 4</span>
+    </header>
+
+    <div class="steps-stack" role="tablist" aria-orientation="vertical" aria-label="Lesson steps">
+      <!-- ==================== STEP 1: SLOT WORKBENCH ==================== -->
+      <div class="step-item" id="step-item-1">
+        <button class="tab-btn" id="tab-btn-1" role="tab" aria-selected="true" aria-controls="panel-step1" type="button">
+          <span class="tab-left">
+            <span class="tab-num">Step 1</span>
+            <span>Capacity vs. Size — Slot Workbench</span>
+          </span>
+          <span class="tab-state" id="tab1-state">Active</span>
+        </button>
+
+        <section id="panel-step1" class="panel" role="tabpanel" aria-labelledby="tab-btn-1">
+          <p class="panel-lead">Size counts stored items; capacity counts owned slots. Fill slots to see when an array reallocates and copies.</p>
+
+          <div class="controls-grid">
+            <div class="segmented" role="group" aria-label="Growth strategy">
+              <button type="button" class="seg-btn" id="strat-double" aria-pressed="true">Doubling (cap * 2)</button>
+              <button type="button" class="seg-btn" id="strat-const" aria-pressed="false">Grow by c (cap + c)</button>
+            </div>
+
+            <label class="slider-wrap" for="c-slider">
+              <span class="slider-label">c = <span id="c-val">10</span></span>
+              <input id="c-slider" type="range" min="2" max="50" value="10" />
+            </label>
+          </div>
+
+          <div class="readout-strip">
+            <span class="readout-item">size: <strong id="wb-size">0</strong></span>
+            <span class="readout-item">capacity: <strong id="wb-cap">4</strong></span>
+            <span class="readout-item">steps: <strong id="wb-steps">0</strong></span>
+            <span class="readout-item">reallocs: <strong id="wb-reallocs">0</strong></span>
+            <span class="readout-item" id="wb-copies-item">copies: <strong id="wb-copies">0</strong></span>
+          </div>
+
+          <div class="cap-bar-wrap">
+            <div class="cap-bar-header">
+              <span>Capacity bar (<span id="bar-fill-text">0 / 4 slots used</span>)</span>
+              <span id="bar-free-text">4 free slots</span>
+            </div>
+            <div class="cap-track" aria-hidden="true">
+              <div class="cap-fill-stable" id="bar-stable" style="width: 0%;"></div>
+              <div class="cap-fill-just" id="bar-just" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <div class="slots-stage">
+            <div class="slots-caption">
+              <span>Contiguous memory slots</span>
+              <span class="event-badge" id="wb-transfer-note">Empty buffer ready (capacity 4)</span>
+            </div>
+            <div class="slots-row" id="slots-row"></div>
+          </div>
+
+          <div class="action-row">
+            <button type="button" class="btn btn-primary" id="btn-add-one">add(x)</button>
+            <button type="button" class="btn" id="btn-fill-realloc">Fill to Next Realloc</button>
+            <button type="button" class="btn" id="btn-ensure-wb">ensureCapacity(32)</button>
+          </div>
+
+          <div class="widget-footer">
+            <div class="status-line" id="status-step1" role="status" aria-live="polite">
+              Click add(x) or Fill to Next Realloc to trigger your first copy event, or reserve capacity up front.
+            </div>
+            <div class="footer-btns">
+              <button type="button" class="btn" id="btn-reset-step1">Reset</button>
+              <button type="button" class="btn btn-primary" id="btn-next-1">Next: 1,000-Element Race -&gt;</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ==================== STEP 2: 1000-ELEMENT COPY RACE ==================== -->
+      <div class="step-item" id="step-item-2">
+        <button class="tab-btn" id="tab-btn-2" role="tab" aria-selected="false" aria-controls="panel-step2" type="button">
+          <span class="tab-left">
+            <span class="tab-num">Step 2</span>
+            <span>1,000-Element Copy Race (Predict First)</span>
+          </span>
+          <span class="tab-state" id="tab2-state">Open</span>
+        </button>
+
+        <section id="panel-step2" class="panel" role="tabpanel" aria-labelledby="tab-btn-2" hidden>
+          <p class="panel-lead">Compare both strategies over 1,000 additions—or reserve everything up front with ensureCapacity(1000).</p>
+
+          <div class="controls-grid">
+            <label class="slider-wrap" for="c-slider-race">
+              <span class="slider-label">c = <span id="c-val-race">10</span></span>
+              <input id="c-slider-race" type="range" min="2" max="50" value="10" />
+            </label>
+          </div>
+
+          <div class="predict-box" id="race-predict-box">
+            <p class="predict-prompt">Predict first: Adding 1,000 elements one by one (with c = <span id="predict-c-val">10</span>), which strategy copies more?</p>
+            <div class="predict-options">
+              <button type="button" class="predict-opt" data-guess="double">Doubling (cap * 2) copies more</button>
+              <button type="button" class="predict-opt" data-guess="const">Grow by c (cap + c) copies more</button>
+              <button type="button" class="predict-opt" data-guess="same">Both copy about the same</button>
+            </div>
+            <p class="predict-verdict" id="race-predict-verdict" hidden></p>
+          </div>
+
+          <div class="race-area" id="race-area" hidden>
+            <div class="race-controls">
+              <button type="button" class="btn btn-primary btn-sm" id="btn-run-race">Run 1,000</button>
+              <button type="button" class="btn btn-sm" id="btn-ensure-1000" aria-pressed="false">ensureCapacity(1000)</button>
+              <label class="slider-wrap" for="race-n-slider">
+                <span class="slider-label">n = <span id="race-n-val">1000</span></span>
+                <input id="race-n-slider" type="range" min="0" max="1000" value="1000" />
+              </label>
+            </div>
+
+            <div class="race-lanes">
+              <div class="lane-card" id="lane-double">
+                <div class="lane-title">
+                  <span>Doubling (cap * 2)</span>
+                  <span id="lane-d-cap"></span>
+                </div>
+                <div class="cap-track" aria-hidden="true">
+                  <div class="cap-fill-stable" id="lane-d-bar"></div>
+                </div>
+                <div class="lane-stats">
+                  <span>reallocs: <strong id="lane-d-reallocs"></strong></span>
+                  <span>copies: <strong id="lane-d-copies"></strong></span>
+                </div>
+                <p class="lane-formula">About 2n copies (4 + 8 + 16 + ... &lt; 2n)</p>
+              </div>
+
+              <div class="lane-card is-heavy" id="lane-const">
+                <div class="lane-title">
+                  <span>Grow by c (+<span id="lane-c-step">10</span>)</span>
+                  <span id="lane-c-cap"></span>
+                </div>
+                <div class="cap-track" aria-hidden="true">
+                  <div class="cap-fill-just" id="lane-c-bar"></div>
+                </div>
+                <div class="lane-stats">
+                  <span>reallocs: <strong id="lane-c-reallocs"></strong></span>
+                  <span>copies: <strong class="lane-copy-val" id="lane-c-copies"></strong></span>
+                </div>
+                <p class="lane-formula">About n²/2c copies (4 + 14 + 24 + ...)</p>
+              </div>
+            </div>
+
+            <p class="lane-formula" id="race-amortized-note" style="margin: 0 0 12px;"></p>
+
+            <div class="chart-wrap">
+              <div class="chart-legend">
+                <span class="legend-item"><span class="swatch"></span> Doubling (&lt; 2n)</span>
+                <span class="legend-item"><span class="swatch vermilion"></span> Grow by c (~ n²/2c)</span>
+                <span class="legend-item"><span class="swatch dashed"></span> ensureCapacity(1000) (0 copies)</span>
+              </div>
+              <svg class="copies-svg" id="copies-svg" viewBox="0 0 680 200" role="img" aria-label="Cumulative element copies from n=0 to n=1000"></svg>
+            </div>
+          </div>
+
+          <div class="widget-footer">
+            <div class="status-line" id="status-step2" role="status" aria-live="polite">
+              Commit to your prediction above to run both strategies side by side.
+            </div>
+            <div class="footer-btns">
+              <button type="button" class="btn" id="btn-back-2">&lt;- Back</button>
+              <button type="button" class="btn" id="btn-reset-step2">Reset</button>
+              <button type="button" class="btn btn-primary" id="btn-next-2">Next: Access Map -&gt;</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ==================== STEP 3: ACCESS MAP ==================== -->
+      <div class="step-item" id="step-item-3">
+        <button class="tab-btn" id="tab-btn-3" role="tab" aria-selected="false" aria-controls="panel-step3" type="button">
+          <span class="tab-left">
+            <span class="tab-num">Step 3</span>
+            <span>Access Map — Where You Can Touch</span>
+          </span>
+          <span class="tab-state" id="tab3-state">Open</span>
+        </button>
+
+        <section id="panel-step3" class="panel" role="tabpanel" aria-labelledby="tab-btn-3" hidden>
+          <p class="panel-lead">Click any cell to test Insert (I), Remove (R), or Inspect (S), and step the Ring cursor past tail [5].</p>
+
+          <div class="access-toolbar">
+            <div class="legend-keys" aria-label="Access map legend">
+              <span class="key-badge"><span class="key-box">I</span> Insert</span>
+              <span class="key-badge"><span class="key-box">R</span> Remove</span>
+              <span class="key-badge"><span class="key-box">S</span> Inspect</span>
+              <span class="key-badge"><span class="key-box">--</span> Blocked</span>
+            </div>
+
+            <div class="segmented" role="group" aria-label="Probe operation on cell click">
+              <button type="button" class="seg-btn probe-btn" data-op="S" aria-pressed="true">Probe: Inspect (S)</button>
+              <button type="button" class="seg-btn probe-btn" data-op="I" aria-pressed="false">Insert (I)</button>
+              <button type="button" class="seg-btn probe-btn" data-op="R" aria-pressed="false">Remove (R)</button>
+            </div>
+          </div>
+
+          <p class="lane-formula" style="margin: 0 0 8px;">Arrays and linked lists are ways to store items; stacks, queues, and deques are rules about which ends you may touch; the ring is a trick that lets a fixed array wrap around.</p>
+
+          <div class="strips-list" id="strips-list">
+            <div class="structure-row" data-struct="array">
+              <div class="struct-meta">
+                <div class="struct-name-line"><span class="struct-name">Array</span></div>
+                <span class="struct-kind">representation</span>
+                <div class="struct-rule">Contiguous index math</div>
+                <span class="struct-kind is-vermilion" id="badge-array" hidden></span>
+              </div>
+              <div class="strip-area">
+                <div class="index-row" aria-label="Array indices">
+                  <span class="idx-cell">[0]</span>
+                  <span class="idx-cell">[1]</span>
+                  <span class="idx-cell">[2]</span>
+                  <span class="idx-cell">[3]</span>
+                  <span class="idx-cell">[4]</span>
+                  <span class="idx-cell">[5]</span>
+                </div>
+                <div class="cells-strip" data-strip="array"></div>
+              </div>
+            </div>
+
+            <div class="structure-row" data-struct="list">
+              <div class="struct-meta">
+                <div class="struct-name-line"><span class="struct-name">Linked list</span></div>
+                <span class="struct-kind">representation</span>
+                <div class="struct-rule">Head / tail + pointer walk</div>
+                <span class="struct-kind is-vermilion" id="badge-list" hidden></span>
+              </div>
+              <div class="strip-area">
+                <div class="cells-strip has-arrows" data-strip="list"></div>
+              </div>
+            </div>
+
+            <div class="structure-row" data-struct="stack">
+              <div class="struct-meta">
+                <div class="struct-name-line"><span class="struct-name">Stack</span></div>
+                <span class="struct-kind">ADT</span>
+                <div class="struct-rule">LIFO: top only</div>
+              </div>
+              <div class="strip-area">
+                <div class="cells-strip" data-strip="stack"></div>
+              </div>
+            </div>
+
+            <div class="structure-row" data-struct="queue">
+              <div class="struct-meta">
+                <div class="struct-name-line"><span class="struct-name">Queue</span></div>
+                <span class="struct-kind">ADT</span>
+                <div class="struct-rule">FIFO: back in, front out</div>
+              </div>
+              <div class="strip-area">
+                <div class="cells-strip" data-strip="queue"></div>
+              </div>
+            </div>
+
+            <div class="structure-row" data-struct="deque">
+              <div class="struct-meta">
+                <div class="struct-name-line"><span class="struct-name">Deque</span></div>
+                <span class="struct-kind">ADT</span>
+                <div class="struct-rule">Both ends open</div>
+              </div>
+              <div class="strip-area">
+                <div class="cells-strip" data-strip="deque"></div>
+              </div>
+            </div>
+
+            <div class="structure-row" data-struct="ring">
+              <div class="struct-meta">
+                <div class="struct-name-line"><span class="struct-name">Ring</span></div>
+                <span class="struct-kind">technique (circular buffer)</span>
+                <div class="struct-rule">Fixed array, cursor wraps 5 -&gt; 0</div>
+                <div class="ring-controls">
+                  <button type="button" class="btn btn-sm" id="btn-step-ring">Step Cursor</button>
+                </div>
+              </div>
+              <div class="strip-area">
+                <div class="cells-strip" data-strip="ring"></div>
+                <div class="ring-wrap-bar" id="ring-wrap-bar">
+                  <span>cursor at slot <strong id="ring-cursor-num">4</strong></span>
+                  <span id="ring-wrap-label">loop: [5] -&gt; [0]</span>
+                </div>
+                <div class="ring-predict-banner" id="ring-predict-banner" hidden>
+                  <p class="predict-prompt" style="margin-bottom: 8px;">Predict first: Cursor is at tail [5]. Where does the next step land?</p>
+                  <div class="predict-options">
+                    <button type="button" class="predict-opt ring-guess" data-ring-guess="0">[0] (wraps to start)</button>
+                    <button type="button" class="predict-opt ring-guess" data-ring-guess="6">[6] (allocates new slot)</button>
+                    <button type="button" class="predict-opt ring-guess" data-ring-guess="blocked">Blocked at boundary</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="widget-footer">
+            <div class="status-line" id="status-step3" role="status" aria-live="polite">
+              Probe any cell or click Step Cursor on Ring to test the access rules before matching real jobs.
+            </div>
+            <div class="footer-btns">
+              <button type="button" class="btn" id="btn-back-3">&lt;- Back</button>
+              <button type="button" class="btn" id="btn-reset-step3">Reset</button>
+              <button type="button" class="btn btn-primary" id="btn-next-3">Next: Job Explorer -&gt;</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ==================== STEP 4: VISUAL JOB EXPLORER ==================== -->
+      <div class="step-item" id="step-item-4">
+        <button class="tab-btn" id="tab-btn-4" role="tab" aria-selected="false" aria-controls="panel-step4" type="button">
+          <span class="tab-left">
+            <span class="tab-num">Step 4</span>
+            <span>Job Explorer — Real Jobs to Structures</span>
+          </span>
+          <span class="tab-state" id="tab4-state">Open</span>
+        </button>
+
+        <section id="panel-step4" class="panel" role="tabpanel" aria-labelledby="tab-btn-4" hidden>
+          <p class="panel-lead">Pick a real job to watch how its items move—and see which Access Map structure fits it best.</p>
+
+          <div class="jobs-grid" id="jobs-grid">
+            <button type="button" class="job-btn" data-job="undo" aria-pressed="false">
+              <svg class="job-icon" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="7" y="23" width="22" height="6" rx="1"/>
+                <rect x="7" y="15" width="22" height="6" rx="1"/>
+                <rect x="7" y="7" width="22" height="6" rx="1" stroke-dasharray="3 2"/>
+                <path d="M29 10 C33 10, 33 4, 24 4"/>
+                <polyline points="26,2 23,4 26,6"/>
+              </svg>
+              <span class="job-meta">
+                <span>Undo history</span>
+                <span class="job-sub">Pop latest edit</span>
+              </span>
+            </button>
+
+            <button type="button" class="job-btn" data-job="printer" aria-pressed="false">
+              <svg class="job-icon" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="4" y="12" width="28" height="12" rx="1.5"/>
+                <line x1="13" y1="12" x2="13" y2="24"/>
+                <line x1="23" y1="12" x2="23" y2="24"/>
+                <polyline points="2,18 6,18"/>
+                <polyline points="30,18 34,18"/>
+                <polyline points="3,15 1,18 3,21"/>
+              </svg>
+              <span class="job-meta">
+                <span>Printer jobs</span>
+                <span class="job-sub">Arrival order spool</span>
+              </span>
+            </button>
+
+            <button type="button" class="job-btn" data-job="roundrobin" aria-pressed="false">
+              <svg class="job-icon" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="18" cy="18" r="11" stroke-dasharray="4 3"/>
+                <circle cx="18" cy="7" r="3" fill="currentColor"/>
+                <circle cx="28" cy="24" r="3" fill="var(--paper)"/>
+                <circle cx="8" cy="24" r="3" fill="var(--paper)"/>
+              </svg>
+              <span class="job-meta">
+                <span>Round-robin turns</span>
+                <span class="job-sub">Cyclic player wheel</span>
+              </span>
+            </button>
+
+            <button type="button" class="job-btn" data-job="indexlookup" aria-pressed="false">
+              <svg class="job-icon" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="3" y="18" width="7" height="10"/>
+                <rect x="10" y="18" width="7" height="10"/>
+                <rect x="17" y="18" width="7" height="10"/>
+                <rect x="24" y="18" width="7" height="10" fill="currentColor"/>
+                <path d="M6 15 C11 5, 22 5, 27 14"/>
+                <polyline points="24,13 27,15 29,11"/>
+              </svg>
+              <span class="job-meta">
+                <span>Look up by index</span>
+                <span class="job-sub">Direct jump to [i]</span>
+              </span>
+            </button>
+
+            <button type="button" class="job-btn" data-job="sliding" aria-pressed="false">
+              <svg class="job-icon" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="8" y="12" width="20" height="12" rx="1"/>
+                <line x1="15" y1="12" x2="15" y2="24"/>
+                <line x1="21" y1="12" x2="21" y2="24"/>
+                <polyline points="5,15 2,18 5,21"/>
+                <polyline points="31,15 34,18 31,21"/>
+              </svg>
+              <span class="job-meta">
+                <span>Both-ends window</span>
+                <span class="job-sub">Push/pop left &amp; right</span>
+              </span>
+            </button>
+
+            <button type="button" class="job-btn" data-job="splice" aria-pressed="false">
+              <svg class="job-icon" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="3" y="19" width="8" height="8" rx="1"/>
+                <rect x="14" y="8" width="8" height="8" rx="1"/>
+                <rect x="25" y="19" width="8" height="8" rx="1"/>
+                <line x1="11" y1="22" x2="14" y2="14"/>
+                <line x1="22" y1="14" x2="25" y2="22"/>
+              </svg>
+              <span class="job-meta">
+                <span>Splice at cursor</span>
+                <span class="job-sub">Rewire node arrows</span>
+              </span>
+            </button>
+          </div>
+
+          <!-- Visual Job Simulator Stage -->
+          <div class="job-stage" id="job-stage">
+            <div class="job-stage-head">
+              <span class="job-stage-title" id="job-stage-title">Undo history — pick or step a job</span>
+              <div class="job-stage-actions">
+                <button type="button" class="btn btn-primary btn-sm" id="btn-job-step">Step Job</button>
+                <button type="button" class="btn btn-sm" id="btn-job-alt" hidden>Add / Push</button>
+              </div>
+            </div>
+            <svg class="job-svg" id="job-svg" viewBox="0 0 640 164" role="img" aria-label="Visual simulation of the selected job"></svg>
+            <p class="job-reason-line" id="job-reason-line">
+              Select a job above or click Step Job to watch what happens and highlight the best fit below.
+            </p>
+          </div>
+
+          <!-- Compact Access Map Best-Fit Highlight -->
+          <div class="match-map" id="match-map" aria-label="Best fit from Access Map"></div>
+
+          <div class="widget-footer">
+            <div class="status-line" id="status-step4" role="status" aria-live="polite">
+              Pick any job to animate its data flow and light up its best fit from Step 3.
+            </div>
+            <div class="footer-btns">
+              <button type="button" class="btn" id="btn-back-4">&lt;- Back</button>
+              <button type="button" class="btn" id="btn-reset-step4">Reset</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Closing Bridge Strip (Revealed on Step 4) -->
+    <footer class="closing-strip" id="closing-strip" hidden>
+      <div>
+        <p class="bridge-quote">changing: not array, searching: not list</p>
+        <p class="bridge-detail">Arrays shift or copy when changing in the middle; linked lists walk pointers one by one when searching.</p>
+      </div>
+      <div class="next-page-pill">Next page -&gt; Trees &amp; Search Structures</div>
+    </footer>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+
+      /* ==================== CONSECUTIVE 4-STEP NAVIGATION ==================== */
+      const tabBtns = [
+        document.getElementById("tab-btn-1"),
+        document.getElementById("tab-btn-2"),
+        document.getElementById("tab-btn-3"),
+        document.getElementById("tab-btn-4")
+      ];
+      const panels = [
+        document.getElementById("panel-step1"),
+        document.getElementById("panel-step2"),
+        document.getElementById("panel-step3"),
+        document.getElementById("panel-step4")
+      ];
+      const tabStateEls = [
+        document.getElementById("tab1-state"),
+        document.getElementById("tab2-state"),
+        document.getElementById("tab3-state"),
+        document.getElementById("tab4-state")
+      ];
+      const mastheadStepPill = document.getElementById("masthead-step-pill");
+      const closingStrip = document.getElementById("closing-strip");
+
+      const btnNext1 = document.getElementById("btn-next-1");
+      const btnNext2 = document.getElementById("btn-next-2");
+      const btnNext3 = document.getElementById("btn-next-3");
+      const btnBack2 = document.getElementById("btn-back-2");
+      const btnBack3 = document.getElementById("btn-back-3");
+      const btnBack4 = document.getElementById("btn-back-4");
+
+      const navState = {
+        active: 0,
+        done: [false, false, false, false],
+        visited: [true, false, false, false]
+      };
+
+      function syncStepNav() {
+        mastheadStepPill.textContent = "Step " + (navState.active + 1) + " of 4";
+        closingStrip.hidden = !(navState.visited[3] && navState.done[3]);
+
+        tabBtns.forEach((btn, i) => {
+          const active = i === navState.active;
+          const isSuggestedNext = i === navState.active + 1 && navState.done[navState.active];
+          btn.setAttribute("aria-selected", active ? "true" : "false");
+          btn.classList.toggle("is-ready", isSuggestedNext);
+          panels[i].hidden = !active;
+
+          if (active) {
+            tabStateEls[i].textContent = "Active";
+          } else if (isSuggestedNext) {
+            tabStateEls[i].textContent = "Suggested next";
+          } else {
+            tabStateEls[i].textContent = "Open";
+          }
+        });
+      }
+
+      function setStatus(stepIdx, text, isVermilion) {
+        const el = document.getElementById("status-step" + (stepIdx + 1));
+        if (!el) return;
+        el.textContent = text;
+        el.classList.toggle("is-vermilion", Boolean(isVermilion));
+      }
+
+      function goToStep(idx, shouldScroll) {
+        navState.active = idx;
+        navState.visited[idx] = true;
+        syncStepNav();
+
+        if (idx === 1) {
+          cSliderRace.value = String(wbState.c);
+          cValRaceEl.textContent = String(wbState.c);
+          predictCVal.textContent = String(wbState.c);
+          laneCStepEl.textContent = String(wbState.c);
+          renderRace();
+          if (!raceState.guessed) {
+            setStatus(
+              1,
+              navState.done[0]
+                ? "Commit to your prediction above to run both strategies side by side."
+                : "Tip: try Step 1 first to see a single buffer reallocate, then commit to your prediction above.",
+              false
+            );
+          }
+        } else if (idx === 2 && !navState.done[1] && !navState.done[2]) {
+          setStatus(
+            2,
+            "Tip: Step 2's race compares copying costs, or probe any cell below to test Insert (I), Remove (R), and Inspect (S).",
+            false
+          );
+        } else if (idx === 3) {
+          renderMatchMap();
+          renderJobVisual();
+          if (!navState.done[2] && !jobState.activeJob) {
+            setStatus(
+              3,
+              "Tip: Step 3 shows the full access rules, or pick any job above to animate it and light up its best fit.",
+              false
+            );
+          }
+        }
+
+        if (shouldScroll) {
+          tabBtns[idx].scrollIntoView({ block: "start", behavior: "smooth" });
+        }
+        return true;
+      }
+
+      tabBtns.forEach((btn, i) => {
+        btn.addEventListener("click", () => goToStep(i, false));
+        btn.addEventListener("keydown", (e) => {
+          if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+            e.preventDefault();
+            const next = Math.min(3, i + 1);
+            if (goToStep(next, false)) tabBtns[next].focus();
+          } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+            e.preventDefault();
+            const prev = Math.max(0, i - 1);
+            if (goToStep(prev, false)) tabBtns[prev].focus();
+          }
+        });
+      });
+
+      btnNext1.addEventListener("click", () => goToStep(1, true));
+      btnNext2.addEventListener("click", () => goToStep(2, true));
+      btnNext3.addEventListener("click", () => goToStep(3, true));
+      btnBack2.addEventListener("click", () => goToStep(0, true));
+      btnBack3.addEventListener("click", () => goToStep(1, true));
+      btnBack4.addEventListener("click", () => goToStep(2, true));
+
+      /* ==================== STEP 1: SLOT WORKBENCH ==================== */
+      const stratDoubleBtn = document.getElementById("strat-double");
+      const stratConstBtn = document.getElementById("strat-const");
+      const cSlider = document.getElementById("c-slider");
+      const cValEl = document.getElementById("c-val");
+      const wbSizeEl = document.getElementById("wb-size");
+      const wbCapEl = document.getElementById("wb-cap");
+      const wbStepsEl = document.getElementById("wb-steps");
+      const wbReallocsEl = document.getElementById("wb-reallocs");
+      const wbCopiesEl = document.getElementById("wb-copies");
+      const wbCopiesItem = document.getElementById("wb-copies-item");
+      const barFillText = document.getElementById("bar-fill-text");
+      const barFreeText = document.getElementById("bar-free-text");
+      const barStable = document.getElementById("bar-stable");
+      const barJust = document.getElementById("bar-just");
+      const slotsRow = document.getElementById("slots-row");
+      const wbTransferNote = document.getElementById("wb-transfer-note");
+      const btnAddOne = document.getElementById("btn-add-one");
+      const btnFillRealloc = document.getElementById("btn-fill-realloc");
+      const btnEnsureWb = document.getElementById("btn-ensure-wb");
+      const btnResetStep1 = document.getElementById("btn-reset-step1");
+
+      const wbState = {
+        strategy: "double",
+        c: 10,
+        size: 0,
+        capacity: 4,
+        steps: 0,
+        reallocs: 0,
+        copies: 0,
+        lastMode: "idle",
+        lastCopiedCount: 0,
+        lastOldCap: 4
+      };
+
+      function formatInt(num) {
+        return Number(num).toLocaleString("en-US");
+      }
+
+      function renderWorkbench() {
+        const s = wbState;
+        wbSizeEl.textContent = formatInt(s.size);
+        wbCapEl.textContent = formatInt(s.capacity);
+        wbStepsEl.textContent = formatInt(s.steps);
+        wbReallocsEl.textContent = formatInt(s.reallocs);
+        wbCopiesEl.textContent = formatInt(s.copies);
+        wbCopiesItem.classList.toggle("is-vermilion", s.lastMode === "realloc");
+
+        const freeSlots = s.capacity - s.size;
+        barFillText.textContent = s.size + " / " + s.capacity + " slots used";
+        barFreeText.textContent = freeSlots + (freeSlots === 1 ? " free slot" : " free slots");
+
+        let stableCount = s.size;
+        let justCount = 0;
+        if (s.lastMode === "write" && s.size > 0) {
+          stableCount = Math.max(0, s.size - 1);
+          justCount = 1;
+        } else if (s.lastMode === "realloc" && s.size > 0) {
+          stableCount = 0;
+          justCount = s.size;
+        }
+        barStable.style.width = (s.capacity > 0 ? (stableCount / s.capacity) * 100 : 0).toFixed(2) + "%";
+        barJust.style.width = (s.capacity > 0 ? (justCount / s.capacity) * 100 : 0).toFixed(2) + "%";
+
+        if (s.lastMode === "idle") {
+          wbTransferNote.textContent = "Empty buffer ready (capacity " + s.capacity + ")";
+          wbTransferNote.classList.remove("is-vermilion");
+        } else if (s.lastMode === "write") {
+          wbTransferNote.textContent = "Appended at slot [" + (s.size - 1) + "] with 0 copies";
+          wbTransferNote.classList.remove("is-vermilion");
+        } else if (s.lastMode === "realloc") {
+          wbTransferNote.textContent =
+            "REALLOC " + s.lastOldCap + " -> " + s.capacity + ": copied " + s.lastCopiedCount + " items + wrote new item";
+          wbTransferNote.classList.add("is-vermilion");
+        } else if (s.lastMode === "reserve") {
+          wbTransferNote.textContent =
+            "Reserved capacity " + s.capacity + " up front (" + s.lastCopiedCount + " copies needed)";
+          wbTransferNote.classList.remove("is-vermilion");
+        }
+
+        slotsRow.innerHTML = "";
+        const cap = s.capacity;
+        const indices = [];
+        if (cap <= 64) {
+          for (let i = 0; i < cap; i++) indices.push(i);
+        } else {
+          for (let i = 0; i < 24; i++) indices.push(i);
+          indices.push("...");
+          for (let i = cap - 24; i < cap; i++) indices.push(i);
+        }
+
+        indices.forEach((idx) => {
+          if (idx === "...") {
+            const ell = document.createElement("div");
+            ell.className = "slot-ellipsis";
+            ell.textContent = "... " + (cap - 48) + " slots ...";
+            slotsRow.appendChild(ell);
+            return;
+          }
+          const unit = document.createElement("div");
+          unit.className = "slot-unit";
+          const cell = document.createElement("div");
+          cell.className = "slot-cell";
+
+          if (idx < s.size) {
+            cell.textContent = String(idx + 1);
+            if (s.lastMode === "write" && idx === s.size - 1) {
+              cell.classList.add("is-new");
+            } else if (s.lastMode === "realloc") {
+              cell.classList.add(idx < s.lastCopiedCount ? "is-copied" : "is-new");
+            }
+          } else {
+            cell.textContent = "-";
+            cell.classList.add(s.lastMode === "reserve" ? "is-reserved" : "is-empty");
+          }
+
+          const idxTag = document.createElement("span");
+          idxTag.className = "slot-idx";
+          idxTag.textContent = "[" + idx + "]";
+          unit.appendChild(cell);
+          unit.appendChild(idxTag);
+          slotsRow.appendChild(unit);
+        });
+
+        btnEnsureWb.disabled = s.capacity >= 32;
+      }
+
+      function markStep1Done() {
+        if (!navState.done[0]) {
+          navState.done[0] = true;
+          syncStepNav();
+        }
+      }
+
+      function addOneToWorkbench(suppressStatus) {
+        const s = wbState;
+        if (s.size < s.capacity) {
+          s.size += 1;
+          s.steps += 1;
+          s.lastMode = "write";
+          s.lastCopiedCount = 0;
+          if (!suppressStatus) {
+            setStatus(
+              0,
+              "Added item " + s.size + " into free slot [" + (s.size - 1) + "]: 0 copies, " +
+                (s.capacity - s.size) + " free slots left.",
+              false
+            );
+          }
+          return false;
+        }
+        const oldCap = s.capacity;
+        const newCap = s.strategy === "double" ? oldCap * 2 : oldCap + s.c;
+        s.lastOldCap = oldCap;
+        s.lastCopiedCount = oldCap;
+        s.capacity = newCap;
+        s.reallocs += 1;
+        s.copies += oldCap;
+        s.size += 1;
+        s.steps += 1;
+        s.lastMode = "realloc";
+        markStep1Done();
+        if (!suppressStatus) {
+          setStatus(
+            0,
+            "Buffer full at " + oldCap + ": reallocated to " + newCap + ", copied all " + oldCap +
+              " existing items, then wrote item " + s.size + ".",
+            true
+          );
+        }
+        return true;
+      }
+
+      function resetWorkbench(preserveStrategy) {
+        if (!preserveStrategy) wbState.strategy = "double";
+        wbState.size = 0;
+        wbState.capacity = 4;
+        wbState.steps = 0;
+        wbState.reallocs = 0;
+        wbState.copies = 0;
+        wbState.lastMode = "idle";
+        wbState.lastCopiedCount = 0;
+        wbState.lastOldCap = 4;
+        stratDoubleBtn.setAttribute("aria-pressed", wbState.strategy === "double" ? "true" : "false");
+        stratConstBtn.setAttribute("aria-pressed", wbState.strategy === "const" ? "true" : "false");
+        barStable.classList.add("no-transition");
+        barJust.classList.add("no-transition");
+        renderWorkbench();
+        void barJust.offsetWidth;
+        barStable.classList.remove("no-transition");
+        barJust.classList.remove("no-transition");
+      }
+
+      stratDoubleBtn.addEventListener("click", () => {
+        wbState.strategy = "double";
+        resetWorkbench(true);
+        setStatus(0, "Switched to Doubling (cap * 2) starting at capacity 4.", false);
+      });
+
+      stratConstBtn.addEventListener("click", () => {
+        wbState.strategy = "const";
+        resetWorkbench(true);
+        setStatus(0, "Switched to Grow by c (cap + " + wbState.c + ") starting at capacity 4.", false);
+      });
+
+      btnAddOne.addEventListener("click", () => {
+        addOneToWorkbench(false);
+        renderWorkbench();
+      });
+
+      btnFillRealloc.addEventListener("click", () => {
+        const s = wbState;
+        const needed = s.capacity - s.size + 1;
+        for (let i = 0; i < needed; i++) addOneToWorkbench(true);
+        markStep1Done();
+        renderWorkbench();
+        setStatus(
+          0,
+          "Added " + needed + " item" + (needed === 1 ? "" : "s") + " to trigger reallocation: " +
+            s.lastOldCap + " -> " + s.capacity + " (" + s.lastCopiedCount + " copies).",
+          true
+        );
+      });
+
+      btnEnsureWb.addEventListener("click", () => {
+        const s = wbState;
+        if (s.capacity >= 32) return;
+        const copied = s.size;
+        s.lastOldCap = s.capacity;
+        s.capacity = 32;
+        s.copies += copied;
+        if (copied > 0) s.reallocs += 1;
+        s.lastCopiedCount = copied;
+        s.lastMode = "reserve";
+        markStep1Done();
+        renderWorkbench();
+        setStatus(
+          0,
+          "ensureCapacity(32): reserved 32 slots up front (" + copied + " existing copies); next " +
+            (32 - s.size) + " adds cost 0 copies.",
+          false
+        );
+      });
+
+      function updateConstantC(val, sourceStep) {
+        wbState.c = val;
+        cSlider.value = String(val);
+        cValEl.textContent = String(val);
+        cSliderRace.value = String(val);
+        cValRaceEl.textContent = String(val);
+        predictCVal.textContent = String(val);
+        laneCStepEl.textContent = String(val);
+
+        renderRace();
+        setStatus(
+          sourceStep,
+          "Set constant increment c = " + val + ". Smaller c triggers more frequent reallocations (~n²/2c copies).",
+          false
+        );
+      }
+
+      cSlider.addEventListener("input", () => updateConstantC(Number(cSlider.value), 0));
+
+      btnResetStep1.addEventListener("click", () => {
+        wbState.c = 10;
+        cSlider.value = "10";
+        cValEl.textContent = "10";
+        cSliderRace.value = "10";
+        cValRaceEl.textContent = "10";
+        predictCVal.textContent = "10";
+        laneCStepEl.textContent = "10";
+        resetWorkbench(false);
+        navState.done[0] = false;
+        renderRace();
+        syncStepNav();
+        setStatus(0, "Reset: capacity is 4, size is 0. Click add(x) or Fill to Next Realloc.", false);
+      });
+
+      /* ==================== STEP 2: 1,000-ELEMENT COPY RACE ==================== */
+      const cSliderRace = document.getElementById("c-slider-race");
+      const cValRaceEl = document.getElementById("c-val-race");
+      const predictCVal = document.getElementById("predict-c-val");
+      const racePredictBox = document.getElementById("race-predict-box");
+      const racePredictVerdict = document.getElementById("race-predict-verdict");
+      const predictOptBtns = Array.from(document.querySelectorAll(".predict-opt[data-guess]"));
+      const raceArea = document.getElementById("race-area");
+      const btnRunRace = document.getElementById("btn-run-race");
+      const btnEnsure1000 = document.getElementById("btn-ensure-1000");
+      const raceNSlider = document.getElementById("race-n-slider");
+      const raceNVal = document.getElementById("race-n-val");
+      const laneConstCard = document.getElementById("lane-const");
+      const laneDCap = document.getElementById("lane-d-cap");
+      const laneDBar = document.getElementById("lane-d-bar");
+      const laneDReallocs = document.getElementById("lane-d-reallocs");
+      const laneDCopies = document.getElementById("lane-d-copies");
+      const laneCCap = document.getElementById("lane-c-cap");
+      const laneCBar = document.getElementById("lane-c-bar");
+      const laneCReallocs = document.getElementById("lane-c-reallocs");
+      const laneCCopies = document.getElementById("lane-c-copies");
+      const laneCStepEl = document.getElementById("lane-c-step");
+      const raceAmortizedNote = document.getElementById("race-amortized-note");
+      const copiesSvg = document.getElementById("copies-svg");
+      const btnResetStep2 = document.getElementById("btn-reset-step2");
+
+      const raceState = {
+        guessed: null,
+        n: 1000,
+        ensure1000: false,
+        isAnimating: false,
+        animId: null
+      };
+
+      cSliderRace.addEventListener("input", () => updateConstantC(Number(cSliderRace.value), 1));
+
+      function simulateSeries(nMax, cVal, preReserve) {
+        const doubleSeries = new Array(nMax + 1);
+        const constSeries = new Array(nMax + 1);
+        let dCap = preReserve ? 1000 : 4, dReallocs = 0, dCopies = 0;
+        let cCap = preReserve ? 1000 : 4, cReallocs = 0, cCopies = 0;
+        doubleSeries[0] = { cap: dCap, reallocs: 0, copies: 0 };
+        constSeries[0] = { cap: cCap, reallocs: 0, copies: 0 };
+
+        for (let i = 1; i <= nMax; i++) {
+          if (i > dCap) { dCopies += dCap; dCap *= 2; dReallocs += 1; }
+          doubleSeries[i] = { cap: dCap, reallocs: dReallocs, copies: dCopies };
+          if (i > cCap) { cCopies += cCap; cCap += cVal; cReallocs += 1; }
+          constSeries[i] = { cap: cCap, reallocs: cReallocs, copies: cCopies };
+        }
+        return { doubleSeries, constSeries };
+      }
+
+      function renderRace() {
+        const n = Math.max(0, Math.min(1000, Number(raceState.n) || 0));
+        raceState.n = n;
+        const cVal = wbState.c;
+        const series = simulateSeries(1000, cVal, raceState.ensure1000);
+        const dPoint = series.doubleSeries[n];
+        const cPoint = series.constSeries[n];
+
+        raceNVal.textContent = String(n);
+        raceNSlider.value = String(n);
+
+        laneDCap.textContent = "cap: " + formatInt(dPoint.cap);
+        laneDBar.style.width = (dPoint.cap > 0 ? (n / dPoint.cap) * 100 : 0).toFixed(1) + "%";
+        laneDReallocs.textContent = formatInt(dPoint.reallocs);
+        laneDCopies.textContent = formatInt(dPoint.copies);
+
+        laneCCap.textContent = "cap: " + formatInt(cPoint.cap);
+        laneCBar.style.width = (cPoint.cap > 0 ? (n / cPoint.cap) * 100 : 0).toFixed(1) + "%";
+        laneCReallocs.textContent = formatInt(cPoint.reallocs);
+        laneCCopies.textContent = formatInt(cPoint.copies);
+
+        laneConstCard.classList.toggle("is-heavy", !raceState.ensure1000 && cPoint.copies > dPoint.copies);
+        btnEnsure1000.setAttribute("aria-pressed", raceState.ensure1000 ? "true" : "false");
+        btnEnsure1000.classList.toggle("btn-primary", raceState.ensure1000);
+
+        raceAmortizedNote.hidden = raceState.isAnimating;
+        if (n === 0) {
+          raceAmortizedNote.textContent =
+            "At n = 0: 0 adds yet. Doubling stays below 2 copies per add on average (amortized O(1)). Grow-by-c averages about n/2c copies per add, so the cost per add keeps growing.";
+        } else if (raceState.ensure1000) {
+          raceAmortizedNote.textContent =
+            "ensureCapacity(1000): 0.00 copies per add on average for both strategies (all capacity reserved up front).";
+        } else {
+          const dAvg = (dPoint.copies / n).toFixed(2);
+          const cAvg = (cPoint.copies / n).toFixed(2);
+          raceAmortizedNote.textContent =
+            "Doubling: " + dAvg + " copies per add on average (stays below 2; amortized O(1)). Grow-by-" + cVal +
+            ": " + cAvg + " copies per add on average (about n/2c), so the cost per add keeps growing.";
+        }
+
+        const W = 680, H = 200, padL = 56, padR = 16, padT = 14, padB = 28;
+        const plotW = W - padL - padR, plotH = H - padT - padB;
+        const maxEndCopies = Math.max(2000, series.doubleSeries[1000].copies, series.constSeries[1000].copies);
+        const xOf = (step) => padL + (step / 1000) * plotW;
+        const yOf = (val) => padT + plotH - (val / maxEndCopies) * plotH;
+
+        let dPath = "", cPath = "";
+        for (let i = 0; i <= 1000; i += 5) {
+          const x = xOf(i).toFixed(1);
+          dPath += (i === 0 ? "M" : "L") + x + "," + yOf(series.doubleSeries[i].copies).toFixed(1);
+          cPath += (i === 0 ? "M" : "L") + x + "," + yOf(series.constSeries[i].copies).toFixed(1);
+        }
+        dPath += "L" + xOf(1000).toFixed(1) + "," + yOf(series.doubleSeries[1000].copies).toFixed(1);
+        cPath += "L" + xOf(1000).toFixed(1) + "," + yOf(series.constSeries[1000].copies).toFixed(1);
+
+        const yMid = Math.round(maxEndCopies / 2);
+        const curX = xOf(n).toFixed(1);
+        const curDY = yOf(dPoint.copies).toFixed(1);
+        const curCY = yOf(cPoint.copies).toFixed(1);
+        const baseY = yOf(0).toFixed(1);
+
+        copiesSvg.innerHTML =
+          '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (padT + plotH) + '" stroke="#161514" stroke-width="1.2"/>' +
+          '<line x1="' + padL + '" y1="' + baseY + '" x2="' + (W - padR) + '" y2="' + baseY + '" stroke="#161514" stroke-width="1.2"/>' +
+          '<line x1="' + padL + '" y1="' + yOf(yMid).toFixed(1) + '" x2="' + (W - padR) + '" y2="' + yOf(yMid).toFixed(1) + '" stroke="#ccc6ba" stroke-dasharray="3 3"/>' +
+          '<line x1="' + padL + '" y1="' + yOf(maxEndCopies).toFixed(1) + '" x2="' + (W - padR) + '" y2="' + yOf(maxEndCopies).toFixed(1) + '" stroke="#ccc6ba" stroke-dasharray="3 3"/>' +
+          '<text x="' + (padL - 6) + '" y="' + (padT + 6) + '" text-anchor="end" font-family="monospace" font-size="11" fill="#4a4743">' + formatInt(maxEndCopies) + '</text>' +
+          '<text x="' + (padL - 6) + '" y="' + (yOf(yMid) + 4).toFixed(1) + '" text-anchor="end" font-family="monospace" font-size="11" fill="#4a4743">' + formatInt(yMid) + '</text>' +
+          '<text x="' + (padL - 6) + '" y="' + (padT + plotH + 4) + '" text-anchor="end" font-family="monospace" font-size="11" fill="#4a4743">0</text>' +
+          '<text x="' + padL + '" y="' + (H - 8) + '" text-anchor="start" font-family="monospace" font-size="11" fill="#4a4743">n = 0</text>' +
+          '<text x="' + xOf(500).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-family="monospace" font-size="11" fill="#4a4743">500</text>' +
+          '<text x="' + (W - padR) + '" y="' + (H - 8) + '" text-anchor="end" font-family="monospace" font-size="11" fill="#4a4743">1,000 elements</text>' +
+          '<line x1="' + padL + '" y1="' + baseY + '" x2="' + (W - padR) + '" y2="' + baseY + '" stroke="#78736d" stroke-width="1.5" stroke-dasharray="5 4"/>' +
+          '<path d="' + cPath + '" fill="none" stroke="' + (raceState.ensure1000 ? "#78736d" : "#c93b1b") + '" stroke-width="2.4"/>' +
+          '<path d="' + dPath + '" fill="none" stroke="#161514" stroke-width="2.4"/>' +
+          '<line x1="' + curX + '" y1="' + padT + '" x2="' + curX + '" y2="' + baseY + '" stroke="#4a4743" stroke-width="1" stroke-dasharray="2 2"/>' +
+          '<circle cx="' + curX + '" cy="' + curCY + '" r="4.5" fill="' + (raceState.ensure1000 ? "#78736d" : "#c93b1b") + '"/>' +
+          '<circle cx="' + curX + '" cy="' + curDY + '" r="4.5" fill="#161514"/>';
+      }
+
+      function animateRaceTo1000() {
+        if (raceState.animId) {
+          cancelAnimationFrame(raceState.animId);
+          raceState.animId = null;
+        }
+        raceState.isAnimating = true;
+        raceState.n = 0;
+        let start = null;
+        const duration = 900;
+
+        function tick(now) {
+          if (start === null) start = now;
+          const t = Math.max(0, Math.min(1, (now - start) / duration));
+          raceState.n = Math.max(0, Math.min(1000, Math.round(t * 1000)));
+          if (t < 1) {
+            renderRace();
+            raceState.animId = requestAnimationFrame(tick);
+          } else {
+            raceState.animId = null;
+            raceState.isAnimating = false;
+            renderRace();
+            navState.done[1] = true;
+            syncStepNav();
+            const s = simulateSeries(1000, wbState.c, raceState.ensure1000);
+            if (raceState.ensure1000) {
+              setStatus(1, "ensureCapacity(1000) reserved 1,000 slots up front: 0 reallocs and 0 copies.", false);
+            } else {
+              setStatus(
+                1,
+                "1,000 adds complete (c = " + wbState.c + "): Doubling = " + formatInt(s.doubleSeries[1000].copies) +
+                  " copies (< 2n); Grow by c = " + formatInt(s.constSeries[1000].copies) + " copies (~n²/2c).",
+                true
+              );
+            }
+          }
+        }
+        raceState.animId = requestAnimationFrame(tick);
+      }
+
+      predictOptBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (raceState.guessed) return;
+          const guess = btn.getAttribute("data-guess");
+          raceState.guessed = guess;
+          racePredictBox.classList.remove("is-nudge");
+          const isCorrect = guess === "const";
+
+          predictOptBtns.forEach((opt) => {
+            opt.disabled = true;
+            const val = opt.getAttribute("data-guess");
+            if (val === "const") {
+              opt.classList.add(isCorrect ? "is-chosen-right" : "is-answer-reveal");
+            } else if (val === guess && !isCorrect) {
+              opt.classList.add("is-chosen-wrong");
+            }
+          });
+
+          const s = simulateSeries(1000, wbState.c, false);
+          racePredictVerdict.hidden = false;
+          racePredictVerdict.classList.toggle("is-wrong", !isCorrect);
+          racePredictVerdict.textContent =
+            (isCorrect ? "Correct: " : "Not quite: ") +
+            "Grow by c (" + wbState.c + ") copies " + formatInt(s.constSeries[1000].copies) +
+            " items (~n²/2c), while Doubling copies only " + formatInt(s.doubleSeries[1000].copies) + " items (< 2n).";
+
+          raceArea.hidden = false;
+          navState.done[1] = true;
+          syncStepNav();
+          animateRaceTo1000();
+        });
+      });
+
+      btnRunRace.addEventListener("click", () => {
+        raceState.ensure1000 = false;
+        animateRaceTo1000();
+      });
+
+      btnEnsure1000.addEventListener("click", () => {
+        if (raceState.animId) {
+          cancelAnimationFrame(raceState.animId);
+          raceState.animId = null;
+        }
+        raceState.isAnimating = false;
+        raceState.ensure1000 = !raceState.ensure1000;
+        raceState.n = 1000;
+        renderRace();
+        if (raceState.ensure1000) {
+          setStatus(1, "ensureCapacity(1000) allocated 1,000 slots before item 1: 0 reallocations and 0 copies.", false);
+        } else {
+          const s = simulateSeries(1000, wbState.c, false);
+          setStatus(
+            1,
+            "Without upfront reservation (c = " + wbState.c + "), Grow by c copies " +
+              formatInt(s.constSeries[1000].copies) + " items vs " + formatInt(s.doubleSeries[1000].copies) + " for Doubling.",
+            true
+          );
+        }
+      });
+
+      raceNSlider.addEventListener("input", () => {
+        if (raceState.animId) {
+          cancelAnimationFrame(raceState.animId);
+          raceState.animId = null;
+        }
+        raceState.isAnimating = false;
+        raceState.n = Number(raceNSlider.value);
+        renderRace();
+        const s = simulateSeries(1000, wbState.c, raceState.ensure1000);
+        setStatus(
+          1,
+          "At n = " + raceState.n + ": Doubling = " + formatInt(s.doubleSeries[raceState.n].copies) +
+            " copies; Grow by " + wbState.c + " = " + formatInt(s.constSeries[raceState.n].copies) + " copies.",
+          false
+        );
+      });
+
+      btnResetStep2.addEventListener("click", () => {
+        if (raceState.animId) {
+          cancelAnimationFrame(raceState.animId);
+          raceState.animId = null;
+        }
+        raceState.isAnimating = false;
+        raceState.guessed = null;
+        raceState.n = 1000;
+        raceState.ensure1000 = false;
+        raceNSlider.value = "1000";
+        raceNVal.textContent = "1000";
+        btnEnsure1000.setAttribute("aria-pressed", "false");
+        btnEnsure1000.classList.remove("btn-primary");
+        raceArea.hidden = true;
+        racePredictBox.classList.remove("is-nudge");
+        racePredictVerdict.hidden = true;
+        racePredictVerdict.classList.remove("is-wrong");
+        predictOptBtns.forEach((opt) => {
+          opt.disabled = false;
+          opt.classList.remove("is-chosen-right", "is-chosen-wrong", "is-answer-reveal");
+        });
+        navState.done[1] = false;
+        renderRace();
+        syncStepNav();
+        setStatus(1, "Reset: prediction gate cleared. Commit to a prediction above to run the race.", false);
+      });
+
+      /* ==================== STEP 3: ACCESS MAP ==================== */
+      const probeBtns = Array.from(document.querySelectorAll(".probe-btn"));
+      const btnStepRing = document.getElementById("btn-step-ring");
+      const ringWrapBar = document.getElementById("ring-wrap-bar");
+      const ringCursorNum = document.getElementById("ring-cursor-num");
+      const ringWrapLabel = document.getElementById("ring-wrap-label");
+      const ringPredictBanner = document.getElementById("ring-predict-banner");
+      const ringGuessBtns = Array.from(document.querySelectorAll(".ring-guess"));
+      const btnResetStep3 = document.getElementById("btn-reset-step3");
+      const badgeArray = document.getElementById("badge-array");
+      const badgeList = document.getElementById("badge-list");
+
+      const mapState = {
+        probeOp: "S",
+        probed: null,
+        arraySize: 5,
+        arrayShift: null, // { dir: "right" | "left" | "none", newIdx: number|null, shiftedIndices: number[], badge: string }
+        listRewire: null, // { idx: number, arrowIndices: number[], badge: string }
+        ringCursor: 4,
+        ringWrapAnswered: false,
+        ringJustWrapped: false
+      };
+
+      function getCellSpec(struct, idx, ringCursor, arraySize) {
+        if (struct === "array") {
+          const filled = typeof arraySize === "number" ? idx < arraySize : idx < 5;
+          if (!filled) return { letters: "I R S", sub: "free", locked: false };
+          return idx === 5
+            ? { letters: "I R S", sub: "direct", locked: false }
+            : { letters: "I R S", sub: "S O(1)", locked: false };
+        }
+        if (struct === "list") {
+          if (idx === 0) return { letters: "I R S", sub: "head", locked: false };
+          if (idx === 5) return { letters: "I R S", sub: "tail", locked: false };
+          return { letters: "I R S", sub: "walk", locked: false };
+        }
+        if (struct === "stack") {
+          return idx === 5 ? { letters: "I R S", sub: "top", locked: false } : { letters: "--", sub: "", locked: true };
+        }
+        if (struct === "queue") {
+          if (idx === 0) return { letters: "R S", sub: "front", locked: false };
+          if (idx === 5) return { letters: "I", sub: "back", locked: false };
+          return { letters: "--", sub: "", locked: true };
+        }
+        if (struct === "deque") {
+          if (idx === 0) return { letters: "I R S", sub: "front", locked: false };
+          if (idx === 5) return { letters: "I R S", sub: "back", locked: false };
+          return { letters: "--", sub: "", locked: true };
+        }
+        if (struct === "ring") {
+          return idx === ringCursor
+            ? { letters: "I R S", sub: "cursor", locked: false, isCursor: true }
+            : { letters: "--", sub: "", locked: true };
+        }
+        return { letters: "--", sub: "", locked: true };
+      }
+
+      function evaluateProbe(struct, idx, op) {
+        const opName = op === "I" ? "Insert (I)" : op === "R" ? "Remove (R)" : "Inspect (S)";
+
+        if (struct !== "array") mapState.arrayShift = null;
+        if (struct !== "list") mapState.listRewire = null;
+
+        if (struct === "array") {
+          if (op === "S") {
+            mapState.arrayShift = null;
+            if (idx >= mapState.arraySize) {
+              return { outcome: "ok", msg: "Array [" + idx + "] Inspect (S): empty spare slot (O(1) direct check)." };
+            }
+            return { outcome: "ok", msg: "Array [" + idx + "] Inspect (S): O(1) direct jump using base + " + idx + " * size." };
+          }
+          if (op === "I") {
+            if (mapState.arraySize >= 6) {
+              mapState.arrayShift = null;
+              badgeArray.textContent = "full (6/6 — needs realloc)";
+              badgeArray.hidden = false;
+              if (idx === 5) {
+                return { outcome: "ok", msg: "Array is full (6/6): appending at [5] triggers reallocation and copies 6 elements." };
+              }
+              return { outcome: "warn", msg: "Array is full (6/6): no empty slot—inserting at [" + idx + "] requires reallocating + copying 6 elements." };
+            }
+            if (idx >= mapState.arraySize) {
+              const target = mapState.arraySize;
+              mapState.arraySize += 1;
+              mapState.arrayShift = { dir: "none", newIdx: target, shiftedIndices: [], badge: "0 shifted" };
+              return { outcome: "ok", msg: "Array Insert at [" + target + "] (end): 0 shifted—spare slot was free at the tail." };
+            }
+            const k = mapState.arraySize - idx;
+            const shifted = [];
+            for (let j = idx + 1; j <= mapState.arraySize; j++) shifted.push(j);
+            mapState.arraySize += 1;
+            mapState.arrayShift = {
+              dir: "right",
+              newIdx: idx,
+              shiftedIndices: shifted,
+              badge: k + (k === 1 ? " element shifted" : " elements shifted")
+            };
+            return {
+              outcome: "warn",
+              msg: "Array Insert at [" + idx + "]: " + k + (k === 1 ? " element" : " elements") +
+                " shifted right to make room (contiguous slots must move)."
+            };
+          }
+          if (op === "R") {
+            if (idx >= mapState.arraySize) {
+              mapState.arrayShift = { dir: "none", newIdx: null, shiftedIndices: [], badge: "0 shifted" };
+              return { outcome: "ok", msg: "Array [" + idx + "] is already empty: 0 shifted." };
+            }
+            if (idx === mapState.arraySize - 1) {
+              mapState.arraySize -= 1;
+              mapState.arrayShift = { dir: "none", newIdx: null, shiftedIndices: [], badge: "0 shifted" };
+              return { outcome: "ok", msg: "Array Remove at [" + idx + "] (last item): 0 shifted." };
+            }
+            const k = (mapState.arraySize - 1) - idx;
+            const shifted = [];
+            for (let j = idx; j < mapState.arraySize - 1; j++) shifted.push(j);
+            mapState.arraySize -= 1;
+            mapState.arrayShift = {
+              dir: "left",
+              newIdx: null,
+              shiftedIndices: shifted,
+              badge: k + (k === 1 ? " element shifted" : " elements shifted")
+            };
+            return {
+              outcome: "warn",
+              msg: "Array Remove at [" + idx + "]: " + k + (k === 1 ? " element" : " elements") +
+                " shifted left to close the gap."
+            };
+          }
+        }
+        if (struct === "list") {
+          const stepWord = idx === 1 ? "step" : "steps";
+          if (op === "S") {
+            mapState.listRewire = null;
+            if (idx === 0 || idx === 5) {
+              const end = idx === 0 ? "head" : "tail";
+              return { outcome: "ok", msg: "Linked list " + end + " Inspect (S): O(1) direct via " + end + " pointer." };
+            }
+            return { outcome: "warn", msg: "Linked list interior node Inspect (S): walks " + idx + " pointer " + stepWord + " from head (O(n))." };
+          }
+          const arrows = [];
+          if (idx > 0) arrows.push(idx - 1);
+          if (idx < 5) arrows.push(idx);
+          mapState.listRewire = {
+            idx: idx,
+            arrowIndices: arrows,
+            badge: "0 elements shifted (2 pointers changed)"
+          };
+          const spot = idx === 0 ? "head" : idx === 5 ? "tail" : "node " + idx;
+          const walkNote = idx > 0 && idx < 5 ? " after walking " + idx + " " + stepWord : "";
+          return {
+            outcome: idx === 0 || idx === 5 ? "ok" : "warn",
+            msg: "Linked list " + opName + " at " + spot + ": 0 elements shifted (2 pointers changed" + walkNote + ")."
+          };
+        }
+        if (struct === "stack") {
+          if (idx === 5) return { outcome: "ok", msg: "Stack top " + opName + ": O(1) allowed at top (LIFO)." };
+          return { outcome: "blocked", msg: "Stack slot " + idx + " " + opName + " is BLOCKED: Stack exposes only the top." };
+        }
+        if (struct === "queue") {
+          if (idx === 0 && (op === "R" || op === "S")) return { outcome: "ok", msg: "Queue front " + opName + ": O(1) allowed at the front." };
+          if (idx === 5 && op === "I") return { outcome: "ok", msg: "Queue back Insert (I): O(1) allowed at the back." };
+          if (idx === 0 && op === "I") return { outcome: "blocked", msg: "Queue front Insert (I) is BLOCKED: new items must enter at the back." };
+          if (idx === 5) return { outcome: "blocked", msg: "Queue back " + opName + " is BLOCKED: Queue reads/removes only at the front." };
+          return { outcome: "blocked", msg: "Queue middle slot " + idx + " " + opName + " is BLOCKED: FIFO allows ends only." };
+        }
+        if (struct === "deque") {
+          if (idx === 0 || idx === 5) return { outcome: "ok", msg: "Deque " + (idx === 0 ? "front" : "back") + " " + opName + ": O(1) allowed at both ends." };
+          return { outcome: "blocked", msg: "Deque middle slot " + idx + " " + opName + " is BLOCKED: ends only." };
+        }
+        if (struct === "ring") {
+          if (idx === mapState.ringCursor) return { outcome: "ok", msg: "Ring cursor [" + idx + "] " + opName + ": O(1) at the active slot." };
+          return { outcome: "blocked", msg: "Ring slot [" + idx + "] " + opName + " is BLOCKED now: cursor is at [" + mapState.ringCursor + "]." };
+        }
+        return { outcome: "blocked", msg: "Blocked." };
+      }
+
+      function markStep3Done() {
+        if (!navState.done[2]) {
+          navState.done[2] = true;
+          syncStepNav();
+        }
+      }
+
+      function renderAccessMap() {
+        ["array", "list", "stack", "queue", "deque", "ring"].forEach((struct) => {
+          const strip = document.querySelector('[data-strip="' + struct + '"]');
+          strip.innerHTML = "";
+          for (let i = 0; i < 6; i++) {
+            const spec = getCellSpec(struct, i, mapState.ringCursor, mapState.arraySize);
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "map-cell";
+            if (spec.locked) btn.classList.add("is-locked");
+            if (spec.isCursor) btn.classList.add("is-cursor");
+
+            if (struct === "array" && mapState.arrayShift) {
+              if (mapState.arrayShift.newIdx === i) {
+                btn.classList.add("is-new-slot");
+              } else if (mapState.arrayShift.shiftedIndices.indexOf(i) !== -1) {
+                btn.classList.add(mapState.arrayShift.dir === "right" ? "is-shift-right" : "is-shift-left");
+              } else if (mapState.probed && mapState.probed.struct === "array" && mapState.probed.idx === i) {
+                btn.classList.add("is-probed-" + mapState.probed.outcome);
+              }
+            } else if (struct === "list" && mapState.listRewire) {
+              if (mapState.listRewire.idx === i) {
+                btn.classList.add("is-new-slot");
+              }
+              if (mapState.listRewire.arrowIndices.indexOf(i) !== -1) {
+                btn.classList.add("is-rewired-arrow");
+              }
+            } else if (mapState.probed && mapState.probed.struct === struct && mapState.probed.idx === i) {
+              btn.classList.add("is-probed-" + mapState.probed.outcome);
+            }
+
+            const labelName = (STRUCT_NAMES.find((s) => s.id === struct) || { label: struct }).label;
+            btn.setAttribute("aria-label", labelName + " slot " + i + ": " + spec.letters + (spec.sub ? " " + spec.sub : ""));
+
+            const lSpan = document.createElement("span");
+            lSpan.className = "cell-letters";
+            lSpan.textContent = spec.letters;
+            btn.appendChild(lSpan);
+
+            if (spec.sub) {
+              const sSpan = document.createElement("span");
+              sSpan.className = "cell-sub";
+              sSpan.textContent = spec.sub;
+              btn.appendChild(sSpan);
+            }
+
+            btn.addEventListener("click", () => {
+              const res = evaluateProbe(struct, i, mapState.probeOp);
+              mapState.probed = { struct, idx: i, outcome: res.outcome };
+              markStep3Done();
+              renderAccessMap();
+              setStatus(2, res.msg, res.outcome !== "ok" || Boolean(mapState.listRewire));
+            });
+            strip.appendChild(btn);
+          }
+        });
+
+        if (mapState.arrayShift) {
+          badgeArray.textContent = mapState.arrayShift.badge;
+          badgeArray.hidden = false;
+        } else if (!(mapState.probed && mapState.probed.struct === "array" && mapState.arraySize >= 6 && mapState.probeOp === "I")) {
+          badgeArray.hidden = true;
+        }
+
+        if (mapState.listRewire) {
+          badgeList.textContent = mapState.listRewire.badge;
+          badgeList.hidden = false;
+        } else {
+          badgeList.hidden = true;
+        }
+
+        ringCursorNum.textContent = String(mapState.ringCursor);
+        ringWrapBar.classList.toggle("is-wrapped", mapState.ringJustWrapped);
+        ringWrapLabel.textContent = mapState.ringJustWrapped ? "WRAPPED: (5 + 1) % 6 = 0" : "loop: [5] -> [0]";
+      }
+
+      probeBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const op = btn.getAttribute("data-op");
+          mapState.probeOp = op;
+          mapState.arrayShift = null;
+          mapState.listRewire = null;
+          mapState.probed = null;
+          probeBtns.forEach((b) => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
+          renderAccessMap();
+          const label = op === "I" ? "Insert (I)" : op === "R" ? "Remove (R)" : "Inspect (S)";
+          setStatus(2, "Probe set to " + label + ". Click any cell on Array or Linked list to compare shifting vs pointer rewiring.", false);
+        });
+      });
+
+      btnStepRing.addEventListener("click", () => {
+        markStep3Done();
+        if (mapState.ringCursor === 5 && !mapState.ringWrapAnswered) {
+          ringPredictBanner.hidden = false;
+          setStatus(2, "Cursor reached tail [5]. Commit to a prediction before stepping past the end.", true);
+          return;
+        }
+        const prev = mapState.ringCursor;
+        mapState.ringCursor = (prev + 1) % 6;
+        mapState.ringJustWrapped = prev === 5 && mapState.ringCursor === 0;
+        renderAccessMap();
+        setStatus(
+          2,
+          mapState.ringJustWrapped
+            ? "Ring wrapped from [5] back to [0] via (5 + 1) % 6 = 0."
+            : "Ring cursor advanced from [" + prev + "] to [" + mapState.ringCursor + "].",
+          mapState.ringJustWrapped
+        );
+      });
+
+      ringGuessBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (mapState.ringWrapAnswered) return;
+          const guess = btn.getAttribute("data-ring-guess");
+          const isCorrect = guess === "0";
+          mapState.ringWrapAnswered = true;
+          ringGuessBtns.forEach((b) => {
+            b.disabled = true;
+            const g = b.getAttribute("data-ring-guess");
+            if (g === "0") b.classList.add(isCorrect ? "is-chosen-right" : "is-answer-reveal");
+            else if (g === guess && !isCorrect) b.classList.add("is-chosen-wrong");
+          });
+          mapState.ringCursor = 0;
+          mapState.ringJustWrapped = true;
+          markStep3Done();
+          renderAccessMap();
+          setStatus(2, (isCorrect ? "Correct: " : "Wrap rule: ") + "cursor at [5] wraps back to [0] using (5 + 1) % 6 = 0.", true);
+        });
+      });
+
+      btnResetStep3.addEventListener("click", () => {
+        mapState.probeOp = "S";
+        mapState.probed = null;
+        mapState.arraySize = 5;
+        mapState.arrayShift = null;
+        mapState.listRewire = null;
+        mapState.ringCursor = 4;
+        mapState.ringWrapAnswered = false;
+        mapState.ringJustWrapped = false;
+        badgeArray.hidden = true;
+        badgeList.hidden = true;
+        probeBtns.forEach((b) => b.setAttribute("aria-pressed", b.getAttribute("data-op") === "S" ? "true" : "false"));
+        ringPredictBanner.hidden = true;
+        ringGuessBtns.forEach((b) => {
+          b.disabled = false;
+          b.classList.remove("is-chosen-right", "is-chosen-wrong", "is-answer-reveal");
+        });
+        navState.done[2] = false;
+        syncStepNav();
+        renderAccessMap();
+        setStatus(2, "Reset: probe set to Inspect (S) and Ring cursor at [4].", false);
+      });
+
+      /* ==================== STEP 4: VISUAL JOB EXPLORER ==================== */
+      const jobBtns = Array.from(document.querySelectorAll(".job-btn"));
+      const jobStageTitle = document.getElementById("job-stage-title");
+      const btnJobStep = document.getElementById("btn-job-step");
+      const btnJobAlt = document.getElementById("btn-job-alt");
+      const jobSvg = document.getElementById("job-svg");
+      const jobReasonLine = document.getElementById("job-reason-line");
+      const matchMapEl = document.getElementById("match-map");
+      const btnResetStep4 = document.getElementById("btn-reset-step4");
+
+      const JOBS = {
+        undo: {
+          struct: "stack",
+          title: "Undo history -> Stack",
+          stepLabel: "Undo (Pop)",
+          altLabel: "New Edit (Push)",
+          reason: "Stack fits best: only the most recent edit is popped in O(1). A dynamic array or linked list can act as a stack, though they also expose deeper items."
+        },
+        printer: {
+          struct: "queue",
+          title: "Printer jobs -> Queue",
+          stepLabel: "Print Front",
+          altLabel: "Enqueue Doc",
+          reason: "Queue fits best: arrival order is the rule in O(1). A deque or ring buffer can also do this, but they allow more than the job needs."
+        },
+        roundrobin: {
+          struct: "ring",
+          title: "Round-robin turns -> Ring",
+          stepLabel: "Next Turn",
+          altLabel: null,
+          reason: "Ring fits best: the cursor wraps from the last player to P0. A queue also works if you re-enqueue each player after their turn."
+        },
+        indexlookup: {
+          struct: "array",
+          title: "Look up by index -> Array",
+          stepLabel: "Jump Next [i]",
+          altLabel: null,
+          reason: "Array fits best: index lookup is O(1) via base + i * size (append is amortized O(1)). A linked list can hold the same sequence, but jumping to [i] takes O(n) steps."
+        },
+        sliding: {
+          struct: "deque",
+          title: "Both-ends window -> Deque",
+          stepLabel: "Shift Right (+)",
+          altLabel: "Shift Left (-)",
+          reason: "Deque fits best: you add and remove at both ends in O(1). A ring buffer is a common way to implement one."
+        },
+        splice: {
+          struct: "list",
+          title: "Splice at cursor -> Linked list",
+          stepLabel: "Splice Node",
+          altLabel: null,
+          reason: "Linked list fits best: rewiring two pointers inserts or removes at the cursor without shifting. An array can hold the items, but middle splices shift O(n) elements."
+        }
+      };
+
+      const STRUCT_NAMES = [
+        { id: "array", label: "Array" },
+        { id: "list", label: "Linked list" },
+        { id: "stack", label: "Stack" },
+        { id: "queue", label: "Queue" },
+        { id: "deque", label: "Deque" },
+        { id: "ring", label: "Ring" }
+      ];
+
+      function initialJobData() {
+        return {
+          activeJob: null,
+          undoItems: ["Type a", "Bold", "Indent", "Paste"],
+          undoJust: null,
+          undoNextId: 1,
+          queueItems: ["Doc 1", "Doc 2", "Doc 3"],
+          queueNextId: 4,
+          queueJust: null,
+          ringIdx: 3,
+          ringWrapped: false,
+          arrayIdx: 3,
+          dequeItems: [12, 18, 24, 31],
+          dequeNextVal: 37,
+          dequeJust: null,
+          spliced: false
+        };
+      }
+
+      let jobState = initialJobData();
+
+      function renderMatchMap() {
+        const bestStruct = jobState.activeJob ? JOBS[jobState.activeJob].struct : null;
+        matchMapEl.innerHTML = "";
+        STRUCT_NAMES.forEach((st) => {
+          const row = document.createElement("div");
+          row.className = "match-row" + (bestStruct === st.id ? " is-best" : "");
+          row.setAttribute("data-match-struct", st.id);
+
+          const nameDiv = document.createElement("div");
+          nameDiv.className = "match-name";
+          nameDiv.innerHTML = '<span>' + st.label + '</span><span class="best-badge">Best fit</span>';
+
+          const cellsDiv = document.createElement("div");
+          cellsDiv.className = "match-cells";
+          for (let i = 0; i < 6; i++) {
+            const spec = getCellSpec(st.id, i, st.id === "ring" ? jobState.ringIdx : 0);
+            const cell = document.createElement("span");
+            cell.className = "match-cell" + (spec.locked ? " is-locked" : "");
+            cell.textContent = spec.letters;
+            cellsDiv.appendChild(cell);
+          }
+          row.appendChild(nameDiv);
+          row.appendChild(cellsDiv);
+          matchMapEl.appendChild(row);
+        });
+      }
+
+      function renderJobVisual() {
+        const key = jobState.activeJob || "undo";
+        const meta = JOBS[key];
+
+        if (jobState.activeJob) {
+          jobStageTitle.textContent = meta.title;
+          jobReasonLine.textContent = meta.reason;
+          jobReasonLine.classList.add("is-active");
+        } else {
+          jobStageTitle.textContent = "Preview: Undo history (pick any job above)";
+          jobReasonLine.textContent = "Select a job above or click Step Job to watch how its items move and highlight the best fit.";
+          jobReasonLine.classList.remove("is-active");
+        }
+
+        btnJobStep.textContent = meta.stepLabel;
+        if (meta.altLabel) {
+          btnJobAlt.hidden = false;
+          btnJobAlt.textContent = meta.altLabel;
+        } else {
+          btnJobAlt.hidden = true;
+        }
+
+        let svg = "";
+
+        if (key === "undo") {
+          const items = jobState.undoItems;
+          svg += '<rect x="215" y="18" width="210" height="132" fill="none" stroke="#161514" stroke-width="2" stroke-dasharray="0"/>';
+          svg += '<line x1="215" y1="18" x2="425" y2="18" stroke="#fcfbf8" stroke-width="4"/>';
+          svg += '<text x="120" y="90" text-anchor="middle" font-family="monospace" font-size="12" fill="#4a4743">closed bottom</text>';
+          svg += '<text x="520" y="34" text-anchor="middle" font-family="monospace" font-size="12" font-weight="700" fill="#c93b1b">top: I R S only</text>';
+          items.forEach((lbl, idx) => {
+            const y = 122 - idx * 27;
+            const isTop = idx === items.length - 1;
+            const isHot = isTop && jobState.undoJust === "push";
+            svg += '<rect x="228" y="' + y + '" width="184" height="23" rx="3" fill="' + (isHot ? "#c93b1b" : isTop ? "#fbeae5" : "#eae5db") + '" stroke="' + (isTop ? "#c93b1b" : "#161514") + '" stroke-width="1.5"/>';
+            svg += '<text x="320" y="' + (y + 15) + '" text-anchor="middle" font-family="monospace" font-size="12" font-weight="700" fill="' + (isHot ? "#fcfbf8" : "#161514") + '">' + lbl + (isTop ? "  [top]" : "") + '</text>';
+          });
+          if (items.length === 0) {
+            svg += '<text x="320" y="90" text-anchor="middle" font-family="monospace" font-size="12" fill="#78736d">(empty stack)</text>';
+          }
+          if (jobState.undoJust && jobState.undoJust.startsWith("pop:")) {
+            const popped = jobState.undoJust.slice(4);
+            svg += '<rect x="446" y="24" width="136" height="24" rx="3" fill="#c93b1b"/>';
+            svg += '<text x="514" y="40" text-anchor="middle" font-family="monospace" font-size="11" font-weight="700" fill="#fcfbf8">Undid: ' + popped + '</text>';
+          }
+        } else if (key === "printer") {
+          const items = jobState.queueItems;
+          svg += '<text x="74" y="28" text-anchor="middle" font-family="monospace" font-size="11" font-weight="700" fill="#161514">FRONT (R S)</text>';
+          svg += '<text x="566" y="28" text-anchor="middle" font-family="monospace" font-size="11" font-weight="700" fill="#161514">BACK (I)</text>';
+          svg += '<rect x="135" y="46" width="370" height="72" rx="4" fill="#f5f2eb" stroke="#161514" stroke-width="1.5"/>';
+          items.slice(0, 4).forEach((doc, idx) => {
+            const x = 148 + idx * 88;
+            const isFront = idx === 0;
+            const isBack = idx === items.length - 1;
+            const hot = (isBack && jobState.queueJust === "enq");
+            svg += '<rect x="' + x + '" y="62" width="78" height="40" rx="3" fill="' + (hot ? "#c93b1b" : isFront ? "#fbeae5" : "#fcfbf8") + '" stroke="' + (hot || isFront ? "#c93b1b" : "#161514") + '" stroke-width="1.5"/>';
+            svg += '<text x="' + (x + 39) + '" y="86" text-anchor="middle" font-family="monospace" font-size="12" font-weight="700" fill="' + (hot ? "#fcfbf8" : "#161514") + '">' + doc + '</text>';
+          });
+          if (jobState.queueJust && jobState.queueJust.startsWith("deq:")) {
+            const printed = jobState.queueJust.slice(4);
+            svg += '<rect x="24" y="62" width="90" height="40" rx="3" fill="#c93b1b"/>';
+            svg += '<text x="69" y="86" text-anchor="middle" font-family="monospace" font-size="11" font-weight="700" fill="#fcfbf8">Out: ' + printed + '</text>';
+          }
+          svg += '<text x="320" y="142" text-anchor="middle" font-family="monospace" font-size="11" fill="#4a4743">&lt;- Print next from front    |    New jobs join at back &lt;-</text>';
+        } else if (key === "roundrobin") {
+          const cx = 320, cy = 82, r = 56;
+          svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#ccc6ba" stroke-width="2" stroke-dasharray="4 3"/>';
+          for (let i = 0; i < 6; i++) {
+            const ang = -Math.PI / 2 + (i * Math.PI * 2) / 6;
+            const nx = cx + r * Math.cos(ang);
+            const ny = cy + r * Math.sin(ang);
+            const isCur = i === jobState.ringIdx;
+            svg += '<circle cx="' + nx.toFixed(1) + '" cy="' + ny.toFixed(1) + '" r="17" fill="' + (isCur ? "#c93b1b" : "#fcfbf8") + '" stroke="' + (isCur ? "#c93b1b" : "#161514") + '" stroke-width="1.8"/>';
+            svg += '<text x="' + nx.toFixed(1) + '" y="' + (ny + 4).toFixed(1) + '" text-anchor="middle" font-family="monospace" font-size="12" font-weight="700" fill="' + (isCur ? "#fcfbf8" : "#161514") + '">P' + i + '</text>';
+          }
+          svg += '<text x="530" y="76" text-anchor="middle" font-family="monospace" font-size="12" font-weight="700" fill="' + (jobState.ringWrapped ? "#c93b1b" : "#161514") + '">Turn: P' + jobState.ringIdx + '</text>';
+          svg += '<text x="530" y="96" text-anchor="middle" font-family="monospace" font-size="11" fill="#4a4743">' + (jobState.ringWrapped ? "Wrapped P5 -> P0" : "(i + 1) % 6") + '</text>';
+        } else if (key === "indexlookup") {
+          const vals = ["14", "27", "39", "52", "68", "81"];
+          const target = jobState.arrayIdx;
+          const tx = 114 + target * 82;
+          svg += '<path d="M 60 44 Q ' + ((60 + tx) / 2).toFixed(0) + ' 4 ' + tx + ' 58" fill="none" stroke="#c93b1b" stroke-width="2.2"/>';
+          svg += '<polygon points="' + tx + ',62 ' + (tx - 5) + ',52 ' + (tx + 5) + ',52" fill="#c93b1b"/>';
+          svg += '<text x="320" y="20" text-anchor="middle" font-family="monospace" font-size="11" font-weight="700" fill="#c93b1b">Direct jump: base + ' + target + ' * size (1 step)</text>';
+          vals.forEach((v, i) => {
+            const x = 78 + i * 82;
+            const isHit = i === target;
+            svg += '<rect x="' + x + '" y="68" width="72" height="46" rx="3" fill="' + (isHit ? "#c93b1b" : "#fcfbf8") + '" stroke="' + (isHit ? "#c93b1b" : "#161514") + '" stroke-width="1.6"/>';
+            svg += '<text x="' + (x + 36) + '" y="96" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="' + (isHit ? "#fcfbf8" : "#161514") + '">' + v + '</text>';
+            svg += '<text x="' + (x + 36) + '" y="134" text-anchor="middle" font-family="monospace" font-size="11" fill="#4a4743">[' + i + ']</text>';
+          });
+        } else if (key === "sliding") {
+          const items = jobState.dequeItems;
+          svg += '<text x="90" y="34" text-anchor="middle" font-family="monospace" font-size="11" font-weight="700" fill="#161514">FRONT (I R S)</text>';
+          svg += '<text x="550" y="34" text-anchor="middle" font-family="monospace" font-size="11" font-weight="700" fill="#161514">BACK (I R S)</text>';
+          svg += '<rect x="148" y="48" width="344" height="68" rx="4" fill="#f5f2eb" stroke="#161514" stroke-width="2"/>';
+          items.forEach((val, idx) => {
+            const x = 162 + idx * 82;
+            const isFrontHot = idx === 0 && jobState.dequeJust === "left";
+            const isBackHot = idx === items.length - 1 && jobState.dequeJust === "right";
+            const hot = isFrontHot || isBackHot;
+            svg += '<rect x="' + x + '" y="62" width="70" height="40" rx="3" fill="' + (hot ? "#c93b1b" : "#fcfbf8") + '" stroke="' + (hot ? "#c93b1b" : "#161514") + '" stroke-width="1.5"/>';
+            svg += '<text x="' + (x + 35) + '" y="86" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="' + (hot ? "#fcfbf8" : "#161514") + '">' + val + '</text>';
+          });
+          svg += '<text x="320" y="142" text-anchor="middle" font-family="monospace" font-size="11" fill="#4a4743">Open at both ends: slide window left or right in O(1)</text>';
+        } else if (key === "splice") {
+          if (!jobState.spliced) {
+            svg += '<rect x="90" y="64" width="90" height="42" rx="3" fill="#fcfbf8" stroke="#161514" stroke-width="1.6"/>';
+            svg += '<text x="135" y="90" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#161514">A</text>';
+            svg += '<line x1="180" y1="85" x2="265" y2="85" stroke="#161514" stroke-width="1.8"/>';
+            svg += '<polygon points="268,85 260,80 260,90" fill="#161514"/>';
+            svg += '<rect x="270" y="64" width="90" height="42" rx="3" fill="#fbeae5" stroke="#c93b1b" stroke-width="1.8"/>';
+            svg += '<text x="315" y="90" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#161514">B [cur]</text>';
+            svg += '<line x1="360" y1="85" x2="455" y2="85" stroke="#161514" stroke-width="1.8"/>';
+            svg += '<polygon points="458,85 450,80 450,90" fill="#161514"/>';
+            svg += '<rect x="460" y="64" width="90" height="42" rx="3" fill="#fcfbf8" stroke="#161514" stroke-width="1.6"/>';
+            svg += '<text x="505" y="90" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#161514">D</text>';
+            svg += '<text x="320" y="138" text-anchor="middle" font-family="monospace" font-size="11" fill="#4a4743">Click Splice Node to insert C after B with 0 shifts</text>';
+          } else {
+            svg += '<rect x="52" y="72" width="84" height="40" rx="3" fill="#fcfbf8" stroke="#161514" stroke-width="1.6"/>';
+            svg += '<text x="94" y="97" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#161514">A</text>';
+            svg += '<line x1="136" y1="92" x2="188" y2="92" stroke="#161514" stroke-width="1.8"/>';
+            svg += '<polygon points="191,92 183,87 183,97" fill="#161514"/>';
+            svg += '<rect x="194" y="72" width="84" height="40" rx="3" fill="#fcfbf8" stroke="#161514" stroke-width="1.6"/>';
+            svg += '<text x="236" y="97" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#161514">B</text>';
+            svg += '<line x1="278" y1="84" x2="326" y2="48" stroke="#c93b1b" stroke-width="2.2"/>';
+            svg += '<polygon points="330,45 320,46 325,54" fill="#c93b1b"/>';
+            svg += '<rect x="332" y="24" width="88" height="40" rx="3" fill="#c93b1b"/>';
+            svg += '<text x="376" y="49" text-anchor="middle" font-family="monospace" font-size="13" font-weight="700" fill="#fcfbf8">C (new)</text>';
+            svg += '<line x1="420" y1="48" x2="472" y2="84" stroke="#c93b1b" stroke-width="2.2"/>';
+            svg += '<polygon points="476,87 470,78 465,86" fill="#c93b1b"/>';
+            svg += '<rect x="478" y="72" width="84" height="40" rx="3" fill="#fcfbf8" stroke="#161514" stroke-width="1.6"/>';
+            svg += '<text x="520" y="97" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#161514">D</text>';
+            svg += '<text x="320" y="142" text-anchor="middle" font-family="monospace" font-size="12" font-weight="700" fill="#c93b1b">Rewired 2 pointers in O(1); D never shifted</text>';
+          }
+        }
+
+        jobSvg.innerHTML = svg;
+      }
+
+      function selectJob(jobId) {
+        jobState.activeJob = jobId;
+        const job = JOBS[jobId];
+        jobBtns.forEach((b) => b.setAttribute("aria-pressed", b.getAttribute("data-job") === jobId ? "true" : "false"));
+        navState.done[3] = true;
+        syncStepNav();
+        renderMatchMap();
+        renderJobVisual();
+        const structLabel = (STRUCT_NAMES.find((s) => s.id === job.struct) || { label: job.struct }).label;
+        setStatus(3, "Best fit for \"" + job.title.split(" -> ")[0] + "\": " + structLabel + ". " + job.reason, true);
+      }
+
+      jobBtns.forEach((btn) => {
+        btn.addEventListener("click", () => selectJob(btn.getAttribute("data-job")));
+      });
+
+      btnJobStep.addEventListener("click", () => {
+        const key = jobState.activeJob || "undo";
+        if (!jobState.activeJob) selectJob("undo");
+
+        if (key === "undo") {
+          if (jobState.undoItems.length > 0) {
+            const popped = jobState.undoItems.pop();
+            jobState.undoJust = "pop:" + popped;
+            setStatus(3, "Popped \"" + popped + "\" from the top of the Stack in O(1).", true);
+          } else {
+            jobState.undoItems = ["Type a", "Bold", "Indent"];
+            jobState.undoJust = "push";
+            setStatus(3, "Refilled undo stack with 3 edits.", false);
+          }
+        } else if (key === "printer") {
+          if (jobState.queueItems.length > 0) {
+            const front = jobState.queueItems.shift();
+            jobState.queueJust = "deq:" + front;
+            setStatus(3, "Printed \"" + front + "\" from the front (R S) in arrival order.", true);
+          } else {
+            jobState.queueItems = ["Doc " + jobState.queueNextId++, "Doc " + jobState.queueNextId++];
+            jobState.queueJust = "enq";
+            setStatus(3, "Added new print documents at the back (I).", false);
+          }
+        } else if (key === "roundrobin") {
+          const prev = jobState.ringIdx;
+          jobState.ringIdx = (prev + 1) % 6;
+          jobState.ringWrapped = prev === 5 && jobState.ringIdx === 0;
+          setStatus(
+            3,
+            jobState.ringWrapped
+              ? "Turn wrapped from P5 back to P0 via (5 + 1) % 6 = 0."
+              : "Turn advanced from P" + prev + " to P" + jobState.ringIdx + ".",
+            jobState.ringWrapped
+          );
+          renderMatchMap();
+        } else if (key === "indexlookup") {
+          jobState.arrayIdx = (jobState.arrayIdx + 1) % 6;
+          setStatus(3, "Jumped straight to Array index [" + jobState.arrayIdx + "] in 1 step (index lookup is O(1); append is amortized O(1)).", true);
+        } else if (key === "sliding") {
+          jobState.dequeItems.shift();
+          jobState.dequeItems.push(jobState.dequeNextVal++);
+          jobState.dequeJust = "right";
+          setStatus(3, "Deque slid right: dropped front item (R) and pushed new value at back (I).", true);
+        } else if (key === "splice") {
+          jobState.spliced = !jobState.spliced;
+          setStatus(
+            3,
+            jobState.spliced
+              ? "Spliced node C after B by rewiring 2 pointers in O(1)—no elements shifted."
+              : "Removed node C by rewiring B -> D directly.",
+            true
+          );
+        }
+        renderJobVisual();
+      });
+
+      btnJobAlt.addEventListener("click", () => {
+        const key = jobState.activeJob || "undo";
+        if (key === "undo") {
+          if (jobState.undoItems.length < 4) {
+            jobState.undoItems.push("Edit #" + jobState.undoNextId++);
+          } else {
+            jobState.undoItems[3] = "Edit #" + jobState.undoNextId++;
+          }
+          jobState.undoJust = "push";
+          setStatus(3, "Pushed a new edit onto the top of the Stack in O(1).", true);
+        } else if (key === "printer") {
+          if (jobState.queueItems.length < 4) {
+            jobState.queueItems.push("Doc " + jobState.queueNextId++);
+            jobState.queueJust = "enq";
+            setStatus(3, "Enqueued new document at the back of the Queue (I).", true);
+          } else {
+            setStatus(3, "Tray full (4 docs) — click Print Front to dequeue from the front.", false);
+          }
+        } else if (key === "sliding") {
+          jobState.dequeItems.pop();
+          const prevVal = jobState.dequeItems[0] - 6;
+          jobState.dequeItems.unshift(prevVal);
+          jobState.dequeJust = "left";
+          setStatus(3, "Deque slid left: pushed at front (I) and popped from back (R).", true);
+        }
+        renderJobVisual();
+      });
+
+      btnResetStep4.addEventListener("click", () => {
+        jobState = initialJobData();
+        jobBtns.forEach((b) => b.setAttribute("aria-pressed", "false"));
+        navState.done[3] = false;
+        syncStepNav();
+        renderMatchMap();
+        renderJobVisual();
+        setStatus(3, "Reset: pick any job to animate its data flow and highlight its best fit.", false);
+      });
+
+      /* Initial Render */
+      resetWorkbench(false);
+      renderRace();
+      renderAccessMap();
+      renderMatchMap();
+      renderJobVisual();
+      syncStepNav();
+    })();
+  </script>
+</body>
+</html>
