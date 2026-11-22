@@ -1,0 +1,3326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Walking through a tree</title>
+  <style>
+    :root {
+      --paper: #faf8f3;
+      --paper-alt: #f1eee6;
+      --surface: #ffffff;
+      --ink: #1b1b1b;
+      --ink-muted: #555555;
+      --ink-faint: #8a8a8a;
+      --text-faint: #6b6b6b;
+      --rule: #d6d2c8;
+      --vermilion: #d9441c;
+      --vermilion-tint: #fbe9e2;
+      --font-serif: Georgia, "Times New Roman", serif;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      line-height: 1.45;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .app {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 10px 16px 24px;
+    }
+
+    /* Header */
+    .masthead {
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: clamp(1.25rem, 2.3vw, 1.58rem);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+    }
+
+    h2 {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: -1.5px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .tab-btn {
+      appearance: none;
+      min-height: 44px;
+      padding: 7px 15px;
+      border: 1.5px solid var(--ink);
+      border-bottom: 0;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      background: var(--paper-alt);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .tab-btn:hover:not([aria-selected="true"]) {
+      background: var(--surface);
+    }
+
+    .tab-btn[aria-selected="true"] {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    .tab-panel {
+      background: var(--surface);
+      border: 1.5px solid var(--ink);
+      border-radius: 0 var(--radius-md) var(--radius-md) var(--radius-md);
+      padding: 10px 14px;
+    }
+
+    .tab-intro {
+      margin: 0 0 8px;
+      font-size: 0.92rem;
+      color: var(--ink-muted);
+      line-height: 1.35;
+    }
+
+    .tab-intro-sub {
+      margin-top: -4px;
+      margin-bottom: 8px;
+    }
+
+    .rule-slot {
+      margin-top: 8px;
+    }
+
+    .rule-toggle-row {
+      margin-bottom: 6px;
+    }
+
+    .rule-card {
+      margin: 0 0 8px;
+      padding: 6px 10px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      line-height: 1.36;
+      color: var(--ink);
+    }
+
+    .rule-lines {
+      margin: 0 0 6px;
+    }
+
+    .rule-line {
+      padding: 2px 6px;
+      border-radius: 3px;
+      white-space: pre-wrap;
+      color: var(--ink);
+    }
+
+    .rule-line.is-visit {
+      color: var(--vermilion);
+      font-weight: 700;
+    }
+
+    .rule-line.is-active {
+      background: var(--ink);
+      color: var(--paper);
+      font-weight: 700;
+    }
+
+    .rule-note {
+      margin: 4px 0 6px;
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      color: var(--ink-muted);
+    }
+
+    .rule-good-for {
+      margin: 0;
+      padding-top: 4px;
+      border-top: 1px solid var(--rule);
+      font-size: 0.95rem;
+      color: var(--ink-muted);
+    }
+
+    .rule-good-for strong {
+      color: var(--ink);
+    }
+
+    .order-control-group {
+      align-items: flex-start;
+    }
+
+    .order-control-group .control-label {
+      line-height: 44px;
+    }
+
+    .order-control-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .order-hint {
+      font-size: 0.875rem;
+      color: var(--ink-muted);
+    }
+
+    /* Focus rings strictly ink (never vermilion) */
+    button:focus-visible,
+    select:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 2px solid var(--ink);
+      outline-offset: 2px;
+    }
+
+    /* Controls */
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 6px 12px;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .playback-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .control-group {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .control-label {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .segmented {
+      display: inline-flex;
+      flex-wrap: wrap;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      background: var(--paper);
+    }
+
+    .seg-btn {
+      appearance: none;
+      min-height: 44px;
+      padding: 6px 10px;
+      border: 0;
+      border-right: 1px solid var(--ink);
+      background: transparent;
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .seg-btn:last-child {
+      border-right: 0;
+    }
+
+    .seg-btn:hover:not([aria-pressed="true"]):not(:disabled) {
+      background: var(--paper-alt);
+    }
+
+    .seg-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .seg-btn[aria-pressed="true"] {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    .action-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    .btn {
+      appearance: none;
+      min-height: 44px;
+      padding: 6px 14px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: var(--paper-alt);
+    }
+
+    .btn.is-primary {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    .btn.is-primary:hover:not(:disabled) {
+      background: #333333;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-sm {
+      min-height: 44px;
+      padding: 6px 12px;
+      font-size: 0.875rem;
+    }
+
+    .container-caption {
+      margin: 8px 0 0;
+      padding-top: 8px;
+      border-top: 1px solid var(--rule);
+      font-size: 0.875rem;
+      color: var(--ink-muted);
+    }
+
+    /* Widget stage */
+    .stage-box {
+      background: var(--paper);
+      border-radius: var(--radius-sm);
+      padding: 6px 8px;
+      margin-bottom: 8px;
+    }
+
+    .tree-svg {
+      width: 100%;
+      max-width: 600px;
+      max-height: min(300px, 34vh);
+      height: auto;
+      display: block;
+      margin: 0 auto;
+      user-select: none;
+    }
+
+    .tree-edge {
+      stroke: var(--ink-faint);
+      stroke-width: 1.8;
+      stroke-linecap: round;
+    }
+
+    .tree-edge.is-path {
+      stroke: var(--ink);
+      stroke-width: 3;
+    }
+
+    .tree-node-hit {
+      fill: transparent;
+      stroke: none;
+      pointer-events: all;
+    }
+
+    .tree-node-circle {
+      fill: var(--paper);
+      stroke: var(--ink);
+      stroke-width: 2;
+    }
+
+    .tree-node-text {
+      fill: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    .tree-node.is-visited .tree-node-circle {
+      fill: var(--ink);
+      stroke: var(--ink);
+    }
+
+    .tree-node.is-visited .tree-node-text {
+      fill: var(--paper);
+    }
+
+    .tree-node.is-just-visited .tree-node-circle {
+      fill: var(--vermilion);
+      stroke: var(--vermilion);
+    }
+
+    .tree-node.is-just-visited .tree-node-text {
+      fill: #ffffff;
+    }
+
+    .tree-node.is-wrong .tree-node-circle {
+      fill: var(--vermilion-tint);
+      stroke: var(--vermilion);
+      stroke-width: 2.5;
+    }
+
+    .tree-node.is-wrong .tree-node-text {
+      fill: var(--vermilion);
+    }
+
+    .tree-node.is-interactive {
+      cursor: pointer;
+    }
+
+    .tree-node.is-interactive:hover .tree-node-circle {
+      stroke-width: 2.75;
+    }
+
+    .tree-node.is-interactive:focus-visible {
+      outline: none;
+    }
+
+    .tree-node.is-interactive:focus-visible .tree-node-circle {
+      stroke-width: 3.2;
+    }
+
+    @keyframes wrong-shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-5px); }
+      40% { transform: translateX(5px); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(4px); }
+    }
+
+    .is-wrong .node-shake,
+    .container-item.is-wrong {
+      animation: wrong-shake 0.3s ease;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .is-wrong .node-shake,
+      .container-item.is-wrong {
+        animation: none;
+      }
+    }
+
+    /* Legend */
+    .tree-legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 4px 14px;
+      margin-top: 6px;
+      padding-top: 2px;
+      font-size: 0.875rem;
+      color: var(--ink-muted);
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-swatch {
+      width: 20px;
+      height: 20px;
+      flex: 0 0 auto;
+    }
+
+    .legend-circle-visited {
+      fill: var(--ink);
+      stroke: var(--ink);
+      stroke-width: 2;
+    }
+
+    .legend-circle-just {
+      fill: var(--vermilion);
+      stroke: var(--vermilion);
+      stroke-width: 2;
+    }
+
+    .legend-line-path {
+      stroke: var(--ink);
+      stroke-width: 3;
+      stroke-linecap: round;
+    }
+
+    /* Output strip */
+    .strip-block {
+      margin-bottom: 8px;
+    }
+
+    .strip-head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 5px;
+    }
+
+    .strip-label {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .output-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .strip-cell {
+      min-width: 34px;
+      height: 34px;
+      padding: 0 8px;
+      border: 1.5px solid var(--rule);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      color: var(--text-faint);
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .strip-cell.is-filled {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: var(--paper);
+    }
+
+    .strip-cell.is-newest {
+      background: var(--vermilion);
+      border-color: var(--vermilion);
+      color: #ffffff;
+    }
+
+    .ref-line {
+      margin: 6px 0 0;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      color: var(--ink-muted);
+    }
+
+    /* Status line */
+    .status {
+      margin: 0;
+      padding: 7px 11px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-left: 3px solid var(--ink);
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      color: var(--ink);
+      min-height: 38px;
+    }
+
+    .status.is-wrong {
+      background: var(--vermilion-tint);
+      border-color: var(--vermilion);
+      border-left-width: 3px;
+    }
+
+    .status + .strip-block,
+    .status-row + .strip-block {
+      margin-top: 8px;
+    }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-row .status {
+      flex: 1 1 240px;
+    }
+
+    /* Reading card */
+    .reading-card {
+      margin-top: 12px;
+      padding: 12px 14px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+    }
+
+    .reading-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .reading-guide {
+      margin: 0 0 10px;
+      font-size: 0.88rem;
+      color: var(--ink-muted);
+    }
+
+    .reading-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .reading-row {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      align-items: center;
+      gap: 8px;
+    }
+
+    .reading-row-label {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .reading-row-sub {
+      font-weight: 400;
+      color: var(--ink-muted);
+      font-size: 0.875rem;
+    }
+
+    .reading-tokens {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      font-family: var(--font-mono);
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+
+    .reading-token {
+      min-width: 26px;
+      height: 28px;
+      padding: 0 6px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-faint);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .reading-token.is-revealed {
+      border-color: var(--ink);
+      color: var(--ink);
+    }
+
+    .reading-token.is-accent {
+      background: var(--vermilion);
+      border-color: var(--vermilion);
+      color: #ffffff;
+    }
+
+    .reading-note {
+      margin: 0 0 8px;
+      font-size: 0.875rem;
+      color: var(--ink);
+    }
+
+    /* Reverse check quiz card */
+    .quiz-card {
+      margin-top: 12px;
+      padding: 12px 14px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+    }
+
+    .quiz-head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .quiz-guide {
+      margin: 0 0 10px;
+      font-size: 0.88rem;
+      color: var(--ink-muted);
+    }
+
+    .quiz-tree-svg {
+      width: 100%;
+      max-width: 340px;
+      max-height: 220px;
+      height: auto;
+      display: block;
+      margin: 0 auto 10px;
+      user-select: none;
+    }
+
+    .quiz-seq {
+      margin-bottom: 10px;
+    }
+
+    .quiz-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .btn.is-quiz-right {
+      background: var(--ink);
+      color: var(--paper);
+      border-color: var(--ink);
+    }
+
+    .btn.is-quiz-wrong {
+      background: var(--vermilion-tint);
+      border-color: var(--vermilion);
+      color: var(--vermilion);
+    }
+
+    .quiz-feedback {
+      margin-top: 10px;
+    }
+
+    /* Tab 2 layout */
+    .t2-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.95fr);
+      grid-template-rows: auto auto 1fr auto;
+      gap: 8px 12px;
+      align-items: start;
+    }
+
+    .t2-tree {
+      grid-column: 1;
+      grid-row: 1;
+      margin-bottom: 0;
+    }
+
+    .t2-playback {
+      grid-column: 1;
+      grid-row: 2;
+      margin-bottom: 0;
+    }
+
+    .t2-status {
+      grid-column: 1;
+      grid-row: 3;
+    }
+
+    .t2-side {
+      grid-column: 2;
+      grid-row: 1 / span 3;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .t2-strip {
+      grid-column: 1 / -1;
+      grid-row: 4;
+      margin-bottom: 0;
+    }
+
+    .panel-card {
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      padding: 8px 11px;
+    }
+
+    .panel-card-title {
+      margin: 0 0 6px;
+      font-size: 0.875rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--ink-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Container view: Stack & Queue */
+    .stack-shell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .container-end-label {
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+      text-transform: lowercase;
+    }
+
+    .stack-pile {
+      width: 92px;
+      min-height: 92px;
+      padding: 6px;
+      border-left: 1.5px solid var(--ink);
+      border-right: 1.5px solid var(--ink);
+      border-bottom: 2px solid var(--ink);
+      border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column-reverse;
+      justify-content: flex-start;
+      align-items: stretch;
+      gap: 4px;
+    }
+
+    .queue-shell {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .queue-ends {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .queue-track {
+      min-height: 58px;
+      padding: 6px 8px;
+      border-top: 1.5px solid var(--ink);
+      border-bottom: 1.5px solid var(--ink);
+      background: var(--surface);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .container-empty {
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+      color: var(--text-faint);
+      margin: auto;
+      text-align: center;
+    }
+
+    .container-item {
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0 10px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+
+    .container-item.is-just-added {
+      background: var(--vermilion);
+      border-color: var(--vermilion);
+      color: #ffffff;
+    }
+
+    .container-item.is-just-removed {
+      background: var(--vermilion);
+      border-color: var(--vermilion);
+      color: #ffffff;
+    }
+
+    .container-item.is-wrong {
+      background: var(--vermilion-tint);
+      border-color: var(--vermilion);
+      color: var(--vermilion);
+    }
+
+    .container-item.is-clickable {
+      cursor: pointer;
+    }
+
+    .container-item.is-clickable:hover {
+      background: var(--paper-alt);
+    }
+
+    .container-item.is-just-added.is-clickable:hover {
+      background: var(--vermilion);
+    }
+
+    .taken-row {
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 32px;
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+      color: var(--ink-muted);
+    }
+
+    .taken-row .container-item {
+      min-width: 34px;
+      min-height: 30px;
+      height: 30px;
+      padding: 0 8px;
+    }
+
+    /* Pseudo-code */
+    .pseudo-code {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .pseudo-line {
+      padding: 2px 6px;
+      border-radius: 3px;
+      white-space: pre-wrap;
+      color: var(--ink);
+    }
+
+    .pseudo-line.is-active {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    /* Responsive */
+    @media (max-width: 760px) {
+      .order-control-stack .segmented {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        border: 0;
+        border-radius: 0;
+        overflow: visible;
+        background: transparent;
+      }
+      .order-control-stack .segmented .seg-btn {
+        border: 1.5px solid var(--ink);
+        border-radius: var(--radius-sm);
+        background: var(--paper);
+      }
+      .order-control-stack .segmented .seg-btn[aria-pressed="true"] {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .app {
+        padding: 12px 10px 24px;
+      }
+      .tab-panel {
+        padding: 12px;
+        border-radius: 0 0 var(--radius-md) var(--radius-md);
+      }
+      .t2-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .t2-side {
+        display: contents;
+      }
+      .t2-playback {
+        position: sticky;
+        bottom: 0;
+        z-index: 10;
+        background: var(--paper);
+        padding: 8px 10px;
+        border: 1px solid var(--rule);
+        border-radius: var(--radius-sm);
+      }
+      .action-group {
+        margin-left: 0;
+      }
+      .reading-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="masthead">
+      <h1>Walking through a tree</h1>
+    </header>
+
+    <div class="tab-bar" role="tablist" aria-label="Tree traversal lessons">
+      <button
+        type="button"
+        class="tab-btn"
+        id="tab-btn-orders"
+        role="tab"
+        aria-selected="true"
+        aria-controls="panel-orders"
+      >1. Orders</button>
+      <button
+        type="button"
+        class="tab-btn"
+        id="tab-btn-container"
+        role="tab"
+        aria-selected="false"
+        aria-controls="panel-container"
+        tabindex="-1"
+      >2. Replacing recursion</button>
+    </div>
+
+    <!-- TAB 1: ORDERS -->
+    <section
+      class="tab-panel"
+      id="panel-orders"
+      role="tabpanel"
+      aria-labelledby="tab-btn-orders"
+    >
+      <p class="tab-intro">
+        Four ways to list a tree's nodes. Watch a walk, then try it yourself.
+      </p>
+
+      <div class="controls-row">
+        <div class="control-group order-control-group">
+          <span class="control-label">Order</span>
+          <div class="order-control-stack">
+            <div class="segmented" role="group" aria-label="Order">
+              <button type="button" class="seg-btn t1-order-btn" data-order="pre" aria-pressed="true">Pre-order</button>
+              <button type="button" class="seg-btn t1-order-btn" data-order="in" aria-pressed="false">In-order</button>
+              <button type="button" class="seg-btn t1-order-btn" data-order="post" aria-pressed="false">Post-order</button>
+              <button type="button" class="seg-btn t1-order-btn" data-order="level" aria-pressed="false">Level order</button>
+            </div>
+            <span class="order-hint" id="t1-inorder-note" hidden>In-order needs left and right children</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <span class="control-label">Tree</span>
+          <div class="segmented" role="group" aria-label="Tree">
+            <button type="button" class="seg-btn" id="t1-tree-binary" aria-pressed="true">Binary tree</button>
+            <button type="button" class="seg-btn" id="t1-tree-expr" aria-pressed="false">Expression tree</button>
+            <button type="button" class="seg-btn" id="t1-tree-ten" aria-pressed="false">General tree</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <span class="control-label">Mode</span>
+          <div class="segmented" role="group" aria-label="Mode">
+            <button type="button" class="seg-btn" id="t1-mode-watch" aria-pressed="true">Watch</button>
+            <button type="button" class="seg-btn" id="t1-mode-predict" aria-pressed="false">Try it</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage-box">
+        <svg id="t1-svg" class="tree-svg" viewBox="45 8 500 292" aria-label="Binary tree"></svg>
+        <div class="tree-legend" id="t1-legend" aria-label="Tree node legend">
+          <span class="legend-item">
+            <svg class="legend-swatch" viewBox="-15 -15 30 30" aria-hidden="true">
+              <circle class="legend-circle-visited" r="9"></circle>
+            </svg>
+            visited
+          </span>
+          <span class="legend-item">
+            <svg class="legend-swatch" viewBox="-15 -15 30 30" aria-hidden="true">
+              <circle class="legend-circle-just" r="9"></circle>
+            </svg>
+            just visited
+          </span>
+          <span class="legend-item" id="t1-legend-path" hidden>
+            <svg class="legend-swatch" viewBox="-15 -15 30 30" aria-hidden="true">
+              <line class="legend-line-path" x1="-11" y1="0" x2="11" y2="0"></line>
+            </svg>
+            bold line: the way back up
+          </span>
+        </div>
+      </div>
+
+      <div class="playback-row">
+        <button type="button" class="btn is-primary" id="t1-step">Step</button>
+        <button type="button" class="btn" id="t1-back" disabled>Back</button>
+        <button type="button" class="btn" id="t1-play">Play</button>
+        <button type="button" class="btn" id="t1-reset">Restart</button>
+      </div>
+
+      <div class="status-row">
+        <p class="status" id="t1-status" aria-live="polite"></p>
+        <button type="button" class="btn btn-sm" id="t1-show-step" hidden>Show me this step</button>
+      </div>
+
+      <div class="strip-block">
+        <div class="strip-head">
+          <span class="strip-label" id="t1-strip-label">Output</span>
+        </div>
+        <div class="output-strip" id="t1-strip" aria-label="Visited output strip"></div>
+      </div>
+
+      <div class="rule-slot" id="t1-rule-slot">
+        <div class="rule-toggle-row" id="t1-rule-toggle-row">
+          <button type="button" class="btn btn-sm" id="t1-rule-toggle" aria-expanded="false" aria-controls="t1-rule-card">Show the rule</button>
+        </div>
+        <div class="rule-card" id="t1-rule-card" aria-label="Order rule" hidden>
+          <div class="rule-lines" id="t1-rule-lines"></div>
+          <p class="rule-good-for" id="t1-rule-good-for"></p>
+        </div>
+      </div>
+
+      <div class="reading-card" id="reading-card" hidden>
+        <div class="reading-head">
+          <h2 id="reading-heading">Compare the walks</h2>
+          <button type="button" class="btn btn-sm" id="reading-reset">Clear</button>
+        </div>
+        <p class="reading-guide" id="reading-guide">Complete all four walks above to compare them side by side.</p>
+        <div class="reading-rows" id="reading-rows"></div>
+        <p class="reading-note" id="reading-note" hidden>
+          Read flat, this means a + (b * a) + c. Infix needs brackets: (a + b) * (a + c). The red * is the root. It sits between its two sides, so without brackets it only grabs b and a. Prefix and postfix never need brackets.
+        </p>
+      </div>
+
+      <div class="quiz-card" id="quiz-card" hidden>
+        <div class="quiz-head">
+          <h2>Which order is this?</h2>
+          <button type="button" class="btn" id="quiz-next">Another one</button>
+        </div>
+        <p class="quiz-guide" id="quiz-guide">Look at the tree above and choose the walk that gives this sequence.</p>
+        <svg id="quiz-svg" class="quiz-tree-svg" viewBox="100 6 320 276" aria-label="Quiz tree"></svg>
+        <div class="reading-tokens quiz-seq" id="quiz-seq" aria-label="Sequence to identify"></div>
+        <div class="quiz-options" id="quiz-options" role="group" aria-label="Order choices">
+          <button type="button" class="btn quiz-opt-btn" data-order="pre">Pre-order</button>
+          <button type="button" class="btn quiz-opt-btn" data-order="in">In-order</button>
+          <button type="button" class="btn quiz-opt-btn" data-order="post">Post-order</button>
+          <button type="button" class="btn quiz-opt-btn" data-order="level">Level order</button>
+        </div>
+        <p class="status quiz-feedback" id="quiz-feedback" aria-live="polite" hidden></p>
+      </div>
+    </section>
+
+    <!-- TAB 2: REPLACING RECURSION -->
+    <section
+      class="tab-panel"
+      id="panel-container"
+      role="tabpanel"
+      aria-labelledby="tab-btn-container"
+      hidden
+    >
+      <p class="tab-intro">
+        Swap recursion for a to-do list: take one out, visit it, put its children in. The kind of list decides the walk.
+      </p>
+
+      <div class="controls-row">
+        <div class="control-group">
+          <span class="control-label">To-do list</span>
+          <div class="segmented" role="group" aria-label="To-do list type">
+            <button type="button" class="seg-btn" id="t2-kind-stack" aria-pressed="true">Stack</button>
+            <button type="button" class="seg-btn" id="t2-kind-queue" aria-pressed="false">Queue</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <span class="control-label">Mode</span>
+          <div class="segmented" role="group" aria-label="Mode">
+            <button type="button" class="seg-btn" id="t2-mode-watch" aria-pressed="true">Watch</button>
+            <button type="button" class="seg-btn" id="t2-mode-predict" aria-pressed="false">Try it</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="t2-grid">
+        <div class="stage-box t2-tree">
+          <svg id="t2-svg" class="tree-svg" viewBox="45 8 500 292" aria-label="Binary tree"></svg>
+          <div class="tree-legend" id="t2-legend" aria-label="Tree node legend">
+            <span class="legend-item">
+              <svg class="legend-swatch" viewBox="-15 -15 30 30" aria-hidden="true">
+                <circle class="legend-circle-visited" r="9"></circle>
+              </svg>
+              visited
+            </span>
+            <span class="legend-item">
+              <svg class="legend-swatch" viewBox="-15 -15 30 30" aria-hidden="true">
+                <circle class="legend-circle-just" r="9"></circle>
+              </svg>
+              just visited
+            </span>
+          </div>
+        </div>
+
+        <div class="playback-row t2-playback">
+          <button type="button" class="btn is-primary" id="t2-step">Take one out</button>
+          <button type="button" class="btn" id="t2-back" disabled>Back</button>
+          <button type="button" class="btn" id="t2-play">Play</button>
+          <button type="button" class="btn" id="t2-reset">Restart</button>
+        </div>
+
+        <div class="status-row t2-status">
+          <p class="status" id="t2-status" aria-live="polite"></p>
+          <button type="button" class="btn btn-sm" id="t2-show-step" hidden>Show me this step</button>
+        </div>
+
+        <div class="t2-side">
+          <div class="panel-card">
+            <div class="panel-card-title">
+              <span id="t2-container-title">Stack (to-do)</span>
+            </div>
+            <div id="t2-container-view"></div>
+            <div class="taken-row" id="t2-taken-row" aria-live="off"></div>
+            <p class="container-caption" id="t2-stack-note">
+              Children go in right to left, so the leftmost is on top. That makes the stack match pre-order from tab 1.
+            </p>
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-card-title"><span>Loop</span></div>
+            <ol class="pseudo-code" id="t2-pseudo">
+              <li class="pseudo-line" data-line="0">stack.push(root)</li>
+              <li class="pseudo-line" data-line="1">while !stack.isEmpty():</li>
+              <li class="pseudo-line" data-line="2">    x = stack.pop()</li>
+              <li class="pseudo-line" data-line="3">    visit x</li>
+              <li class="pseudo-line" data-line="4">    push children, right to left</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="strip-block t2-strip">
+          <div class="strip-head">
+            <span class="strip-label" id="t2-strip-label">Visited output (Stack)</span>
+          </div>
+          <div class="output-strip" id="t2-strip" aria-label="Visited output strip"></div>
+          <p class="ref-line" id="t2-ref-line"></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+
+      /* ----------------------------------------------------------
+       * Tree models & metadata helpers
+       * ---------------------------------------------------------- */
+      function buildTreeModel(spec) {
+        const nodes = Object.keys(spec.pos);
+        const parent = {};
+        const depth = {};
+        const edges = [];
+
+        parent[spec.root] = null;
+        depth[spec.root] = 0;
+
+        const queue = [spec.root];
+        let head = 0;
+        while (head < queue.length) {
+          const u = queue[head++];
+          const kids = spec.children[u] || [];
+          for (const v of kids) {
+            if (v === null) continue;
+            parent[v] = u;
+            depth[v] = depth[u] + 1;
+            edges.push([u, v]);
+            queue.push(v);
+          }
+        }
+
+        return {
+          key: spec.key,
+          name: spec.name,
+          viewBox: spec.viewBox,
+          isBinary: Boolean(spec.isBinary),
+          root: spec.root,
+          nodes,
+          labels: spec.labels,
+          children: spec.children,
+          parent,
+          depth,
+          pos: spec.pos,
+          edges
+        };
+      }
+
+      function realChildren(tree, id) {
+        const kids = tree.children[id];
+        return kids ? kids.filter((c) => c !== null) : [];
+      }
+
+      const TREES = {
+        binary: buildTreeModel({
+          key: "binary",
+          name: "Binary tree",
+          viewBox: "45 8 500 292",
+          isBinary: true,
+          root: "b1",
+          labels: {
+            b1: "K", b2: "F", b3: "W", b4: "P",
+            b5: "A", b6: "M", b7: "R", b8: "C"
+          },
+          children: {
+            b1: ["b2", "b3"],
+            b2: ["b4", "b5"],
+            b3: [null, "b6"],
+            b4: ["b7", null],
+            b5: [],
+            b6: ["b8", null],
+            b7: [],
+            b8: []
+          },
+          pos: {
+            b1: [310, 42],
+            b2: [190, 116],
+            b3: [430, 116],
+            b4: [135, 190],
+            b5: [255, 190],
+            b6: [495, 190],
+            b7: [85, 264],
+            b8: [435, 264]
+          }
+        }),
+
+        ten: buildTreeModel({
+          key: "ten",
+          name: "10-node general tree",
+          viewBox: "48 6 514 300",
+          isBinary: false,
+          root: "1",
+          labels: {
+            "1": "M", "2": "C", "3": "T", "4": "H", "5": "R",
+            "6": "A", "7": "K", "8": "E", "9": "P", "10": "W"
+          },
+          children: {
+            "1": ["2", "3", "4"],
+            "2": ["5", "6"],
+            "3": ["7", "8"],
+            "4": ["9"],
+            "5": [],
+            "6": [],
+            "7": ["10"],
+            "8": [],
+            "9": [],
+            "10": []
+          },
+          pos: {
+            "1": [320, 42],
+            "2": [140, 118],
+            "3": [340, 118],
+            "4": [520, 118],
+            "5": [90, 194],
+            "6": [190, 194],
+            "7": [300, 194],
+            "8": [390, 194],
+            "9": [520, 194],
+            "10": [300, 270]
+          }
+        }),
+
+        expr: buildTreeModel({
+          key: "expr",
+          name: "Expression tree (a+b)*(a+c)",
+          viewBox: "70 14 500 272",
+          isBinary: true,
+          root: "e1",
+          labels: {
+            e1: "*",
+            e2: "+",
+            e3: "+",
+            e4: "a",
+            e5: "b",
+            e6: "a",
+            e7: "c"
+          },
+          children: {
+            e1: ["e2", "e3"],
+            e2: ["e4", "e5"],
+            e3: ["e6", "e7"],
+            e4: [],
+            e5: [],
+            e6: [],
+            e7: []
+          },
+          pos: {
+            e1: [320, 50],
+            e2: [180, 150],
+            e3: [460, 150],
+            e4: [110, 250],
+            e5: [250, 250],
+            e6: [390, 250],
+            e7: [530, 250]
+          }
+        })
+      };
+
+      const QUIZ_TREE = buildTreeModel({
+        key: "quiz",
+        name: "Quiz binary tree",
+        viewBox: "100 6 320 276",
+        isBinary: true,
+        root: "q1",
+        labels: {
+          q1: "H", q2: "N", q3: "D", q4: "G",
+          q5: "V", q6: "B", q7: "J"
+        },
+        children: {
+          q1: ["q2", "q3"],
+          q2: [null, "q4"],
+          q3: ["q5", "q6"],
+          q4: [],
+          q5: [],
+          q6: ["q7", null],
+          q7: []
+        },
+        pos: {
+          q1: [230, 38],
+          q2: [140, 108],
+          q3: [320, 108],
+          q4: [195, 178],
+          q5: [265, 178],
+          q6: [380, 178],
+          q7: [330, 248]
+        }
+      });
+
+      /* ----------------------------------------------------------
+       * Generic traversal functions (never hardcoded)
+       * ---------------------------------------------------------- */
+      function preorder(tree) {
+        const out = [];
+        function walk(id) {
+          if (id === null || id === undefined) return;
+          out.push(id);
+          for (const c of realChildren(tree, id)) walk(c);
+        }
+        walk(tree.root);
+        return out;
+      }
+
+      function inorder(tree) {
+        if (!tree.isBinary) return [];
+        const out = [];
+        function walk(id) {
+          if (id === null || id === undefined) return;
+          const kids = tree.children[id] || [];
+          const left = kids[0] ?? null;
+          const right = kids[1] ?? null;
+          walk(left);
+          out.push(id);
+          walk(right);
+        }
+        walk(tree.root);
+        return out;
+      }
+
+      function postorder(tree) {
+        const out = [];
+        function walk(id) {
+          if (id === null || id === undefined) return;
+          for (const c of realChildren(tree, id)) walk(c);
+          out.push(id);
+        }
+        walk(tree.root);
+        return out;
+      }
+
+      function levelorder(tree) {
+        const out = [];
+        const q = [tree.root];
+        let head = 0;
+        while (head < q.length) {
+          const id = q[head++];
+          out.push(id);
+          for (const c of realChildren(tree, id)) q.push(c);
+        }
+        return out;
+      }
+
+      function getTraversal(tree, order) {
+        if (order === "pre") return preorder(tree);
+        if (order === "in") return inorder(tree);
+        if (order === "post") return postorder(tree);
+        return levelorder(tree);
+      }
+
+      function simulateContainer(tree, kind) {
+        const container = [tree.root];
+        const out = [];
+        while (container.length > 0) {
+          const x = kind === "stack" ? container.pop() : container.shift();
+          out.push(x);
+          const kids = realChildren(tree, x);
+          if (kind === "stack") {
+            for (let i = kids.length - 1; i >= 0; i--) {
+              container.push(kids[i]);
+            }
+          } else {
+            for (let i = 0; i < kids.length; i++) {
+              container.push(kids[i]);
+            }
+          }
+        }
+        return out;
+      }
+
+      function labelsOf(tree, ids) {
+        return ids.map((id) => tree.labels[id]);
+      }
+
+      function arraysEqual(a, b) {
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+          if (a[i] !== b[i]) return false;
+        }
+        return true;
+      }
+
+      /* ----------------------------------------------------------
+       * Shared SVG tree renderer
+       * ---------------------------------------------------------- */
+      const SVG_NS = "http://www.w3.org/2000/svg";
+      const NODE_RADIUS = 24;
+
+      function createSvgEl(tag, attrs) {
+        const el = document.createElementNS(SVG_NS, tag);
+        if (attrs) {
+          for (const [k, v] of Object.entries(attrs)) {
+            el.setAttribute(k, String(v));
+          }
+        }
+        return el;
+      }
+
+      /**
+       * Renders a tree into an SVG element using a per-node stateMap.
+       * stateMap[id] = { status: "unvisited"|"visited"|"just-visited" }
+       */
+      function renderTree(svg, model, stateMap, options) {
+        const opts = options || {};
+        const interactive = Boolean(opts.interactive);
+        const tappableIds = opts.tappableIds || null;
+        const onNodeTap = opts.onNodeTap || null;
+        const activeEdges = opts.activeEdges || null;
+
+        svg.setAttribute("viewBox", model.viewBox);
+        svg.setAttribute("aria-label", model.name);
+        svg.replaceChildren();
+
+        const edgesG = createSvgEl("g", { class: "tree-edges" });
+        for (const [u, v] of model.edges) {
+          const [x1, y1] = model.pos[u];
+          const [x2, y2] = model.pos[v];
+          const isPath = activeEdges && activeEdges.has(`${u}->${v}`);
+          edgesG.appendChild(createSvgEl("line", {
+            class: isPath ? "tree-edge is-path" : "tree-edge",
+            x1, y1, x2, y2
+          }));
+        }
+
+        const nodesG = createSvgEl("g", { class: "tree-nodes" });
+        for (const id of model.nodes) {
+          const [x, y] = model.pos[id];
+          const st = stateMap[id] || { status: "unvisited" };
+          const nodeInteractive = interactive && (!tappableIds || tappableIds.has(id));
+          const classes = ["tree-node"];
+          if (st.status === "visited") classes.push("is-visited");
+          if (st.status === "just-visited") classes.push("is-just-visited");
+          if (nodeInteractive) classes.push("is-interactive");
+
+          const g = createSvgEl("g", {
+            class: classes.join(" "),
+            "data-node-id": id,
+            transform: `translate(${x}, ${y})`
+          });
+
+          if (nodeInteractive) {
+            g.setAttribute("tabindex", "0");
+            g.setAttribute("role", "button");
+            const stateDesc = st.status === "unvisited"
+              ? "still to visit"
+              : (st.status === "just-visited" ? "just visited" : "visited");
+            g.setAttribute("aria-label", `Node ${model.labels[id]}, ${stateDesc}`);
+            g.addEventListener("click", () => {
+              if (onNodeTap) onNodeTap(id, g);
+            });
+            g.addEventListener("keydown", (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                if (onNodeTap) onNodeTap(id, g);
+              }
+            });
+          }
+
+          const shakeWrap = createSvgEl("g", { class: "node-shake" });
+          if (nodeInteractive) {
+            shakeWrap.appendChild(createSvgEl("circle", {
+              class: "tree-node-hit",
+              r: 30
+            }));
+          }
+          shakeWrap.appendChild(createSvgEl("circle", {
+            class: "tree-node-circle",
+            r: NODE_RADIUS
+          }));
+          const text = createSvgEl("text", { class: "tree-node-text" });
+          text.textContent = model.labels[id];
+          shakeWrap.appendChild(text);
+
+          g.appendChild(shakeWrap);
+          nodesG.appendChild(g);
+        }
+
+        svg.appendChild(edgesG);
+        svg.appendChild(nodesG);
+      }
+
+      function triggerShake(el) {
+        if (!el) return;
+        el.classList.remove("is-wrong");
+        void el.offsetWidth;
+        el.classList.add("is-wrong");
+        window.setTimeout(() => {
+          el.classList.remove("is-wrong");
+        }, 320);
+      }
+
+      function renderOutputStrip(container, tree, visitedIds, justVisitedId) {
+        container.replaceChildren();
+        const total = tree.nodes.length;
+        for (let i = 0; i < total; i++) {
+          const cell = document.createElement("span");
+          cell.className = "strip-cell";
+          if (i < visitedIds.length) {
+            const id = visitedIds[i];
+            cell.textContent = tree.labels[id];
+            cell.classList.add(id === justVisitedId ? "is-newest" : "is-filled");
+          } else {
+            cell.textContent = "\u00A0";
+          }
+          container.appendChild(cell);
+        }
+      }
+
+      function setStatus(el, text, isWrong) {
+        el.textContent = text;
+        el.classList.toggle("is-wrong", Boolean(isWrong));
+      }
+
+      function fmtLabel(lbl) {
+        return lbl === "+" || lbl === "*" ? `"${lbl}"` : lbl;
+      }
+
+      function captureFocus(svg, containerEl) {
+        const active = document.activeElement;
+        if (!active) return null;
+        if (svg && svg.contains(active) && active.dataset && active.dataset.nodeId) {
+          return { zone: "tree", id: active.dataset.nodeId };
+        }
+        if (containerEl && containerEl.contains(active) && active.dataset && active.dataset.containerId) {
+          return { zone: "container", id: active.dataset.containerId };
+        }
+        return null;
+      }
+
+      function restoreFocus(saved, svg, containerEl) {
+        if (!saved) return;
+        if (saved.zone === "tree" && svg) {
+          const same = svg.querySelector(`[data-node-id="${saved.id}"][tabindex="0"]`);
+          const target = same || svg.querySelector('[data-node-id][tabindex="0"]');
+          if (target) target.focus({ preventScroll: true });
+        } else if (saved.zone === "container" && containerEl) {
+          const same = containerEl.querySelector(`[data-container-id="${saved.id}"]:not(:disabled)`);
+          const fallbackContainer = containerEl.querySelector(".container-item:not(:disabled)");
+          const fallbackTree = svg ? svg.querySelector('[data-node-id][tabindex="0"]') : null;
+          const target = same || fallbackContainer || fallbackTree;
+          if (target) target.focus({ preventScroll: true });
+        }
+      }
+
+      function formatJoin(items) {
+        if (items.length === 0) return "";
+        if (items.length === 1) return String(items[0]);
+        if (items.length === 2) return `${items[0]} and ${items[1]}`;
+        return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+      }
+
+      /* ----------------------------------------------------------
+       * Tab 1: Orders + Reading card
+       * ---------------------------------------------------------- */
+      const ORDER_NAMES = {
+        pre: "Pre-order",
+        in: "In-order",
+        post: "Post-order",
+        level: "Level order"
+      };
+
+      const LEDGER_CONFIG = {
+        binary: {
+          heading: "Compare the walks",
+          guide: "Complete all four walks above to compare them side by side.",
+          doneGuide: "All four walks are in. Compare the rows.",
+          rows: [
+            { key: "pre", title: "Pre", sub: "Pre-order" },
+            { key: "in", title: "In", sub: "In-order" },
+            { key: "post", title: "Post", sub: "Post-order" },
+            { key: "level", title: "Level", sub: "Level order" }
+          ]
+        },
+        expr: {
+          heading: "Reading (a + b) * (a + c)",
+          guide: "Complete Pre-order, In-order, and Post-order above to fill each reading.",
+          doneGuide: "All three readings are in. Compare them.",
+          rows: [
+            { key: "pre", title: "Prefix", sub: "Pre-order" },
+            { key: "in", title: "Infix", sub: "In-order", highlightOp: "*", showsInfixNote: true },
+            { key: "post", title: "Postfix", sub: "Post-order" }
+          ]
+        },
+        ten: {
+          heading: "Compare the walks",
+          guide: "Complete Pre-order, Post-order, and Level order above to fill each row.",
+          doneGuide: "All three walks are in. Compare the rows.",
+          rows: [
+            { key: "pre", title: "Pre", sub: "Pre-order" },
+            { key: "post", title: "Post", sub: "Post-order" },
+            { key: "level", title: "Level", sub: "Level order" }
+          ]
+        }
+      };
+
+      const ORDER_RULES = {
+        pre: {
+          binary: {
+            lines: [
+              "void preorder(Node n) {",
+              "    if (n == null) return;",
+              "    visit(n);",
+              "    preorder(n.left);",
+              "    preorder(n.right);",
+              "}"
+            ],
+            visitIndex: 2
+          },
+          general: {
+            lines: [
+              "void preorder(Node n) {",
+              "    if (n == null) return;",
+              "    visit(n);",
+              "    for (Node c : n.children) {",
+              "        preorder(c);",
+              "    }",
+              "}"
+            ],
+            visitIndex: 2
+          },
+          goodFor: "copying a tree or prefix notation."
+        },
+        in: {
+          binary: {
+            lines: [
+              "void inorder(Node n) {",
+              "    if (n == null) return;",
+              "    inorder(n.left);",
+              "    visit(n);",
+              "    inorder(n.right);",
+              "}"
+            ],
+            visitIndex: 3
+          },
+          goodFor: "sorted order in a search tree or infix notation."
+        },
+        post: {
+          binary: {
+            lines: [
+              "void postorder(Node n) {",
+              "    if (n == null) return;",
+              "    postorder(n.left);",
+              "    postorder(n.right);",
+              "    visit(n);",
+              "}"
+            ],
+            visitIndex: 4
+          },
+          general: {
+            lines: [
+              "void postorder(Node n) {",
+              "    if (n == null) return;",
+              "    for (Node c : n.children) {",
+              "        postorder(c);",
+              "    }",
+              "    visit(n);",
+              "}"
+            ],
+            visitIndex: 5
+          },
+          goodFor: "handling children before their parent or postfix notation."
+        },
+        level: {
+          binary: {
+            lines: [
+              "void levelorder(Node root) {",
+              "    if (root == null) return;",
+              "    Queue<Node> q = new LinkedList<>();",
+              "    q.offer(root);",
+              "    while (!q.isEmpty()) {",
+              "        Node n = q.poll();",
+              "        visit(n);",
+              "        if (n.left != null) q.offer(n.left);",
+              "        if (n.right != null) q.offer(n.right);",
+              "    }",
+              "}"
+            ],
+            visitIndex: 6
+          },
+          general: {
+            lines: [
+              "void levelorder(Node root) {",
+              "    if (root == null) return;",
+              "    Queue<Node> q = new LinkedList<>();",
+              "    q.offer(root);",
+              "    while (!q.isEmpty()) {",
+              "        Node n = q.poll();",
+              "        visit(n);",
+              "        for (Node c : n.children) {",
+              "            q.offer(c);",
+              "        }",
+              "    }",
+              "}"
+            ],
+            visitIndex: 6
+          },
+          note: "Uses a queue instead of recursion (see tab 2, Replacing recursion).",
+          goodFor: "nearest-to-root first."
+        }
+      };
+
+      function makeEmptyLedgers() {
+        return {
+          binary: { pre: null, in: null, post: null, level: null },
+          expr: { pre: null, in: null, post: null },
+          ten: { pre: null, post: null, level: null }
+        };
+      }
+
+      const t1 = {
+        order: "pre",
+        treeKey: "binary",
+        mode: "watch",
+        sequence: [],
+        stepIndex: 0,
+        justVisitedId: null,
+        stepWrong: 0,
+        totalWrong: 0,
+        assistedSteps: 0,
+        history: [],
+        playTimer: null,
+        hasCompletedFirstWalk: false,
+        ruleRevealedEarly: false,
+        ledgers: makeEmptyLedgers(),
+        quiz: {
+          treeKey: null,
+          lastOrder: null,
+          answerOrder: null,
+          pickedOrder: null
+        }
+      };
+
+      const dom1 = {
+        ruleToggleRow: document.getElementById("t1-rule-toggle-row"),
+        ruleToggleBtn: document.getElementById("t1-rule-toggle"),
+        ruleCard: document.getElementById("t1-rule-card"),
+        ruleLines: document.getElementById("t1-rule-lines"),
+        ruleGoodFor: document.getElementById("t1-rule-good-for"),
+        inorderNote: document.getElementById("t1-inorder-note"),
+        orderBtns: Array.from(document.querySelectorAll(".t1-order-btn")),
+        treeBinaryBtn: document.getElementById("t1-tree-binary"),
+        treeExprBtn: document.getElementById("t1-tree-expr"),
+        treeTenBtn: document.getElementById("t1-tree-ten"),
+        modeWatchBtn: document.getElementById("t1-mode-watch"),
+        modePredictBtn: document.getElementById("t1-mode-predict"),
+        stepBtn: document.getElementById("t1-step"),
+        backBtn: document.getElementById("t1-back"),
+        playBtn: document.getElementById("t1-play"),
+        resetBtn: document.getElementById("t1-reset"),
+        svg: document.getElementById("t1-svg"),
+        legendPath: document.getElementById("t1-legend-path"),
+        stripLabel: document.getElementById("t1-strip-label"),
+        strip: document.getElementById("t1-strip"),
+        status: document.getElementById("t1-status"),
+        showStepBtn: document.getElementById("t1-show-step"),
+        readingCard: document.getElementById("reading-card"),
+        readingHeading: document.getElementById("reading-heading"),
+        readingGuide: document.getElementById("reading-guide"),
+        readingRows: document.getElementById("reading-rows"),
+        readingNote: document.getElementById("reading-note"),
+        readingReset: document.getElementById("reading-reset"),
+        quizCard: document.getElementById("quiz-card"),
+        quizNextBtn: document.getElementById("quiz-next"),
+        quizSvg: document.getElementById("quiz-svg"),
+        quizSeq: document.getElementById("quiz-seq"),
+        quizOptBtns: Array.from(document.querySelectorAll(".quiz-opt-btn")),
+        quizFeedback: document.getElementById("quiz-feedback")
+      };
+
+      function t1Tree() {
+        return TREES[t1.treeKey];
+      }
+
+      function t1StopPlay() {
+        if (t1.playTimer !== null) {
+          window.clearInterval(t1.playTimer);
+          t1.playTimer = null;
+        }
+        dom1.playBtn.textContent = "Play";
+      }
+
+      function t1StripTitle() {
+        if (t1.treeKey === "expr") {
+          if (t1.order === "pre") return "Output (prefix)";
+          if (t1.order === "in") return "Output (infix)";
+          if (t1.order === "post") return "Output (postfix)";
+        }
+        return "Output";
+      }
+
+      function t1VisitMessage(tree, id, idx, isCorrectTap) {
+        const lbl = fmtLabel(tree.labels[id]);
+        const isLeaf = realChildren(tree, id).length === 0;
+        const prefix = isCorrectTap ? `Yes, ${lbl}.` : `Visited ${lbl}.`;
+
+        if (t1.order === "pre") {
+          if (idx > 0) {
+            const prevId = t1.sequence[idx - 1];
+            if (realChildren(tree, prevId).length === 0) {
+              return isCorrectTap
+                ? `Yes, ${lbl}. Back up to the next unvisited child, left to right.`
+                : `${lbl}: back up to the next unvisited child, left to right.`;
+            }
+          }
+          return `${prefix} Pre-order: a node comes before its children.`;
+        }
+
+        if (t1.order === "post") {
+          if (isLeaf) {
+            return `${prefix} It is a leaf, nothing below it.`;
+          }
+          return `${prefix} All its children are done, so ${lbl} comes now (post-order: children first).`;
+        }
+
+        if (t1.order === "level") {
+          const d = tree.depth[id];
+          if (d === 0) {
+            return `${prefix} Level 0 (root = level 0), left to right.`;
+          }
+          return `${prefix} Level ${d}, left to right.`;
+        }
+
+        // in-order
+        const slots = tree.children[id] || [];
+        const hasLeft = Boolean(slots[0]);
+        const hasRight = Boolean(slots[1]);
+        if (!hasLeft && !hasRight) {
+          return isCorrectTap ? `Yes, ${lbl}, a leaf.` : `Visited ${lbl}, a leaf.`;
+        }
+        if (!hasLeft) {
+          return `${prefix} ${lbl} has no left child, so ${lbl} comes now, then its right side.`;
+        }
+        if (!hasRight) {
+          return `${prefix} Its left side is done, so ${lbl} comes now (no right child).`;
+        }
+        return `${prefix} Its left side is done, so ${lbl} now, then its right side.`;
+      }
+
+      function t1WrongMessage(tree, tappedId, expectedId, visitedSet) {
+        const lbl = fmtLabel(tree.labels[tappedId]);
+        if (visitedSet.has(tappedId)) {
+          return `${lbl} is already in the strip.`;
+        }
+
+        if (t1.order === "pre") {
+          const p = tree.parent[tappedId];
+          if (p !== null && !visitedSet.has(p)) {
+            return `Pre-order: ${lbl}'s parent comes before ${lbl}.`;
+          }
+          return "Pre-order: parent first, then children left to right.";
+        }
+
+        if (t1.order === "post") {
+          const kids = realChildren(tree, tappedId);
+          if (kids.some((c) => !visitedSet.has(c))) {
+            return `Post-order: children first. ${lbl} still has children to do.`;
+          }
+          return "Post-order: finish the left subtree before moving right.";
+        }
+
+        if (t1.order === "level") {
+          const d = tree.depth[expectedId];
+          const levelText = d === 0 ? "level 0 (root = level 0)" : `level ${d}`;
+          return `Level order: finish ${levelText}, left to right, before going deeper.`;
+        }
+
+        return "In-order: left side, then the node, then the right side.";
+      }
+
+      function isQuizReadyForTree(treeKey) {
+        const cfg = LEDGER_CONFIG[treeKey];
+        const ledger = t1.ledgers[treeKey];
+        return cfg.rows.every((r) => Boolean(ledger[r.key]));
+      }
+
+      function quizNewQuestion() {
+        const tree = t1Tree();
+        const candidates = tree.isBinary ? ["pre", "in", "post", "level"] : ["pre", "post", "level"];
+        const pool = candidates.filter((ord) => ord !== t1.quiz.lastOrder);
+        const nextOrder = pool[Math.floor(Math.random() * pool.length)];
+        t1.quiz.treeKey = t1.treeKey;
+        t1.quiz.lastOrder = nextOrder;
+        t1.quiz.answerOrder = nextOrder;
+        t1.quiz.pickedOrder = null;
+      }
+
+      function quizBuildFeedback(tree, answerOrder, pickedOrder) {
+        const seq = labelsOf(tree, getTraversal(tree, answerOrder));
+        const rootLbl = fmtLabel(tree.labels[tree.root]);
+        const firstLbl = fmtLabel(seq[0]);
+        const lastLbl = fmtLabel(seq[seq.length - 1]);
+        const level1 = realChildren(tree, tree.root).map((id) => fmtLabel(tree.labels[id])).join(", ");
+
+        if (pickedOrder === answerOrder) {
+          if (answerOrder === "pre") {
+            return `Correct — Pre-order. Root ${rootLbl} comes first, and each parent appears right before its children.`;
+          }
+          if (answerOrder === "in") {
+            return `Correct — In-order. Root ${rootLbl} sits after its whole left side and before its right side.`;
+          }
+          if (answerOrder === "post") {
+            return `Correct — Post-order. Every branch finishes before its parent, so root ${rootLbl} comes last.`;
+          }
+          return `Correct — Level order. It reads level by level from the top: root ${rootLbl}, then ${level1}, then deeper left to right.`;
+        }
+
+        if (pickedOrder === "pre") {
+          if (answerOrder === "level") {
+            return `Not Pre-order. Right after root ${rootLbl}, this lists all of level 1 (${level1}) side by side instead of diving down the first branch.`;
+          }
+          return `Not Pre-order. Pre-order always starts with root ${rootLbl}, but this sequence starts with ${firstLbl}.`;
+        }
+        if (pickedOrder === "in") {
+          if (!tree.isBinary) {
+            return "Not In-order. In-order needs left and right children, and this general tree has 3-child nodes.";
+          }
+          if (answerOrder === "pre") {
+            return `Not In-order. Here root ${rootLbl} comes very first, while in-order finishes its left side before visiting ${rootLbl}.`;
+          }
+          if (answerOrder === "post") {
+            return `Not In-order. Here root ${rootLbl} comes very last, while in-order visits ${rootLbl} before its right side.`;
+          }
+          return `Not In-order. This starts with root ${rootLbl} and level 1 (${level1}) instead of diving down the left branch first.`;
+        }
+        if (pickedOrder === "post") {
+          return `Not Post-order. Post-order always ends with root ${rootLbl} last, but this ends with ${lastLbl}.`;
+        }
+        if (answerOrder === "pre") {
+          return `Not Level order. After root ${rootLbl}, level order lists all of level 1 (${level1}) before going deeper down the left branch.`;
+        }
+        return `Not Level order. Level order always begins with root ${rootLbl}, but this starts with ${firstLbl}.`;
+      }
+
+      function renderQuizCard() {
+        const ready = t1.hasCompletedFirstWalk && isQuizReadyForTree(t1.treeKey);
+        if (!ready) {
+          dom1.quizCard.hidden = true;
+          return;
+        }
+        const mainTree = t1Tree();
+        if (
+          t1.quiz.treeKey !== t1.treeKey ||
+          !t1.quiz.answerOrder ||
+          (!mainTree.isBinary && t1.quiz.answerOrder === "in")
+        ) {
+          quizNewQuestion();
+        }
+        const seq = labelsOf(QUIZ_TREE, getTraversal(QUIZ_TREE, t1.quiz.answerOrder));
+
+        dom1.quizCard.hidden = false;
+        renderTree(dom1.quizSvg, QUIZ_TREE, {}, { interactive: false });
+        dom1.quizSeq.replaceChildren();
+        for (const lbl of seq) {
+          const tok = document.createElement("span");
+          tok.className = "reading-token is-revealed";
+          tok.textContent = lbl;
+          dom1.quizSeq.appendChild(tok);
+        }
+
+        const picked = t1.quiz.pickedOrder;
+        const isCorrect = picked !== null && picked === t1.quiz.answerOrder;
+        for (const btn of dom1.quizOptBtns) {
+          const ord = btn.dataset.order;
+          btn.hidden = ord === "in" && !mainTree.isBinary;
+          const isPicked = ord === picked;
+          btn.setAttribute("aria-pressed", String(isPicked));
+          btn.classList.toggle("is-quiz-right", isPicked && isCorrect);
+          btn.classList.toggle("is-quiz-wrong", isPicked && !isCorrect);
+        }
+
+        if (picked === null) {
+          dom1.quizFeedback.hidden = true;
+          dom1.quizFeedback.textContent = "";
+          dom1.quizFeedback.classList.remove("is-wrong");
+        } else {
+          dom1.quizFeedback.hidden = false;
+          setStatus(dom1.quizFeedback, quizBuildFeedback(QUIZ_TREE, t1.quiz.answerOrder, picked), !isCorrect);
+        }
+      }
+
+      function renderReadings() {
+        if (!t1.hasCompletedFirstWalk) {
+          dom1.readingCard.hidden = true;
+          dom1.quizCard.hidden = true;
+          return;
+        }
+        const cfg = LEDGER_CONFIG[t1.treeKey];
+        const ledger = t1.ledgers[t1.treeKey];
+        const treeLen = TREES[t1.treeKey].nodes.length;
+
+        dom1.readingCard.hidden = false;
+        dom1.readingHeading.textContent = cfg.heading;
+        const ledgerComplete = cfg.rows.every((r) => ledger[r.key]);
+        dom1.readingGuide.textContent = ledgerComplete ? cfg.doneGuide : cfg.guide;
+        dom1.readingRows.replaceChildren();
+
+        for (const rowCfg of cfg.rows) {
+          const row = document.createElement("div");
+          row.className = "reading-row";
+
+          const label = document.createElement("div");
+          label.className = "reading-row-label";
+          label.textContent = `${rowCfg.title} `;
+          const subSpan = document.createElement("span");
+          subSpan.className = "reading-row-sub";
+          subSpan.textContent = `(${rowCfg.sub})`;
+          label.appendChild(subSpan);
+
+          const tokensWrap = document.createElement("div");
+          tokensWrap.className = "reading-tokens";
+
+          const vals = ledger[rowCfg.key];
+          for (let i = 0; i < treeLen; i++) {
+            const tok = document.createElement("span");
+            tok.className = "reading-token";
+            if (vals) {
+              tok.textContent = vals[i];
+              tok.classList.add("is-revealed");
+              if (rowCfg.highlightOp && vals[i] === rowCfg.highlightOp) {
+                tok.classList.add("is-accent");
+              }
+            } else {
+              tok.textContent = "?";
+            }
+            tokensWrap.appendChild(tok);
+          }
+
+          row.appendChild(label);
+          row.appendChild(tokensWrap);
+          dom1.readingRows.appendChild(row);
+        }
+
+        const showInfixNote = cfg.rows.some((r) => r.showsInfixNote && ledger[r.key]);
+        dom1.readingNote.hidden = !showInfixNote;
+        renderQuizCard();
+      }
+
+      function clearReadings() {
+        const cfg = LEDGER_CONFIG[t1.treeKey];
+        for (const r of cfg.rows) {
+          t1.ledgers[t1.treeKey][r.key] = null;
+        }
+        t1.quiz.treeKey = null;
+        t1.quiz.answerOrder = null;
+        t1.quiz.pickedOrder = null;
+        renderReadings();
+      }
+
+      function renderRuleCard() {
+        const tree = t1Tree();
+        const rule = ORDER_RULES[t1.order];
+        const variant = (tree.isBinary ? rule.binary : rule.general) || rule.binary;
+        const visitActive = t1.justVisitedId !== null;
+        dom1.ruleLines.replaceChildren();
+        variant.lines.forEach((lineText, idx) => {
+          const div = document.createElement("div");
+          const classes = ["rule-line"];
+          if (idx === variant.visitIndex) {
+            classes.push("is-visit");
+            if (visitActive) classes.push("is-active");
+          }
+          div.className = classes.join(" ");
+          div.textContent = lineText;
+          dom1.ruleLines.appendChild(div);
+        });
+        if (rule.note) {
+          const noteEl = document.createElement("p");
+          noteEl.className = "rule-note";
+          noteEl.textContent = rule.note;
+          dom1.ruleLines.appendChild(noteEl);
+        }
+        dom1.ruleGoodFor.replaceChildren();
+        const strong = document.createElement("strong");
+        strong.textContent = "Good for: ";
+        dom1.ruleGoodFor.appendChild(strong);
+        dom1.ruleGoodFor.appendChild(document.createTextNode(rule.goodFor));
+      }
+
+      function computeReturnPath(tree, lastVisitedId) {
+        const pathEdges = new Set();
+        if (!lastVisitedId) return pathEdges;
+        let cur = lastVisitedId;
+        while (cur !== null) {
+          const p = tree.parent[cur];
+          if (p === null || p === undefined) break;
+          pathEdges.add(`${p}->${cur}`);
+          cur = p;
+        }
+        return pathEdges;
+      }
+
+      function t1Render() {
+        const tree = t1Tree();
+        const savedFocus = t1.mode === "predict" ? captureFocus(dom1.svg, null) : null;
+        renderRuleCard();
+        const showRule = t1.hasCompletedFirstWalk || t1.ruleRevealedEarly;
+        dom1.ruleToggleRow.hidden = t1.hasCompletedFirstWalk;
+        dom1.ruleToggleBtn.setAttribute("aria-expanded", String(t1.ruleRevealedEarly));
+        dom1.ruleToggleBtn.textContent = t1.ruleRevealedEarly ? "Hide the rule" : "Show the rule";
+        dom1.ruleCard.hidden = !showRule;
+        dom1.inorderNote.hidden = tree.isBinary;
+        for (const btn of dom1.orderBtns) {
+          const isIn = btn.dataset.order === "in";
+          const disabled = isIn && !tree.isBinary;
+          btn.disabled = disabled;
+          if (disabled) {
+            btn.setAttribute("title", "In-order needs left and right children");
+          } else {
+            btn.removeAttribute("title");
+          }
+          btn.setAttribute("aria-pressed", String(!disabled && btn.dataset.order === t1.order));
+        }
+        dom1.treeBinaryBtn.setAttribute("aria-pressed", String(t1.treeKey === "binary"));
+        dom1.treeExprBtn.setAttribute("aria-pressed", String(t1.treeKey === "expr"));
+        dom1.treeTenBtn.setAttribute("aria-pressed", String(t1.treeKey === "ten"));
+        dom1.modeWatchBtn.setAttribute("aria-pressed", String(t1.mode === "watch"));
+        dom1.modePredictBtn.setAttribute("aria-pressed", String(t1.mode === "predict"));
+
+        const isWatch = t1.mode === "watch";
+        dom1.stepBtn.hidden = !isWatch;
+        dom1.playBtn.hidden = !isWatch;
+        dom1.backBtn.disabled = t1.history.length === 0;
+        const showReturnCue = t1.order === "in" || t1.order === "post";
+        dom1.legendPath.hidden = !showReturnCue;
+
+        const done = t1.stepIndex >= t1.sequence.length;
+        dom1.stepBtn.disabled = done;
+        dom1.playBtn.disabled = done;
+        dom1.showStepBtn.hidden = !(t1.mode === "predict" && !done && t1.stepWrong >= 3);
+        dom1.stepBtn.classList.toggle("is-primary", !done);
+        dom1.resetBtn.classList.toggle("is-primary", done);
+
+        const visitedSet = new Set(t1.sequence.slice(0, t1.stepIndex));
+        const pathEdges = (showReturnCue && t1.justVisitedId !== null)
+          ? computeReturnPath(tree, t1.justVisitedId)
+          : null;
+
+        const stateMap = {};
+        for (const id of tree.nodes) {
+          let status = "unvisited";
+          if (id === t1.justVisitedId) status = "just-visited";
+          else if (visitedSet.has(id)) status = "visited";
+          stateMap[id] = {
+            status
+          };
+        }
+
+        renderTree(dom1.svg, tree, stateMap, {
+          interactive: t1.mode === "predict" && !done,
+          onNodeTap: t1HandleTap,
+          activeEdges: pathEdges
+        });
+        if (savedFocus) restoreFocus(savedFocus, dom1.svg, null);
+
+        dom1.stripLabel.textContent = t1StripTitle();
+        renderOutputStrip(
+          dom1.strip,
+          tree,
+          t1.sequence.slice(0, t1.stepIndex),
+          t1.justVisitedId
+        );
+
+        renderReadings();
+      }
+
+      function t1NextOrderSuggestion(order) {
+        if (order === "pre") return t1Tree().isBinary ? "Next, try In-order." : "Next, try Post-order.";
+        if (order === "in") return "Next, try Post-order.";
+        if (order === "post") return "Next, try Level order.";
+        return "Next, try Pre-order.";
+      }
+
+      function t1FinishWalk(tree) {
+        t1StopPlay();
+        t1.hasCompletedFirstWalk = true;
+        const cfg = LEDGER_CONFIG[t1.treeKey];
+        const ledger = t1.ledgers[t1.treeKey];
+        const rowCfg = cfg.rows.find((r) => r.key === t1.order);
+        if (rowCfg) {
+          ledger[t1.order] = labelsOf(tree, t1.sequence);
+        }
+        const seqText = labelsOf(tree, t1.sequence).join(" ");
+        let msg = `Done. ${ORDER_NAMES[t1.order]}: ${seqText}.`;
+        if (t1.totalWrong > 0) {
+          const tapWord = t1.totalWrong === 1 ? "tap" : "taps";
+          msg += ` ${t1.totalWrong} wrong ${tapWord} along the way.`;
+        }
+        if (t1.assistedSteps > 0) {
+          const stepWord = t1.assistedSteps === 1 ? "step" : "steps";
+          msg += ` ${t1.assistedSteps} wrong-tap-assisted ${stepWord}.`;
+        }
+        msg += ` ${t1NextOrderSuggestion(t1.order)}`;
+        setStatus(dom1.status, msg, false);
+      }
+
+      function t1PushHistory() {
+        t1.history.push({
+          stepIndex: t1.stepIndex,
+          justVisitedId: t1.justVisitedId,
+          stepWrong: t1.stepWrong,
+          totalWrong: t1.totalWrong,
+          assistedSteps: t1.assistedSteps,
+          ledgers: JSON.parse(JSON.stringify(t1.ledgers)),
+          statusText: dom1.status.textContent,
+          statusWrong: dom1.status.classList.contains("is-wrong")
+        });
+      }
+
+      function t1StepBack() {
+        t1StopPlay();
+        if (t1.history.length === 0) return;
+        const snap = t1.history.pop();
+        t1.stepIndex = snap.stepIndex;
+        t1.justVisitedId = snap.justVisitedId;
+        t1.stepWrong = snap.stepWrong;
+        t1.totalWrong = snap.totalWrong;
+        t1.assistedSteps = snap.assistedSteps;
+        t1.ledgers = snap.ledgers;
+        setStatus(dom1.status, snap.statusText, snap.statusWrong);
+        const backHadFocus = document.activeElement === dom1.backBtn;
+        t1Render();
+        if (backHadFocus && dom1.backBtn.disabled) {
+          const fallback = !dom1.stepBtn.hidden && !dom1.stepBtn.disabled
+            ? dom1.stepBtn
+            : dom1.resetBtn;
+          fallback.focus({ preventScroll: true });
+        }
+      }
+
+      function t1WrongHint(order) {
+        if (order === "pre") return "Hint: visit each parent first, then walk left to right.";
+        if (order === "in") return "Hint: finish a node's whole left side before visiting the node itself.";
+        if (order === "post") return "Hint: a parent waits until everything below it is done.";
+        return "Hint: finish all nodes on the current level, left to right, before moving down.";
+      }
+
+      function t1Advance(isTap, isAssisted) {
+        const tree = t1Tree();
+        if (t1.stepIndex >= t1.sequence.length) return;
+        t1PushHistory();
+        const id = t1.sequence[t1.stepIndex];
+        const idx = t1.stepIndex;
+
+        t1.justVisitedId = id;
+        t1.stepIndex++;
+        t1.stepWrong = 0;
+        if (isAssisted) {
+          t1.assistedSteps++;
+        }
+
+        if (t1.stepIndex >= t1.sequence.length) {
+          t1FinishWalk(tree);
+        } else {
+          setStatus(dom1.status, t1VisitMessage(tree, id, idx, isTap), false);
+        }
+        t1Render();
+      }
+
+      function t1HandleTap(id, el) {
+        if (t1.mode !== "predict") return;
+        if (t1.stepIndex >= t1.sequence.length) return;
+        const tree = t1Tree();
+        const expectedId = t1.sequence[t1.stepIndex];
+
+        if (id === expectedId) {
+          t1Advance(true);
+          return;
+        }
+
+        t1PushHistory();
+        const visitedSet = new Set(t1.sequence.slice(0, t1.stepIndex));
+        t1.stepWrong++;
+        t1.totalWrong++;
+
+        let msg = t1WrongMessage(tree, id, expectedId, visitedSet);
+        if (t1.stepWrong >= 2) {
+          msg += " " + t1WrongHint(t1.order);
+        }
+
+        t1Render();
+        const freshEl = dom1.svg.querySelector(`[data-node-id="${id}"]`);
+        triggerShake(freshEl || el);
+        setStatus(dom1.status, msg, true);
+      }
+
+      function t1Reset(customStatus, resetReadingsToo) {
+        t1StopPlay();
+        const tree = t1Tree();
+        t1.sequence = getTraversal(tree, t1.order);
+        t1.stepIndex = 0;
+        t1.justVisitedId = null;
+        t1.stepWrong = 0;
+        t1.totalWrong = 0;
+        t1.assistedSteps = 0;
+        t1.history = [];
+        if (resetReadingsToo) {
+          t1.ledgers = makeEmptyLedgers();
+          t1.quiz.treeKey = null;
+          t1.quiz.answerOrder = null;
+          t1.quiz.pickedOrder = null;
+        }
+        const defaultMsg = t1.mode === "watch"
+          ? "Press Step or Play to walk the tree."
+          : "Tap the node that comes first.";
+        setStatus(dom1.status, customStatus || defaultMsg, false);
+        t1Render();
+      }
+
+      dom1.ruleToggleBtn.addEventListener("click", () => {
+        t1.ruleRevealedEarly = !t1.ruleRevealedEarly;
+        t1Render();
+      });
+
+      for (const btn of dom1.orderBtns) {
+        btn.addEventListener("click", () => {
+          if (btn.disabled) return;
+          const nextOrder = btn.dataset.order;
+          if (nextOrder === "in" && !t1Tree().isBinary) return;
+          if (nextOrder === t1.order) return;
+          t1.order = nextOrder;
+          t1Reset(null, false);
+        });
+      }
+
+      function selectT1Tree(key) {
+        if (t1.treeKey === key) return;
+        const hadInOrderOnNonBinary = t1.order === "in" && !TREES[key].isBinary;
+        t1.treeKey = key;
+        if (hadInOrderOnNonBinary) {
+          t1.order = "pre";
+          t1Reset("In-order needs left and right children, so this switched to Pre-order.", false);
+          return;
+        }
+        t1Reset(null, false);
+      }
+
+      dom1.showStepBtn.addEventListener("click", () => {
+        if (t1.mode !== "predict" || t1.stepIndex >= t1.sequence.length || t1.stepWrong < 3) return;
+        const hadFocus = document.activeElement === dom1.showStepBtn;
+        t1Advance(false, true);
+        if (hadFocus && dom1.showStepBtn.hidden) {
+          const fallback = dom1.svg.querySelector('[data-node-id][tabindex="0"]') || dom1.resetBtn;
+          fallback.focus({ preventScroll: true });
+        }
+      });
+
+      dom1.treeBinaryBtn.addEventListener("click", () => selectT1Tree("binary"));
+      dom1.treeExprBtn.addEventListener("click", () => selectT1Tree("expr"));
+      dom1.treeTenBtn.addEventListener("click", () => selectT1Tree("ten"));
+
+      dom1.modeWatchBtn.addEventListener("click", () => {
+        if (t1.mode === "watch") return;
+        t1.mode = "watch";
+        t1Reset(null, false);
+      });
+
+      dom1.modePredictBtn.addEventListener("click", () => {
+        if (t1.mode === "predict") return;
+        t1.mode = "predict";
+        t1Reset(null, false);
+      });
+
+      dom1.stepBtn.addEventListener("click", () => {
+        t1StopPlay();
+        t1Advance(false);
+      });
+
+      dom1.backBtn.addEventListener("click", () => {
+        t1StepBack();
+      });
+
+      dom1.playBtn.addEventListener("click", () => {
+        if (t1.playTimer !== null) {
+          t1StopPlay();
+          return;
+        }
+        if (t1.stepIndex >= t1.sequence.length) return;
+        dom1.playBtn.textContent = "Pause";
+        t1Advance(false);
+        if (t1.stepIndex < t1.sequence.length) {
+          t1.playTimer = window.setInterval(() => {
+            t1Advance(false);
+          }, 900);
+        }
+      });
+
+      dom1.resetBtn.addEventListener("click", () => {
+        t1Reset(null, false);
+      });
+
+      dom1.readingReset.addEventListener("click", () => {
+        clearReadings();
+      });
+
+      for (const btn of dom1.quizOptBtns) {
+        btn.addEventListener("click", () => {
+          t1.quiz.pickedOrder = btn.dataset.order;
+          renderQuizCard();
+        });
+      }
+
+      dom1.quizNextBtn.addEventListener("click", () => {
+        quizNewQuestion();
+        renderQuizCard();
+      });
+
+      /* ----------------------------------------------------------
+       * Tab 2: Replacing recursion (Stack vs Queue)
+       * ---------------------------------------------------------- */
+      const PSEUDO_LINES = {
+        stack: [
+          "stack.push(root)",
+          "while !stack.isEmpty():",
+          "    x = stack.pop()",
+          "    visit x",
+          "    push children, right to left"
+        ],
+        queue: [
+          "queue.offer(root)",
+          "while !queue.isEmpty():",
+          "    x = queue.poll()",
+          "    visit x",
+          "    offer children, left to right"
+        ]
+      };
+
+      function t2Tree() {
+        return TREES.binary;
+      }
+
+      const t2 = {
+        kind: "stack",
+        mode: "watch",
+        container: [TREES.binary.root],
+        visited: [],
+        justVisitedId: null,
+        justRemovedId: null,
+        justAddedIds: [],
+        activeLine: 0,
+        stepWrong: 0,
+        totalWrong: 0,
+        assistedSteps: 0,
+        hasCompletedFirstPush: false,
+        pendingNode: null,
+        pushQueue: null,
+        history: [],
+        autoPushTimer: null,
+        playTimer: null
+      };
+
+      const dom2 = {
+        kindStackBtn: document.getElementById("t2-kind-stack"),
+        kindQueueBtn: document.getElementById("t2-kind-queue"),
+        modeWatchBtn: document.getElementById("t2-mode-watch"),
+        modePredictBtn: document.getElementById("t2-mode-predict"),
+        stepBtn: document.getElementById("t2-step"),
+        backBtn: document.getElementById("t2-back"),
+        playBtn: document.getElementById("t2-play"),
+        resetBtn: document.getElementById("t2-reset"),
+        stackNote: document.getElementById("t2-stack-note"),
+        svg: document.getElementById("t2-svg"),
+        containerTitle: document.getElementById("t2-container-title"),
+        containerView: document.getElementById("t2-container-view"),
+        takenRow: document.getElementById("t2-taken-row"),
+        pseudo: document.getElementById("t2-pseudo"),
+        stripLabel: document.getElementById("t2-strip-label"),
+        strip: document.getElementById("t2-strip"),
+        refLine: document.getElementById("t2-ref-line"),
+        status: document.getElementById("t2-status"),
+        showStepBtn: document.getElementById("t2-show-step")
+      };
+
+      function t2StopPlay() {
+        if (t2.playTimer !== null) {
+          window.clearInterval(t2.playTimer);
+          t2.playTimer = null;
+        }
+        dom2.playBtn.textContent = "Play";
+      }
+
+      function t2ClearAutoPushTimer() {
+        if (t2.autoPushTimer !== null) {
+          window.clearTimeout(t2.autoPushTimer);
+          t2.autoPushTimer = null;
+        }
+      }
+
+      function t2IsDone() {
+        return t2.container.length === 0 && t2.pendingNode === null && t2.autoPushTimer === null;
+      }
+
+      function t2NextExpected() {
+        if (t2.container.length === 0) return null;
+        return t2.kind === "stack"
+          ? t2.container[t2.container.length - 1]
+          : t2.container[0];
+      }
+
+      function t2RenderContainer() {
+        const tree = t2Tree();
+        const interactive = t2.mode === "predict" && t2.container.length > 0 && t2.pendingNode === null && t2.autoPushTimer === null && t2.pushQueue === null;
+        const addedSet = new Set(t2.justAddedIds);
+        const expected = t2NextExpected();
+
+        dom2.containerTitle.textContent = t2.kind === "stack" ? "Stack (to-do)" : "Queue (to-do)";
+        dom2.containerView.replaceChildren();
+
+        const makeItem = (id, idx) => {
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "container-item";
+          item.dataset.containerId = id;
+          item.dataset.containerIdx = String(idx);
+          item.textContent = tree.labels[id];
+          if (addedSet.has(id)) item.classList.add("is-just-added");
+          if (interactive) {
+            item.classList.add("is-clickable");
+            const kindWord = t2.kind === "stack" ? "Stack" : "Queue";
+            item.setAttribute("aria-label", `${kindWord} item ${tree.labels[id]}`);
+            item.addEventListener("click", () => t2HandleTap(id, item));
+          } else {
+            item.disabled = true;
+            item.tabIndex = -1;
+          }
+          return item;
+        };
+
+        if (t2.kind === "stack") {
+          const shell = document.createElement("div");
+          shell.className = "stack-shell";
+
+          const topLbl = document.createElement("span");
+          topLbl.className = "container-end-label";
+          topLbl.textContent = "top (in / out)";
+
+          const pile = document.createElement("div");
+          pile.className = "stack-pile";
+          if (t2.container.length === 0) {
+            const emp = document.createElement("span");
+            emp.className = "container-empty";
+            emp.textContent = "empty";
+            pile.appendChild(emp);
+          } else {
+            t2.container.forEach((id, idx) => pile.appendChild(makeItem(id, idx)));
+          }
+
+          const botLbl = document.createElement("span");
+          botLbl.className = "container-end-label";
+          botLbl.textContent = "bottom";
+
+          shell.appendChild(topLbl);
+          shell.appendChild(pile);
+          shell.appendChild(botLbl);
+          dom2.containerView.appendChild(shell);
+        } else {
+          const shell = document.createElement("div");
+          shell.className = "queue-shell";
+
+          const ends = document.createElement("div");
+          ends.className = "queue-ends";
+          const frontLbl = document.createElement("span");
+          frontLbl.className = "container-end-label";
+          frontLbl.textContent = "front (out)";
+          const backLbl = document.createElement("span");
+          backLbl.className = "container-end-label";
+          backLbl.textContent = "back (in)";
+          ends.appendChild(frontLbl);
+          ends.appendChild(backLbl);
+
+          const track = document.createElement("div");
+          track.className = "queue-track";
+          if (t2.container.length === 0) {
+            const emp = document.createElement("span");
+            emp.className = "container-empty";
+            emp.textContent = "empty";
+            track.appendChild(emp);
+          } else {
+            t2.container.forEach((id, idx) => track.appendChild(makeItem(id, idx)));
+          }
+
+          shell.appendChild(ends);
+          shell.appendChild(track);
+          dom2.containerView.appendChild(shell);
+        }
+
+        // Taken out badge row (shows the item taken out on this step in vermilion)
+        dom2.takenRow.replaceChildren();
+        if (t2.justRemovedId !== null) {
+          const lbl = document.createElement("span");
+          lbl.textContent = "taken out:";
+          const chip = document.createElement("span");
+          chip.className = "container-item is-just-removed";
+          chip.textContent = tree.labels[t2.justRemovedId];
+          dom2.takenRow.appendChild(lbl);
+          dom2.takenRow.appendChild(chip);
+        } else if (expected !== null && t2.mode === "predict") {
+          const hintPrompt = document.createElement("span");
+          hintPrompt.textContent = "Tap the next item to take out.";
+          dom2.takenRow.appendChild(hintPrompt);
+        }
+      }
+
+      function t2RenderPseudo() {
+        const textLines = PSEUDO_LINES[t2.kind];
+        const lines = dom2.pseudo.querySelectorAll(".pseudo-line");
+        lines.forEach((li) => {
+          const lineNum = Number(li.dataset.line);
+          if (textLines[lineNum] !== undefined) {
+            li.textContent = textLines[lineNum];
+          }
+          const active = Array.isArray(t2.activeLine)
+            ? t2.activeLine.includes(lineNum)
+            : t2.activeLine === lineNum;
+          li.classList.toggle("is-active", active);
+        });
+      }
+
+      function t2Render() {
+        const tree = t2Tree();
+        const savedFocus = t2.mode === "predict" ? captureFocus(dom2.svg, dom2.containerView) : null;
+        dom2.kindStackBtn.setAttribute("aria-pressed", String(t2.kind === "stack"));
+        dom2.kindQueueBtn.setAttribute("aria-pressed", String(t2.kind === "queue"));
+        dom2.modeWatchBtn.setAttribute("aria-pressed", String(t2.mode === "watch"));
+        dom2.modePredictBtn.setAttribute("aria-pressed", String(t2.mode === "predict"));
+
+        dom2.stackNote.hidden = !(t2.kind === "stack" && (t2.mode === "watch" || t2.hasCompletedFirstPush));
+        const isWatch = t2.mode === "watch";
+        dom2.stepBtn.hidden = !isWatch;
+        dom2.playBtn.hidden = !isWatch;
+        dom2.backBtn.disabled = t2.history.length === 0;
+
+        const done = t2IsDone();
+        dom2.refLine.hidden = t2.mode === "predict" && !done;
+        dom2.showStepBtn.hidden = !(t2.mode === "predict" && !done && t2.autoPushTimer === null && t2.stepWrong >= 3);
+        dom2.stepBtn.textContent = t2.pendingNode !== null ? "Put children in" : "Take one out";
+        dom2.stepBtn.disabled = done;
+        dom2.playBtn.disabled = done;
+        dom2.stepBtn.classList.toggle("is-primary", !done);
+        dom2.resetBtn.classList.toggle("is-primary", done);
+
+        const visitedSet = new Set(t2.visited);
+        const stateMap = {};
+        for (const id of tree.nodes) {
+          let status = "unvisited";
+          if (id === t2.justVisitedId) status = "just-visited";
+          else if (visitedSet.has(id)) status = "visited";
+          stateMap[id] = {
+            status
+          };
+        }
+
+        renderTree(dom2.svg, tree, stateMap, {
+          interactive: t2.mode === "predict" && !done && t2.autoPushTimer === null,
+          tappableIds: t2.pushQueue ? new Set(t2.pushQueue) : null,
+          onNodeTap: t2HandleTap
+        });
+
+        t2RenderContainer();
+        if (savedFocus) restoreFocus(savedFocus, dom2.svg, dom2.containerView);
+        t2RenderPseudo();
+
+        dom2.stripLabel.textContent = t2.kind === "stack"
+          ? "Visited output (Stack)"
+          : "Visited output (Queue)";
+        renderOutputStrip(dom2.strip, tree, t2.visited, t2.justVisitedId);
+
+        dom2.refLine.textContent = t2.kind === "stack"
+          ? `Tab 1 pre-order on the binary tree: ${labelsOf(tree, preorder(tree)).join(" ")}`
+          : `Tab 1 level order on the binary tree: ${labelsOf(tree, levelorder(tree)).join(" ")}`;
+      }
+
+      function t2PushMessage(x, kids) {
+        const tree = t2Tree();
+        const lbl = tree.labels[x];
+        if (kids.length === 0) {
+          return `${lbl} has no children, nothing added.`;
+        }
+        if (t2.kind === "stack") {
+          const pushed = kids.slice().reverse().map((c) => tree.labels[c]);
+          const pushText = pushed.length === 2
+            ? `${pushed[0]} then ${pushed[1]}`
+            : pushed.join(", ");
+          return `Pushed ${pushText}, so ${tree.labels[kids[0]]} is on top.`;
+        }
+        const joined = kids.map((c) => tree.labels[c]);
+        const verb = joined.length === 1 ? "joins" : "join";
+        return `${formatJoin(joined)} ${verb} the back.`;
+      }
+
+      function t2FinishMessage() {
+        const tree = t2Tree();
+        const outStr = labelsOf(tree, t2.visited).join(" ");
+        let msg;
+        if (t2.kind === "stack") {
+          const matchesPre = arraysEqual(t2.visited, preorder(tree));
+          const cmp = matchesPre ? "same as pre-order in tab 1" : "deep-first walk";
+          msg = `Container empty. Output ${outStr}, ${cmp}. A stack goes deep first.`;
+        } else {
+          const matchesLevel = arraysEqual(t2.visited, levelorder(tree));
+          const cmp = matchesLevel ? "same as level order in tab 1" : "level-by-level walk";
+          msg = `Container empty. Output ${outStr}, ${cmp}. A queue goes level by level.`;
+        }
+        if (t2.totalWrong > 0) {
+          const tapWord = t2.totalWrong === 1 ? "tap" : "taps";
+          msg += ` ${t2.totalWrong} wrong ${tapWord} along the way.`;
+        }
+        if (t2.assistedSteps > 0) {
+          const stepWord = t2.assistedSteps === 1 ? "step" : "steps";
+          msg += ` ${t2.assistedSteps} wrong-tap-assisted ${stepWord}.`;
+        }
+        return msg;
+      }
+
+      function t2PushHistory() {
+        t2.history.push({
+          container: t2.container.slice(),
+          visited: t2.visited.slice(),
+          justVisitedId: t2.justVisitedId,
+          justRemovedId: t2.justRemovedId,
+          justAddedIds: t2.justAddedIds.slice(),
+          activeLine: Array.isArray(t2.activeLine) ? t2.activeLine.slice() : t2.activeLine,
+          stepWrong: t2.stepWrong,
+          totalWrong: t2.totalWrong,
+          assistedSteps: t2.assistedSteps,
+          hasCompletedFirstPush: t2.hasCompletedFirstPush,
+          pendingNode: t2.pendingNode
+            ? { x: t2.pendingNode.x, kids: t2.pendingNode.kids.slice() }
+            : null,
+          pushQueue: t2.pushQueue ? t2.pushQueue.slice() : null,
+          statusText: dom2.status.textContent,
+          statusWrong: dom2.status.classList.contains("is-wrong")
+        });
+      }
+
+      function t2StepBack() {
+        t2StopPlay();
+        t2ClearAutoPushTimer();
+        if (t2.history.length === 0) return;
+        const snap = t2.history.pop();
+        t2.container = snap.container;
+        t2.visited = snap.visited;
+        t2.justVisitedId = snap.justVisitedId;
+        t2.justRemovedId = snap.justRemovedId;
+        t2.justAddedIds = snap.justAddedIds;
+        t2.activeLine = snap.activeLine;
+        t2.stepWrong = snap.stepWrong;
+        t2.totalWrong = snap.totalWrong;
+        t2.assistedSteps = snap.assistedSteps;
+        t2.hasCompletedFirstPush = snap.hasCompletedFirstPush;
+        t2.pendingNode = snap.pendingNode;
+        t2.pushQueue = snap.pushQueue;
+        setStatus(dom2.status, snap.statusText, snap.statusWrong);
+        const backHadFocus = document.activeElement === dom2.backBtn;
+        t2Render();
+        if (backHadFocus && dom2.backBtn.disabled) {
+          const fallback = !dom2.stepBtn.hidden && !dom2.stepBtn.disabled
+            ? dom2.stepBtn
+            : dom2.resetBtn;
+          fallback.focus({ preventScroll: true });
+        }
+      }
+
+      function t2TakeOutPhase() {
+        if (t2.container.length === 0 || t2.pendingNode !== null) return;
+        const tree = t2Tree();
+        const x = t2.kind === "stack" ? t2.container.pop() : t2.container.shift();
+        const kids = realChildren(tree, x);
+
+        t2.visited.push(x);
+        t2.justVisitedId = x;
+        t2.justRemovedId = x;
+        t2.justAddedIds = [];
+        t2.stepWrong = 0;
+        t2.activeLine = [2, 3];
+        t2.pendingNode = { x, kids };
+
+        setStatus(
+          dom2.status,
+          t2.kind === "stack"
+            ? `Took ${tree.labels[x]} from the top and visited it.`
+            : `Took ${tree.labels[x]} from the front and visited it.`,
+          false
+        );
+        t2Render();
+      }
+
+      function t2PushChildrenPhase() {
+        if (!t2.pendingNode) return;
+        const { x, kids } = t2.pendingNode;
+        t2.pendingNode = null;
+
+        if (t2.kind === "stack") {
+          const pushed = [];
+          for (let i = kids.length - 1; i >= 0; i--) {
+            t2.container.push(kids[i]);
+            pushed.push(kids[i]);
+          }
+          t2.justAddedIds = pushed;
+        } else {
+          for (const c of kids) {
+            t2.container.push(c);
+          }
+          t2.justAddedIds = kids.slice();
+        }
+
+        if (t2.container.length === 0) {
+          t2.activeLine = 1;
+          t2StopPlay();
+          setStatus(dom2.status, t2FinishMessage(), false);
+        } else {
+          t2.activeLine = 4;
+          setStatus(dom2.status, t2PushMessage(x, kids), false);
+        }
+        t2Render();
+      }
+
+      function t2AdvanceWatchPhase() {
+        if (t2IsDone()) return;
+        if (t2.pendingNode !== null) {
+          t2PushHistory();
+          t2PushChildrenPhase();
+        } else if (t2.container.length > 0) {
+          t2PushHistory();
+          t2TakeOutPhase();
+        }
+      }
+
+      function t2FlushPending() {
+        if (t2.autoPushTimer !== null) {
+          t2ClearAutoPushTimer();
+          t2PushChildrenPhase();
+        }
+      }
+
+      function t2ExecuteCorrectPush(id) {
+        t2.pushQueue.shift();
+        t2.container.push(id);
+        t2.justAddedIds.push(id);
+        t2.stepWrong = 0;
+
+        if (t2.pushQueue.length > 0) {
+          const lbl = t2Tree().labels[id];
+          setStatus(
+            dom2.status,
+            `Added ${lbl}. Tap the next child to put in.`,
+            false
+          );
+        } else {
+          const { x, kids } = t2.pendingNode;
+          t2.pushQueue = null;
+          t2.pendingNode = null;
+          t2.hasCompletedFirstPush = true;
+          setStatus(dom2.status, t2PushMessage(x, kids), false);
+        }
+        t2Render();
+      }
+
+      function t2ExecuteCorrectTakeOut() {
+        t2TakeOutPhase();
+        const kids = t2.pendingNode ? t2.pendingNode.kids : [];
+        if (kids.length >= 2) {
+          t2.pushQueue = t2.kind === "stack" ? kids.slice().reverse() : kids.slice();
+          t2.activeLine = 4;
+          const takenLbl = t2Tree().labels[t2.pendingNode.x];
+          const promptMsg = t2.kind === "stack"
+            ? "Which child should end up on top of the stack? Tap it last."
+            : `Took ${takenLbl} from the front and visited it. Now put its children in. Tap them in the order they go in.`;
+          setStatus(dom2.status, promptMsg, false);
+          t2Render();
+        } else {
+          t2.autoPushTimer = window.setTimeout(() => {
+            t2.autoPushTimer = null;
+            t2PushChildrenPhase();
+          }, 600);
+        }
+      }
+
+      function t2ShowStep() {
+        if (t2.mode !== "predict" || t2.autoPushTimer !== null || t2.stepWrong < 3) return;
+        const hadFocus = document.activeElement === dom2.showStepBtn;
+        t2PushHistory();
+        t2.assistedSteps++;
+        if (t2.pushQueue !== null) {
+          t2ExecuteCorrectPush(t2.pushQueue[0]);
+        } else if (t2.pendingNode === null && t2NextExpected() !== null) {
+          t2ExecuteCorrectTakeOut();
+        }
+        if (hadFocus && dom2.showStepBtn.hidden) {
+          const fallback = dom2.containerView.querySelector(".container-item:not(:disabled)") ||
+            dom2.svg.querySelector('[data-node-id][tabindex="0"]') ||
+            dom2.resetBtn;
+          fallback.focus({ preventScroll: true });
+        }
+      }
+
+      function t2HandleTap(id, el) {
+        if (t2.mode !== "predict") return;
+        if (t2.autoPushTimer !== null) return;
+
+        // Sub-phase: manually pushing 2+ children in order
+        if (t2.pushQueue !== null) {
+          t2PushHistory();
+          const expectedChild = t2.pushQueue[0];
+          if (id === expectedChild) {
+            t2ExecuteCorrectPush(id);
+            return;
+          }
+
+          t2.stepWrong++;
+          t2.totalWrong++;
+          let msg = t2.kind === "stack"
+            ? "Stack: last in, first out, so the child you want out first goes in last."
+            : "Queue: first in, first out, so the child you want out first goes in first.";
+          if (t2.stepWrong >= 2) {
+            msg += t2.kind === "stack"
+              ? " Hint: whichever child goes in last ends up on top and comes out next."
+              : " Hint: children go in left to right so the leftmost leaves first.";
+          }
+          t2Render();
+          const freshNode = dom2.svg.querySelector(`[data-node-id="${id}"]`);
+          triggerShake(freshNode || el);
+          setStatus(dom2.status, msg, true);
+          return;
+        }
+
+        if (t2.pendingNode !== null) return;
+        const expected = t2NextExpected();
+        if (expected === null) return;
+
+        t2PushHistory();
+
+        if (id === expected) {
+          t2ExecuteCorrectTakeOut();
+          return;
+        }
+
+        const visitedSet = new Set(t2.visited);
+        t2.stepWrong++;
+        t2.totalWrong++;
+
+        let msg;
+        if (visitedSet.has(id)) {
+          msg = `${t2Tree().labels[id]} was already visited.`;
+        } else if (t2.kind === "stack") {
+          msg = "Stack: last in, first out. Take from the top.";
+        } else {
+          msg = "Queue: first in, first out. Take from the front.";
+        }
+
+        if (t2.stepWrong >= 2) {
+          msg += t2.kind === "stack"
+            ? " Hint: only the top item of the stack can come out next."
+            : " Hint: only the front item of the queue can come out next.";
+        }
+
+        const wasContainerClick = el && el.classList && el.classList.contains("container-item");
+        const containerIdx = wasContainerClick ? el.dataset.containerIdx : null;
+
+        t2Render();
+
+        if (wasContainerClick) {
+          const freshItem = dom2.containerView.querySelector(
+            `[data-container-idx="${containerIdx}"]`
+          );
+          triggerShake(freshItem || el);
+        } else {
+          const freshNode = dom2.svg.querySelector(`[data-node-id="${id}"]`);
+          triggerShake(freshNode || el);
+        }
+
+        setStatus(dom2.status, msg, true);
+      }
+
+      function t2Reset() {
+        const tree = t2Tree();
+        t2StopPlay();
+        t2ClearAutoPushTimer();
+        t2.pendingNode = null;
+        t2.pushQueue = null;
+        t2.history = [];
+        t2.container = [tree.root];
+        t2.visited = [];
+        t2.justVisitedId = null;
+        t2.justRemovedId = null;
+        t2.justAddedIds = [];
+        t2.activeLine = 0;
+        t2.stepWrong = 0;
+        t2.totalWrong = 0;
+        t2.assistedSteps = 0;
+        t2.hasCompletedFirstPush = false;
+
+        const rootLabel = tree.labels[tree.root];
+        const msg = t2.mode === "watch"
+          ? `Root ${rootLabel} is in the to-do list. Press Take one out to start.`
+          : `Root ${rootLabel} is in the to-do list. Tap the item that comes out first.`;
+        setStatus(dom2.status, msg, false);
+        t2Render();
+      }
+
+      dom2.kindStackBtn.addEventListener("click", () => {
+        if (t2.kind === "stack") return;
+        t2.kind = "stack";
+        t2Reset();
+      });
+
+      dom2.kindQueueBtn.addEventListener("click", () => {
+        if (t2.kind === "queue") return;
+        t2.kind = "queue";
+        t2Reset();
+      });
+
+      dom2.modeWatchBtn.addEventListener("click", () => {
+        if (t2.mode === "watch") return;
+        t2.mode = "watch";
+        t2Reset();
+      });
+
+      dom2.modePredictBtn.addEventListener("click", () => {
+        if (t2.mode === "predict") return;
+        t2.mode = "predict";
+        t2Reset();
+      });
+
+      dom2.stepBtn.addEventListener("click", () => {
+        t2StopPlay();
+        t2AdvanceWatchPhase();
+      });
+
+      dom2.backBtn.addEventListener("click", () => {
+        t2StepBack();
+      });
+
+      dom2.showStepBtn.addEventListener("click", () => {
+        t2ShowStep();
+      });
+
+      dom2.playBtn.addEventListener("click", () => {
+        if (t2.playTimer !== null) {
+          t2StopPlay();
+          return;
+        }
+        if (t2IsDone()) return;
+        dom2.playBtn.textContent = "Pause";
+        t2AdvanceWatchPhase();
+        if (!t2IsDone()) {
+          t2.playTimer = window.setInterval(() => {
+            t2AdvanceWatchPhase();
+          }, 800);
+        }
+      });
+
+      dom2.resetBtn.addEventListener("click", () => {
+        t2Reset();
+      });
+
+      /* ----------------------------------------------------------
+       * Tab switching
+       * ---------------------------------------------------------- */
+      const tabBtns = [
+        document.getElementById("tab-btn-orders"),
+        document.getElementById("tab-btn-container")
+      ];
+      const tabPanels = [
+        document.getElementById("panel-orders"),
+        document.getElementById("panel-container")
+      ];
+
+      function selectTab(idx) {
+        t1StopPlay();
+        t2StopPlay();
+        t2FlushPending();
+
+        tabBtns.forEach((btn, i) => {
+          const active = i === idx;
+          btn.setAttribute("aria-selected", String(active));
+          btn.tabIndex = active ? 0 : -1;
+          tabPanels[i].hidden = !active;
+        });
+      }
+
+      tabBtns.forEach((btn, idx) => {
+        btn.addEventListener("click", () => selectTab(idx));
+        btn.addEventListener("keydown", (e) => {
+          if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+            e.preventDefault();
+            const next = (idx + 1) % tabBtns.length;
+            selectTab(next);
+            tabBtns[next].focus();
+          }
+        });
+      });
+
+      /* ----------------------------------------------------------
+       * Self-check on load
+       * ---------------------------------------------------------- */
+      function selfCheck() {
+        function isAlphabetical(labels) {
+          for (let i = 1; i < labels.length; i++) {
+            if (labels[i - 1] > labels[i]) return false;
+          }
+          return true;
+        }
+
+        const binPreLabels = labelsOf(TREES.binary, preorder(TREES.binary));
+        const binInLabels = labelsOf(TREES.binary, inorder(TREES.binary));
+        const binPostLabels = labelsOf(TREES.binary, postorder(TREES.binary));
+        const binLevelLabels = labelsOf(TREES.binary, levelorder(TREES.binary));
+
+        console.assert(TREES.binary.nodes.length === 8, "binary should have 8 nodes");
+        console.assert(binPreLabels.join(" ") === "K F P R A W M C", "binPre mismatch:", binPreLabels.join(" "));
+        console.assert(binInLabels.join(" ") === "R P F A K W C M", "binIn mismatch:", binInLabels.join(" "));
+        console.assert(binPostLabels.join(" ") === "R P A F C M W K", "binPost mismatch:", binPostLabels.join(" "));
+        console.assert(binLevelLabels.join(" ") === "K F W P A M R C", "binLevel mismatch:", binLevelLabels.join(" "));
+        console.assert(!isAlphabetical(binPreLabels), "binPre should not be alphabetical");
+        console.assert(!isAlphabetical(binInLabels), "binIn should not be alphabetical");
+        console.assert(!isAlphabetical(binPostLabels), "binPost should not be alphabetical");
+        console.assert(!isAlphabetical(binLevelLabels), "binLevel should not be alphabetical");
+
+        const binStackOut = simulateContainer(TREES.binary, "stack");
+        const binQueueOut = simulateContainer(TREES.binary, "queue");
+        console.assert(arraysEqual(binStackOut, preorder(TREES.binary)), "bin stack !== pre");
+        console.assert(arraysEqual(binQueueOut, levelorder(TREES.binary)), "bin queue !== level");
+
+        const quizPre = labelsOf(QUIZ_TREE, preorder(QUIZ_TREE));
+        const quizIn = labelsOf(QUIZ_TREE, inorder(QUIZ_TREE));
+        const quizPost = labelsOf(QUIZ_TREE, postorder(QUIZ_TREE));
+        const quizLevel = labelsOf(QUIZ_TREE, levelorder(QUIZ_TREE));
+        console.assert(QUIZ_TREE.nodes.length === 7, "quiz tree should have 7 nodes");
+        console.assert(quizPre.join(" ") === "H N G D V B J", "quizPre mismatch:", quizPre.join(" "));
+        console.assert(quizIn.join(" ") === "N G H V D J B", "quizIn mismatch:", quizIn.join(" "));
+        console.assert(quizPost.join(" ") === "G N V J B D H", "quizPost mismatch:", quizPost.join(" "));
+        console.assert(quizLevel.join(" ") === "H N D G V B J", "quizLevel mismatch:", quizLevel.join(" "));
+        console.assert(!isAlphabetical(quizPre), "quizPre should not be alphabetical");
+        console.assert(!isAlphabetical(quizIn), "quizIn should not be alphabetical");
+        console.assert(!isAlphabetical(quizPost), "quizPost should not be alphabetical");
+        console.assert(!isAlphabetical(quizLevel), "quizLevel should not be alphabetical");
+
+        const tenPreLabels = labelsOf(TREES.ten, preorder(TREES.ten));
+        const tenPostLabels = labelsOf(TREES.ten, postorder(TREES.ten));
+        const tenLevelLabels = labelsOf(TREES.ten, levelorder(TREES.ten));
+
+        const tenPre = tenPreLabels.join(" ");
+        const tenPost = tenPostLabels.join(" ");
+        const tenLevel = tenLevelLabels.join(" ");
+
+        const exprPre = labelsOf(TREES.expr, preorder(TREES.expr)).join(" ");
+        const exprIn = labelsOf(TREES.expr, inorder(TREES.expr)).join(" ");
+        const exprPost = labelsOf(TREES.expr, postorder(TREES.expr)).join(" ");
+        const exprLevel = labelsOf(TREES.expr, levelorder(TREES.expr)).join(" ");
+
+        const tenStackOut = simulateContainer(TREES.ten, "stack");
+        const tenQueueOut = simulateContainer(TREES.ten, "queue");
+
+        console.assert(tenPre === "M C R A T K W E H P", "tenPre mismatch:", tenPre);
+        console.assert(tenPost === "R A C W K E T P H M", "tenPost mismatch:", tenPost);
+        console.assert(tenLevel === "M C T H R A K E P W", "tenLevel mismatch:", tenLevel);
+
+        console.assert(!isAlphabetical(tenPreLabels), "tenPre should not be alphabetical");
+        console.assert(!isAlphabetical(tenPostLabels), "tenPost should not be alphabetical");
+        console.assert(!isAlphabetical(tenLevelLabels), "tenLevel should not be alphabetical");
+
+        console.assert(exprPre === "* + a b + a c", "exprPre mismatch:", exprPre);
+        console.assert(exprIn === "a + b * a + c", "exprIn mismatch:", exprIn);
+        console.assert(exprPost === "a b + a c + *", "exprPost mismatch:", exprPost);
+        console.assert(exprLevel === "* + + a b a c", "exprLevel mismatch:", exprLevel);
+
+        console.assert(arraysEqual(tenStackOut, preorder(TREES.ten)), "ten stack !== pre");
+        console.assert(arraysEqual(tenQueueOut, levelorder(TREES.ten)), "ten queue !== level");
+      }
+
+      selfCheck();
+      t1Reset(null, true);
+      t2Reset();
+    })();
+  </script>
+</body>
+</html>
