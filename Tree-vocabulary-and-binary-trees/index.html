@@ -1,0 +1,5159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tree vocabulary and binary trees</title>
+  <style>
+    :root {
+      --paper: #fcebd0;
+      --paper-alt: #f5cf92;
+      --surface: #fffbf2;
+      --ink: #2d0f31;
+      --ink-muted: #582c5c;
+      --ink-faint: #6e3f6c;
+      --rule: #d89d58;
+      --vermilion: #ba3813;
+      --vermilion-tint: #fdede3;
+      --vermilion-soft: rgba(186, 56, 19, 0.20);
+      --amber: #e2871f;
+      --font-sans: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      --font-serif: "Georgia", "Times New Roman", serif;
+      --font-mono: "JetBrains Mono", "SFMono-Regular", "Consolas", "Liberation Mono", Menlo, monospace;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --shadow-paper: 0 3px 0 rgba(45, 15, 49, 0.14);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--paper);
+      background-image:
+        linear-gradient(to right, rgba(45, 15, 49, 0.045) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(45, 15, 49, 0.045) 1px, transparent 1px);
+      background-size: 24px 24px;
+      color: var(--ink);
+      font-family: var(--font-sans);
+      line-height: 1.45;
+      -webkit-tap-highlight-color: transparent;
+      overflow-x: hidden;
+    }
+
+    .app-shell {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 18px 14px 30px;
+    }
+
+    /* Header */
+    .masthead {
+      background: var(--surface);
+      border: 1.5px solid var(--ink);
+      border-top: 4px solid var(--amber);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      box-shadow: var(--shadow-paper);
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-family: var(--font-serif);
+      font-size: clamp(1.25rem, 2.5vw, 1.55rem);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+    }
+
+    .lede {
+      margin: 0;
+      font-size: 0.92rem;
+      color: var(--ink-muted);
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 0;
+    }
+
+    .tab-btn {
+      appearance: none;
+      min-height: 44px;
+      padding: 9px 16px;
+      border: 1.5px solid var(--ink);
+      border-bottom: 0;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      background: var(--paper-alt);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color 0.12s ease, color 0.12s ease;
+    }
+
+    .tab-btn:hover:not([aria-selected="true"]) {
+      background: var(--surface);
+    }
+
+    .tab-btn[aria-selected="true"] {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    @media (max-width: 480px) {
+      .app-shell {
+        padding: 12px 8px 24px;
+      }
+      .tab-btn {
+        flex: 1 1 0;
+        padding: 8px 10px;
+        font-size: 0.8rem;
+      }
+      .tab-panel {
+        padding: 10px;
+      }
+      .task-banner {
+        padding: 12px 10px;
+      }
+      .svg-stage {
+        padding: 8px 2px 4px;
+      }
+    }
+
+    .tab-btn:focus-visible,
+    .step-chip:focus-visible,
+    .btn:focus-visible,
+    .choice-btn:focus-visible,
+    .link-btn:focus-visible {
+      outline: 2px solid var(--vermilion);
+      outline-offset: 2px;
+    }
+
+    /* Tab Panels */
+    .tab-panel {
+      background: var(--surface);
+      border: 1.5px solid var(--ink);
+      border-radius: 0 var(--radius-md) var(--radius-md) var(--radius-md);
+      padding: 16px;
+      box-shadow: var(--shadow-paper);
+    }
+
+    /* Stepper Bar */
+    .stepper {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 12px;
+      scrollbar-width: none;
+    }
+
+    .stepper::-webkit-scrollbar {
+      display: none;
+    }
+
+    .step-chip {
+      appearance: none;
+      flex: 1 1 auto;
+      justify-content: center;
+      min-height: 44px;
+      padding: 6px 6px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 0.77rem;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .step-chip:hover:not(.is-current) {
+      background: var(--paper-alt);
+    }
+
+    .step-chip.is-current {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    .step-chip.is-done:not(.is-current) {
+      background: var(--surface);
+    }
+
+    .chip-num {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      opacity: 0.85;
+    }
+
+    .chip-check {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+    }
+
+    @media (max-width: 480px) {
+      .stepper {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 6px;
+        padding-bottom: 4px;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      .step-chip {
+        flex: 0 0 auto;
+        padding: 8px 10px;
+        font-size: 0.78rem;
+        gap: 5px;
+      }
+    }
+
+    /* Task Banner */
+    .task-banner {
+      background: var(--paper);
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+
+    .banner-title {
+      margin: 0 0 6px;
+      font-family: var(--font-serif);
+      font-size: 1.18rem;
+      font-weight: 700;
+      color: var(--ink);
+      outline: none;
+    }
+
+    .banner-title:focus-visible {
+      outline: 2px solid var(--vermilion);
+      outline-offset: 3px;
+      border-radius: 2px;
+    }
+
+    .banner-intro {
+      margin: 0 0 12px;
+      font-size: 0.9rem;
+      color: var(--ink);
+    }
+
+    .task-box {
+      background: var(--surface);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .task-top {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .task-prompt {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: 1.03rem;
+      color: var(--ink);
+    }
+
+    .task-action {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+    }
+
+    .task-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .task-subnote {
+      margin: 2px 0 0;
+      font-size: 0.85rem;
+      color: var(--ink-muted);
+    }
+
+    .task-feedback {
+      margin: 2px 0 0;
+      padding: 8px 10px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-left: 3px solid var(--ink);
+      border-radius: var(--radius-sm);
+      font-size: 0.86rem;
+      color: var(--ink);
+      min-height: 36px;
+    }
+
+    .task-feedback.is-wrong {
+      border-left-color: var(--vermilion);
+      background: var(--vermilion-tint);
+    }
+
+    .task-feedback.is-correct {
+      border-left-color: var(--ink);
+      background: var(--paper);
+    }
+
+    .task-feedback.is-revealed {
+      border-left-color: var(--vermilion);
+      background: var(--paper);
+    }
+
+    /* Buttons */
+    .btn {
+      appearance: none;
+      min-height: 44px;
+      padding: 8px 14px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 0.84rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: var(--paper-alt);
+    }
+
+    .btn.is-primary {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    .btn.is-primary:hover:not(:disabled) {
+      background: #471b4d;
+    }
+
+    .btn.is-vermilion {
+      background: var(--vermilion);
+      border-color: var(--vermilion);
+      color: var(--surface);
+    }
+
+    .btn.is-vermilion:hover:not(:disabled) {
+      background: #982c0d;
+      border-color: #982c0d;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .link-btn {
+      appearance: none;
+      min-height: 44px;
+      padding: 8px 6px;
+      border: 0;
+      background: transparent;
+      color: var(--ink-muted);
+      font-family: var(--font-sans);
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    .link-btn:hover {
+      color: var(--ink);
+    }
+
+    /* Stage + Side Panel */
+    .stage-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    @media (max-width: 759px) {
+      .stage-grid {
+        grid-template-columns: 1fr;
+      }
+      .tab-panel {
+        border-radius: 0 0 var(--radius-md) var(--radius-md);
+      }
+    }
+
+    .svg-stage {
+      background: var(--surface);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      padding: 12px 6px 6px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      position: relative;
+    }
+
+    .worked-example {
+      margin: 0;
+      padding: 8px 10px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-left: 3px solid var(--vermilion);
+      border-radius: var(--radius-sm);
+      font-size: 0.86rem;
+      color: var(--ink);
+    }
+
+    .worked-example-label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      margin-bottom: 2px;
+    }
+
+    .tree-svg {
+      width: 100%;
+      height: auto;
+      display: block;
+      user-select: none;
+    }
+
+    .stage-counter {
+      margin: 4px 8px 2px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--ink);
+      text-align: center;
+    }
+
+    .stage-counter.is-highlight {
+      color: var(--vermilion);
+    }
+
+    .stage-counter-note {
+      margin: 0 8px 2px;
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      color: var(--ink-muted);
+      text-align: center;
+    }
+
+    .stage-tree-name {
+      margin: 0 8px 4px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      text-align: center;
+    }
+
+    @keyframes treeCrossFade {
+      0% { opacity: 0.45; }
+      100% { opacity: 1; }
+    }
+
+    .is-crossfading {
+      animation: treeCrossFade 0.28s ease-out;
+    }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      padding: 4px;
+    }
+
+    @media (max-width: 520px) {
+      .compare-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .compare-card {
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      padding: 8px 4px 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .compare-title {
+      margin: 0 0 2px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--ink);
+    }
+
+    .code-card {
+      margin: 2px 0 0;
+      padding: 9px 11px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-left: 3px solid var(--ink);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      line-height: 1.45;
+      color: var(--ink);
+      overflow-x: auto;
+      max-width: 100%;
+    }
+
+    .code-fact {
+      margin: 4px 0 0;
+      padding: 7px 9px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      line-height: 1.45;
+      color: var(--ink);
+      min-width: 0;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+
+    .side-block > .code-fact:first-child {
+      margin-top: 0;
+    }
+
+    .code-fact-lines {
+      margin: 0;
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+      white-space: pre;
+      overflow-x: auto;
+      max-width: 100%;
+    }
+
+    .code-fact-label {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--ink-muted);
+      margin-bottom: 2px;
+    }
+
+    .code-null {
+      color: var(--ink-faint);
+      font-weight: 700;
+    }
+
+    .hidden-tree-panel {
+      min-height: 220px;
+      margin: 8px;
+      padding: 24px 16px;
+      background: var(--paper);
+      border: 1.5px dashed var(--rule);
+      border-radius: var(--radius-sm);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 8px;
+    }
+
+    .hidden-n-readout {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: clamp(1.8rem, 5vw, 2.4rem);
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .hidden-n-note {
+      margin: 0;
+      font-size: 0.92rem;
+      color: var(--ink-muted);
+    }
+
+    .algebra-details {
+      margin-top: 2px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      padding: 6px 10px;
+      font-size: 0.84rem;
+    }
+
+    .algebra-details summary {
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--ink);
+      padding: 4px 0;
+    }
+
+    .algebra-details summary:focus-visible {
+      outline: 2px solid var(--vermilion);
+      outline-offset: 2px;
+    }
+
+    .algebra-details p {
+      margin: 6px 0 2px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--ink);
+    }
+
+    /* SVG Elements */
+    .tree-edge {
+      stroke: var(--ink);
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      transition: stroke 0.15s ease, stroke-width 0.15s ease, opacity 0.15s ease;
+    }
+
+    .tree-edge.is-dim {
+      opacity: 0.25;
+    }
+
+    .tree-edge.is-highlight {
+      stroke: var(--vermilion);
+      stroke-width: 3.6;
+      opacity: 1;
+    }
+
+    .edge-label-bg {
+      fill: var(--surface);
+      stroke: var(--rule);
+      stroke-width: 1;
+    }
+
+    .edge-label-text {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      fill: var(--ink);
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    .tree-node {
+      cursor: pointer;
+      outline: none;
+    }
+
+    .tree-node.is-static {
+      cursor: default;
+    }
+
+    .tree-node.is-dim {
+      opacity: 0.35;
+    }
+
+    .bt-node {
+      transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease;
+      opacity: 1;
+    }
+
+    .bt-node.is-absent {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    @keyframes nodeClickPulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.1);
+        stroke: var(--vermilion);
+      }
+    }
+
+    .node-circle {
+      fill: var(--surface);
+      stroke: var(--ink);
+      stroke-width: 1.5;
+      transition: fill 0.14s ease, stroke 0.14s ease, stroke-width 0.14s ease;
+    }
+
+    .tree-node.is-pulse:not(.is-static) .node-circle {
+      animation: nodeClickPulse 0.85s ease-in-out 2;
+    }
+
+    .tree-node:not(.is-static):hover .node-circle {
+      fill: var(--paper-alt);
+    }
+
+    .node-focus-ring {
+      fill: none;
+      stroke: var(--vermilion);
+      stroke-width: 2.2;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.14s ease;
+    }
+
+    .tree-node:not(.is-static):hover .node-focus-ring {
+      opacity: 0.4;
+    }
+
+    .tree-node:focus-visible .node-focus-ring {
+      opacity: 1;
+    }
+
+    .node-hi-ring {
+      fill: none;
+      stroke: var(--vermilion);
+      stroke-width: 1.5;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .tree-node.is-selected .node-hi-ring,
+    .tree-node.is-highlight .node-hi-ring {
+      opacity: 1;
+    }
+
+    .tree-node:focus-visible .node-circle {
+      stroke: var(--vermilion);
+      stroke-width: 2.8;
+    }
+
+    .tree-node.is-selected .node-circle,
+    .tree-node.is-highlight .node-circle {
+      fill: var(--vermilion-tint);
+      stroke: var(--vermilion);
+      stroke-width: 3.2;
+    }
+
+    .tree-node.is-start .node-ring {
+      stroke: var(--ink);
+      stroke-width: 1.5;
+      stroke-dasharray: 3 2;
+      fill: none;
+    }
+
+    .node-label {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 700;
+      fill: var(--ink);
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    .tree-node.is-selected .node-label,
+    .tree-node.is-highlight .node-label {
+      fill: var(--vermilion);
+    }
+
+    .node-badge-bg {
+      fill: var(--paper);
+      stroke: var(--ink);
+      stroke-width: 1.2;
+    }
+
+    .tree-node.is-selected .node-badge-bg,
+    .tree-node.is-highlight .node-badge-bg {
+      fill: var(--vermilion);
+      stroke: var(--vermilion);
+    }
+
+    .node-badge-text {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      fill: var(--ink);
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    .tree-node.is-selected .node-badge-text,
+    .tree-node.is-highlight .node-badge-text {
+      fill: var(--surface);
+    }
+
+    .tree-node .node-badge-bg.is-depth {
+      fill: var(--ink);
+      stroke: var(--ink);
+    }
+
+    .tree-node .node-badge-text.is-depth {
+      fill: var(--paper);
+    }
+
+    .tree-node .node-badge-bg.is-height {
+      fill: var(--vermilion-tint);
+      stroke: var(--vermilion);
+      stroke-width: 1.5;
+    }
+
+    .tree-node .node-badge-text.is-height {
+      fill: var(--vermilion);
+    }
+
+    /* Empty binary child slots */
+    .empty-slot-edge {
+      stroke: var(--ink-faint);
+      stroke-width: 1.2;
+      stroke-dasharray: 4 3;
+      transition: stroke 0.45s ease;
+    }
+
+    .empty-slot-box {
+      fill: none;
+      stroke: var(--ink-faint);
+      stroke-width: 1.3;
+      stroke-dasharray: 3 2.5;
+      transition: stroke 0.45s ease, fill 0.45s ease;
+    }
+
+    .empty-slot-group.is-new .empty-slot-edge {
+      stroke: var(--vermilion);
+    }
+
+    .empty-slot-group.is-new .empty-slot-box {
+      stroke: var(--vermilion);
+      fill: var(--vermilion-tint);
+    }
+
+    .slot-fill-edge.is-ghost {
+      stroke: var(--ink-faint);
+      stroke-width: 1.2;
+      stroke-dasharray: 4 3;
+    }
+
+    .slot-fill-edge.is-landing {
+      stroke: var(--vermilion);
+      stroke-width: 2.8;
+      stroke-dasharray: 180;
+      stroke-dashoffset: 180;
+      animation: slotEdgeLand 0.38s ease-out forwards;
+    }
+
+    @keyframes slotEdgeLand {
+      to {
+        stroke-dashoffset: 0;
+      }
+    }
+
+    .slot-fill-square.is-ghost {
+      fill: none;
+      stroke: var(--ink-faint);
+      stroke-width: 1.3;
+      stroke-dasharray: 3 2.5;
+    }
+
+    .slot-fill-square.is-filled {
+      fill: var(--paper-alt);
+      stroke: var(--ink);
+      stroke-width: 1.6;
+      stroke-dasharray: none;
+    }
+
+    .slot-fill-square.is-just-filled {
+      fill: var(--vermilion-tint);
+      stroke: var(--vermilion);
+      stroke-width: 2;
+    }
+
+    /* Side Panel */
+    .side-panel {
+      background: var(--surface);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .side-block {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .side-block + .side-block {
+      padding-top: 10px;
+      border-top: 1px solid var(--rule);
+    }
+
+    .side-title {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: 0.94rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .rule-note {
+      margin: 0;
+      padding: 7px 9px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--ink);
+    }
+
+    .legend-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 0.82rem;
+      color: var(--ink-muted);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1.5px solid var(--ink);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .swatch.is-highlight {
+      border-color: var(--vermilion);
+      border-width: 2px;
+      background: var(--vermilion-tint);
+      box-shadow: 0 0 0 1.5px var(--surface), 0 0 0 3px var(--vermilion);
+    }
+
+    .swatch.is-start {
+      border-style: dashed;
+    }
+
+    .swatch.is-empty {
+      border-radius: 2px;
+      border-style: dashed;
+      border-color: var(--ink-faint);
+    }
+
+    .swatch.is-badge-depth {
+      border-radius: 3px;
+      background: var(--ink);
+      border-color: var(--ink);
+    }
+
+    .swatch.is-badge-height {
+      border-radius: 3px;
+      background: var(--vermilion-tint);
+      border-color: var(--vermilion);
+    }
+
+    .fact-list {
+      margin: 0;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 4px 10px;
+      font-size: 0.82rem;
+    }
+
+    .fact-list dt {
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+    }
+
+    .fact-list dd {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--ink);
+      word-break: break-word;
+    }
+
+    .glossary-list {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .glossary-item {
+      padding: 5px 7px;
+      border-radius: var(--radius-sm);
+      border-left: 2px solid var(--rule);
+      font-size: 0.8rem;
+    }
+
+    .glossary-item.is-fresh {
+      border-left-color: var(--vermilion);
+      background: var(--vermilion-tint);
+    }
+
+    .glossary-term {
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .glossary-def {
+      color: var(--ink-muted);
+    }
+
+    .side-hint {
+      margin: 0;
+      font-size: 0.82rem;
+      color: var(--ink-muted);
+    }
+
+    /* Predict / Choice Box */
+    .predict-box {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .predict-prompt {
+      margin: 0;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+    }
+
+    .choice-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .choice-btn {
+      appearance: none;
+      min-width: 44px;
+      min-height: 44px;
+      max-width: 100%;
+      padding: 8px 12px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 0.84rem;
+      font-weight: 700;
+      white-space: normal;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .choice-btn:hover:not(:disabled) {
+      background: var(--paper-alt);
+    }
+
+    .choice-btn:disabled {
+      cursor: default;
+    }
+
+    .choice-btn.is-correct-answer {
+      background: var(--ink);
+      color: var(--paper);
+      border-color: var(--ink);
+    }
+
+    .choice-btn.is-just-revealed {
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+      border-color: var(--vermilion);
+      border-width: 2.5px;
+    }
+
+    .choice-btn.is-wrong-guess {
+      background: var(--vermilion-tint);
+      color: var(--vermilion);
+      border-color: var(--vermilion);
+      border-style: dashed;
+    }
+
+    .reveal-result {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--vermilion);
+    }
+
+    /* Result / Summary Card */
+    .result-card {
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .result-score {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: 1.04rem;
+      font-weight: 700;
+    }
+
+    .miss-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .miss-item {
+      padding: 7px 9px;
+      background: var(--surface);
+      border: 1px solid var(--rule);
+      border-left: 3px solid var(--vermilion);
+      border-radius: var(--radius-sm);
+      font-size: 0.84rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px 10px;
+    }
+
+    .remember-list {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 0.86rem;
+    }
+
+    /* Bottom Nav */
+    .bottom-nav {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--rule);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px 12px;
+    }
+
+    .nav-pair {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after,
+      .tab-btn,
+      .tree-edge,
+      .tree-edge.is-highlight,
+      .bt-node,
+      .node-circle,
+      .tree-node.is-selected .node-circle,
+      .tree-node.is-highlight .node-circle,
+      .empty-slot-edge,
+      .empty-slot-box,
+      .empty-slot-group.is-new .empty-slot-edge,
+      .empty-slot-group.is-new .empty-slot-box,
+      .tree-node.is-pulse:not(.is-static) .node-circle,
+      .node-focus-ring {
+        transition: none !important;
+        animation: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="masthead">
+      <h1>Tree vocabulary and binary trees</h1>
+      <p class="lede">Work through each step. Each one gives you a small task. Guess first, then check.</p>
+    </header>
+
+    <div class="tab-bar" role="tablist" aria-label="Lesson parts">
+      <button type="button" class="tab-btn" id="tab-vocab" role="tab" aria-selected="true" aria-controls="panel-vocab">Part 1 · Vocabulary</button>
+      <button type="button" class="tab-btn" id="tab-binary" role="tab" aria-selected="false" aria-controls="panel-binary" tabindex="-1">Part 2 · Binary trees</button>
+    </div>
+
+    <main>
+      <!-- PART 1: VOCABULARY -->
+      <section id="panel-vocab" class="tab-panel" role="tabpanel" aria-labelledby="tab-vocab">
+        <nav class="stepper" id="vocab-stepper" aria-label="Part 1 steps"></nav>
+        <div class="task-banner" id="vocab-banner"></div>
+
+        <div class="stage-grid">
+          <div class="svg-stage">
+            <svg id="vocab-svg" class="tree-svg" viewBox="0 0 640 400" aria-label="10-node general tree"></svg>
+          </div>
+          <aside class="side-panel" id="vocab-side" aria-label="Part 1 legend and words"></aside>
+        </div>
+
+        <div class="bottom-nav" id="vocab-nav"></div>
+      </section>
+
+      <!-- PART 2: BINARY TREES -->
+      <section id="panel-binary" class="tab-panel" role="tabpanel" aria-labelledby="tab-binary" hidden>
+        <nav class="stepper" id="binary-stepper" aria-label="Part 2 steps"></nav>
+        <div class="task-banner" id="binary-banner"></div>
+
+        <div class="stage-grid">
+          <div class="svg-stage">
+            <p class="stage-tree-name" id="binary-tree-name"></p>
+            <svg id="binary-svg" class="tree-svg" viewBox="0 0 640 360" aria-label="Binary tree"></svg>
+            <div class="compare-grid" id="binary-compare" hidden></div>
+            <div class="hidden-tree-panel" id="binary-hidden-panel" hidden>
+              <p class="hidden-n-readout" id="binary-hidden-readout"></p>
+              <p class="hidden-n-note">No picture this time. Use the rule.</p>
+            </div>
+            <p class="stage-counter" id="binary-counter" hidden></p>
+            <p class="stage-counter-note" id="binary-counter-note" hidden></p>
+          </div>
+          <aside class="side-panel" id="binary-side" aria-label="Part 2 legend and words"></aside>
+        </div>
+
+        <div class="bottom-nav" id="binary-nav"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      /* =====================================================================
+       * HANDOUT TREE DATA (edit here if adapting to a different handout tree)
+       * - vocab: Ex. 3.2 general 10-node tree (root 1, depth(6)=2, height(3)=2, tree height=3)
+       * - binary: Fig. 3.3 pair (a, b) plus 7-node comparison tree (c)
+       * ===================================================================== */
+      const DATA = {
+        vocab: {
+          root: "1",
+          children: {
+            "1": ["2", "3", "4"],
+            "2": ["5", "6"],
+            "3": ["7", "8"],
+            "4": ["9"],
+            "5": [],
+            "6": [],
+            "7": ["10"],
+            "8": [],
+            "9": [],
+            "10": []
+          }
+        },
+        binary: {
+          a: {
+            name: "Tree (a)",
+            root: "A",
+            nodes: {
+              A: { l: "B", r: "C" },
+              B: { l: "D", r: "E" },
+              C: { l: null, r: null },
+              D: { l: null, r: null },
+              E: { l: null, r: null }
+            }
+          },
+          b: {
+            name: "Tree (b)",
+            root: "A",
+            nodes: {
+              A: { l: "B", r: "C" },
+              B: { l: null, r: null },
+              C: { l: "D", r: null },
+              D: { l: null, r: "E" },
+              E: { l: null, r: null }
+            }
+          },
+          c: {
+            name: "Tree (c)",
+            root: "A",
+            nodes: {
+              A: { l: "B", r: "C" },
+              B: { l: "D", r: "E" },
+              C: { l: "F", r: "G" },
+              D: { l: null, r: null },
+              E: { l: null, r: null },
+              F: { l: null, r: null },
+              G: { l: null, r: null }
+            }
+          }
+        }
+      };
+
+      const SVG_NS = "http://www.w3.org/2000/svg";
+
+      function svgEl(tag, attrs, text) {
+        const el = document.createElementNS(SVG_NS, tag);
+        if (attrs) {
+          for (const key of Object.keys(attrs)) {
+            el.setAttribute(key, String(attrs[key]));
+          }
+        }
+        if (text !== undefined) {
+          el.textContent = String(text);
+        }
+        return el;
+      }
+
+      function edgeKey(u, v) {
+        return u + "->" + v;
+      }
+
+      function setRichText(el, str) {
+        el.replaceChildren();
+        const re = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
+        let last = 0;
+        let match;
+        while ((match = re.exec(str)) !== null) {
+          if (match.index > last) {
+            el.appendChild(document.createTextNode(str.slice(last, match.index)));
+          }
+          const token = match[0];
+          if (token.startsWith("**")) {
+            const strong = document.createElement("strong");
+            strong.textContent = token.slice(2, -2);
+            el.appendChild(strong);
+          } else {
+            const em = document.createElement("em");
+            em.textContent = token.slice(1, -1);
+            el.appendChild(em);
+          }
+          last = re.lastIndex;
+        }
+        if (last < str.length) {
+          el.appendChild(document.createTextNode(str.slice(last)));
+        }
+      }
+
+      function prefersReducedMotion() {
+        return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      }
+
+      function emptySlots(n) {
+        return n + 1;
+      }
+
+      function hashString(str) {
+        let h = 2166136261;
+        for (let i = 0; i < str.length; i++) {
+          h ^= str.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        return h >>> 0;
+      }
+
+      function mulberry32(seed) {
+        let a = seed >>> 0;
+        return function () {
+          a |= 0;
+          a = (a + 0x6d2b79f5) | 0;
+          let t = Math.imul(a ^ (a >>> 15), 1 | a);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      function seededShuffle(items, seedStr) {
+        const out = items.slice();
+        const rand = mulberry32(hashString(seedStr));
+        for (let i = out.length - 1; i > 0; i--) {
+          const j = Math.floor(rand() * (i + 1));
+          const tmp = out[i];
+          out[i] = out[j];
+          out[j] = tmp;
+        }
+        return out;
+      }
+
+      function edgeWord(n) {
+        return n === 1 ? "edge" : "edges";
+      }
+
+      function numberWord(n) {
+        const words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+        return n >= 0 && n < words.length ? words[n] : String(n);
+      }
+
+      function appendCodeWithNulls(el, text) {
+        const re = /\bnull\b/g;
+        let last = 0;
+        let match;
+        while ((match = re.exec(text)) !== null) {
+          if (match.index > last) {
+            el.appendChild(document.createTextNode(text.slice(last, match.index)));
+          }
+          const sp = document.createElement("span");
+          sp.className = "code-null";
+          sp.textContent = "null";
+          el.appendChild(sp);
+          last = re.lastIndex;
+        }
+        if (last < text.length) {
+          el.appendChild(document.createTextNode(text.slice(last)));
+        }
+      }
+
+      function makeIntChoices(minVal, maxVal, answer) {
+        const vals = new Set();
+        for (let v = minVal; v <= maxVal; v++) vals.add(v);
+        vals.add(answer);
+        let probe = maxVal + 1;
+        while (vals.size < 4) {
+          vals.add(probe);
+          probe += 1;
+        }
+        return Array.from(vals).sort((a, b) => a - b).map((v) => ({ value: v, label: String(v) }));
+      }
+
+      function isNumericChoiceTask(task) {
+        return task.choices.every((c) => typeof c.value === "number" || /^\d+$/.test(String(c.label).trim()));
+      }
+
+      function prepareStepChoices(steps, variantSalt) {
+        let prevChoicePos = -1;
+        let prevNumericPos = -1;
+        for (const step of steps) {
+          for (let ti = 0; ti < step.tasks.length; ti++) {
+            const task = step.tasks[ti];
+            if (task.type !== "choice" || task.fixedOrder || !Array.isArray(task.choices) || task.choices.length < 2) {
+              continue;
+            }
+            const baseSeed = step.id + ":" + ti + (variantSalt ? ":v" + variantSalt : "");
+            if (!task._rawChoices) {
+              task._rawChoices = task.choices.slice();
+            }
+            const numeric = isNumericChoiceTask(task);
+            let salt = 0;
+            let candidate = seededShuffle(task._rawChoices, baseSeed);
+            let ansPos = candidate.findIndex((c) => c.value === task.answer);
+            while ((ansPos === prevChoicePos || (numeric && ansPos === prevNumericPos)) && salt < 24) {
+              salt += 1;
+              candidate = seededShuffle(task._rawChoices, baseSeed + "#" + salt);
+              ansPos = candidate.findIndex((c) => c.value === task.answer);
+            }
+            task.choices = candidate;
+            prevChoicePos = ansPos;
+            if (numeric) prevNumericPos = ansPos;
+          }
+        }
+      }
+
+      function getBinaryFillOrder(layout) {
+        const order = [];
+        const queue = [layout.root];
+        const edgeByChild = {};
+        for (const edge of layout.edges) {
+          edgeByChild[edge.to] = edge;
+        }
+        while (queue.length > 0) {
+          const cur = queue.shift();
+          const node = layout.nodes[cur];
+          if (!node) continue;
+          if (node.l) {
+            if (edgeByChild[node.l]) order.push(edgeByChild[node.l]);
+            queue.push(node.l);
+          }
+          if (node.r) {
+            if (edgeByChild[node.r]) order.push(edgeByChild[node.r]);
+            queue.push(node.r);
+          }
+        }
+        return order;
+      }
+
+      function findDifferentChildPlace(layA, layB) {
+        const parentOf = (lay, target) => {
+          for (const id of lay.labels) {
+            const n = lay.nodes[id];
+            if (n.l === target) return { parent: id, side: "left" };
+            if (n.r === target) return { parent: id, side: "right" };
+          }
+          return null;
+        };
+        for (const id of layA.labels) {
+          if (!layB.nodes[id]) continue;
+          const pa = parentOf(layA, id);
+          const pb = parentOf(layB, id);
+          if (pa && pb && (pa.parent !== pb.parent || pa.side !== pb.side)) {
+            return { id, a: pa, b: pb };
+          }
+        }
+        return null;
+      }
+
+      function findDepthVsHeightPair(model) {
+        if (
+          model.nodes.includes("3") &&
+          model.nodes.includes("7") &&
+          model.depth["7"] > model.depth["3"] &&
+          model.height["3"] > model.height["7"]
+        ) {
+          return ["3", "7"];
+        }
+        for (const a of model.nodes) {
+          for (const b of model.nodes) {
+            if (a !== b && model.depth[b] > model.depth[a] && model.height[a] > model.height[b]) {
+              return [a, b];
+            }
+          }
+        }
+        return [model.root, model.leaves[0] || model.root];
+      }
+
+      /* ---------------------------------------------------------------------
+       * TAB SWITCHING
+       * --------------------------------------------------------------------- */
+      const tabButtons = [
+        document.getElementById("tab-vocab"),
+        document.getElementById("tab-binary")
+      ];
+      const tabPanels = [
+        document.getElementById("panel-vocab"),
+        document.getElementById("panel-binary")
+      ];
+
+      function activateTab(index) {
+        if (!tabPanels[index].hidden) return;
+        tabButtons.forEach((btn, i) => {
+          const active = i === index;
+          btn.setAttribute("aria-selected", active ? "true" : "false");
+          btn.tabIndex = active ? 0 : -1;
+          tabPanels[i].hidden = !active;
+        });
+        if (index === 0 && typeof part1 !== "undefined") part1.refreshView();
+        if (index === 1 && typeof part2 !== "undefined") part2.refreshView();
+      }
+
+      tabButtons.forEach((btn, idx) => {
+        btn.addEventListener("click", () => activateTab(idx));
+        btn.addEventListener("keydown", (e) => {
+          if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+            e.preventDefault();
+            const next = (idx + (e.key === "ArrowRight" ? 1 : -1) + tabButtons.length) % tabButtons.length;
+            activateTab(next);
+            tabButtons[next].focus();
+          } else if (e.key === "Home") {
+            e.preventDefault();
+            activateTab(0);
+            tabButtons[0].focus();
+          } else if (e.key === "End") {
+            e.preventDefault();
+            const last = tabButtons.length - 1;
+            activateTab(last);
+            tabButtons[last].focus();
+          }
+        });
+      });
+
+      /* ---------------------------------------------------------------------
+       * TREE MODELS & LAYOUTS (reused)
+       * --------------------------------------------------------------------- */
+      function buildVocabModel(spec) {
+        const nodes = Object.keys(spec.children);
+        const parent = {};
+        const depth = {};
+        const height = {};
+        const longestDownPath = {};
+        const rootPath = {};
+        parent[spec.root] = null;
+
+        function computeDepth(id, d, path) {
+          depth[id] = d;
+          rootPath[id] = path.concat(id);
+          for (const ch of spec.children[id]) {
+            parent[ch] = id;
+            computeDepth(ch, d + 1, rootPath[id]);
+          }
+        }
+        computeDepth(spec.root, 0, []);
+
+        // Convention: edges, leaf = 0. Change here only if the course textbook counts nodes.
+        function computeHeight(id) {
+          const kids = spec.children[id];
+          if (!kids || kids.length === 0) {
+            height[id] = 0;
+            longestDownPath[id] = [id];
+            return 0;
+          }
+          let bestH = -1;
+          let bestChild = kids[0];
+          for (const ch of kids) {
+            const chH = computeHeight(ch);
+            if (chH > bestH) {
+              bestH = chH;
+              bestChild = ch;
+            }
+          }
+          height[id] = 1 + bestH;
+          longestDownPath[id] = [id].concat(longestDownPath[bestChild]);
+          return height[id];
+        }
+        computeHeight(spec.root);
+
+        const maxDepth = Math.max(...nodes.map((id) => depth[id]));
+        const treeHeight = height[spec.root];
+
+        const leaves = [];
+        function collectLeaves(id) {
+          const kids = spec.children[id];
+          if (!kids || kids.length === 0) {
+            leaves.push(id);
+            return;
+          }
+          for (const ch of kids) collectLeaves(ch);
+        }
+        collectLeaves(spec.root);
+
+        const pos = {};
+        const marginX = 80;
+        const spanX = 640 - 2 * marginX;
+        const leafStep = leaves.length > 1 ? spanX / (leaves.length - 1) : 0;
+        const topY = 52;
+        const levelGap = maxDepth > 0 ? Math.min(96, 288 / maxDepth) : 0;
+
+        let leafIdx = 0;
+        function assignPos(id) {
+          const kids = spec.children[id];
+          const y = topY + depth[id] * levelGap;
+          if (!kids || kids.length === 0) {
+            const x = leaves.length === 1 ? 320 : marginX + leafIdx * leafStep;
+            leafIdx += 1;
+            pos[id] = { x, y };
+            return x;
+          }
+          const childXs = kids.map(assignPos);
+          const x = (childXs[0] + childXs[childXs.length - 1]) / 2;
+          pos[id] = { x, y };
+          return x;
+        }
+        assignPos(spec.root);
+
+        const edges = [];
+        for (const u of nodes) {
+          for (const v of spec.children[u]) {
+            edges.push([u, v]);
+          }
+        }
+
+        function getSiblings(id) {
+          const p = parent[id];
+          if (p === null) return [];
+          return spec.children[p].filter((ch) => ch !== id);
+        }
+
+        function getAncestors(id) {
+          return rootPath[id].slice(0, -1);
+        }
+
+        function getDescendants(id) {
+          const out = [];
+          function walk(cur) {
+            for (const ch of spec.children[cur]) {
+              out.push(ch);
+              walk(ch);
+            }
+          }
+          walk(id);
+          return out;
+        }
+
+        return {
+          root: spec.root,
+          nodes,
+          children: spec.children,
+          parent,
+          depth,
+          height,
+          maxDepth,
+          treeHeight,
+          rootPath,
+          longestDownPath,
+          pos,
+          edges,
+          leaves,
+          getSiblings,
+          getAncestors,
+          getDescendants
+        };
+      }
+
+      function buildBinaryLayout(treeSpec) {
+        const labels = Object.keys(treeSpec.nodes);
+        const inOrder = [];
+        const depth = {};
+
+        function walk(id, d) {
+          if (!id) return;
+          const node = treeSpec.nodes[id];
+          depth[id] = d;
+          walk(node.l, d + 1);
+          inOrder.push(id);
+          walk(node.r, d + 1);
+        }
+        walk(treeSpec.root, 0);
+
+        const n = inOrder.length;
+        const marginX = n > 5 ? 80 : 100;
+        const stepX = n > 1 ? (640 - 2 * marginX) / (n - 1) : 0;
+        const topY = 44;
+        const stepY = 68;
+
+        const pos = {};
+        inOrder.forEach((id, idx) => {
+          pos[id] = {
+            x: n === 1 ? 320 : marginX + idx * stepX,
+            y: topY + depth[id] * stepY
+          };
+        });
+
+        const edges = [];
+        const empties = [];
+        for (const id of labels) {
+          const node = treeSpec.nodes[id];
+          const p = pos[id];
+          if (node.l) {
+            edges.push({ key: id + ":l:" + node.l, from: id, to: node.l, side: "L" });
+          } else {
+            empties.push({ key: id + ":empty-l", parent: id, side: "L", x: p.x - 34, y: p.y + 56 });
+          }
+          if (node.r) {
+            edges.push({ key: id + ":r:" + node.r, from: id, to: node.r, side: "R" });
+          } else {
+            empties.push({ key: id + ":empty-r", parent: id, side: "R", x: p.x + 34, y: p.y + 56 });
+          }
+        }
+
+        return {
+          name: treeSpec.name,
+          root: treeSpec.root,
+          nodes: treeSpec.nodes,
+          labels,
+          pos,
+          edges,
+          empties,
+          nodeCount: n,
+          edgeCount: edges.length,
+          emptyCount: empties.length
+        };
+      }
+
+      const vocabModel = buildVocabModel(DATA.vocab);
+      const binaryLayouts = {};
+      for (const key of Object.keys(DATA.binary)) {
+        binaryLayouts[key] = buildBinaryLayout(DATA.binary[key]);
+      }
+
+      /* ---------------------------------------------------------------------
+       * PREDICT CHOICE WIDGET (reused)
+       * --------------------------------------------------------------------- */
+      function buildVocabPredictBox(promptText, choices, guess, answer, onChoose, revealText) {
+        const box = document.createElement("div");
+        box.className = "predict-box";
+
+        if (promptText) {
+          const prompt = document.createElement("p");
+          prompt.className = "predict-prompt";
+          prompt.textContent = promptText;
+          box.appendChild(prompt);
+        }
+
+        const row = document.createElement("div");
+        row.className = "choice-row";
+        const isRevealed = guess !== null;
+
+        for (const ch of choices) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "choice-btn";
+          btn.disabled = isRevealed;
+
+          if (isRevealed) {
+            const isAnswer = ch.value === answer;
+            const isGuess = ch.value === guess;
+            if (isGuess && !isAnswer) {
+              btn.classList.add("is-wrong-guess");
+              btn.textContent = "\u2717 " + ch.label + " (you said " + ch.label + ")";
+            } else if (isAnswer && isGuess) {
+              btn.classList.add("is-just-revealed");
+              btn.textContent = "\u2713 " + ch.label;
+            } else if (isAnswer) {
+              btn.classList.add("is-correct-answer");
+              btn.textContent = "\u2713 " + ch.label;
+            } else {
+              btn.textContent = ch.label;
+            }
+          } else {
+            btn.textContent = ch.label;
+            btn.addEventListener("click", () => onChoose(ch.value));
+          }
+          row.appendChild(btn);
+        }
+        box.appendChild(row);
+
+        if (revealText) {
+          const res = document.createElement("p");
+          res.className = "reveal-result";
+          res.textContent = revealText;
+          box.appendChild(res);
+        }
+
+        return box;
+      }
+
+      /* ---------------------------------------------------------------------
+       * GLOSSARY DEFINITIONS
+       * --------------------------------------------------------------------- */
+      const GLOSSARY_DEFS = {
+        tree: "A layout of nodes linked by edges, growing down from one root.",
+        node: "A circle in the tree that holds a value.",
+        edge: "A line joining a parent node to a child node.",
+        root: "The single top node with no parent.",
+        parent: "The node one edge directly above a node.",
+        child: "A node one edge directly below a node.",
+        sibling: "Another node that shares the same parent.",
+        leaf: "A node at the end of a branch, with no children.",
+        "internal node": "A node that has one or more children.",
+        ancestor: "Any node on the path going up to the root.",
+        descendant: "Any node reachable by going down through children.",
+        subtree: "A node together with every descendant below it.",
+        depth: "Edges from the root down to a node.",
+        height: "Edges on the longest route from a node down to a leaf. A leaf has height 0.",
+        "height of the tree": "The height of the root, from top to deepest leaf (counted in edges, like depth).",
+        "binary tree": "A tree where every node has at most two children.",
+        "left child": "The child attached to a node's left slot.",
+        "right child": "The child attached to a node's right slot.",
+        slot: "One of the two child places (left or right) under each node.",
+        "empty slot (null)": "A slot with no child (written as null in code).",
+        "n + 1 rule": "A binary tree with n nodes always has n + 1 empty slots."
+      };
+
+      /* ---------------------------------------------------------------------
+       * VIEW RENDERERS (declarative vocabView & binaryView)
+       * --------------------------------------------------------------------- */
+      const vocabSvg = document.getElementById("vocab-svg");
+      const binaryTreeName = document.getElementById("binary-tree-name");
+      const binarySvg = document.getElementById("binary-svg");
+      const binaryCompare = document.getElementById("binary-compare");
+      const binaryHiddenPanel = document.getElementById("binary-hidden-panel");
+      const binaryHiddenReadout = document.getElementById("binary-hidden-readout");
+      const binaryCounter = document.getElementById("binary-counter");
+      const binaryCounterNote = document.getElementById("binary-counter-note");
+
+      function renderBadgePills(g, badgeVal, nodeX) {
+        const list = Array.isArray(badgeVal) ? badgeVal : [badgeVal];
+        const sideDir = nodeX > 510 ? -1 : 1;
+        list.forEach((entry, idx) => {
+          const isObj = entry && typeof entry === "object";
+          const text = String(isObj ? entry.text : entry);
+          const kind = isObj && entry.kind ? entry.kind : "";
+          const w = Math.max(18, Math.round(text.length * 6.4 + 10));
+          const h = 18;
+          let cx;
+          let cy;
+          if (list.length === 1 && w <= 22) {
+            cx = 18;
+            cy = -18;
+          } else {
+            cx = sideDir * (14 + w / 2);
+            cy = list.length > 1 ? (idx === 0 ? -12 : 12) : -16;
+          }
+          g.appendChild(svgEl("rect", {
+            x: cx - w / 2,
+            y: cy - h / 2,
+            width: w,
+            height: h,
+            rx: 4,
+            class: "node-badge-bg" + (kind ? " is-" + kind : "")
+          }));
+          g.appendChild(svgEl("text", {
+            x: cx,
+            y: cy,
+            class: "node-badge-text" + (kind ? " is-" + kind : ""),
+            "data-badge-val": text
+          }, text));
+        });
+      }
+
+      function renderVocabView(view, onNodeClick, interaction) {
+        vocabSvg.setAttribute("aria-label", vocabModel.nodes.length + "-node general tree");
+        vocabSvg.replaceChildren();
+        const edgesG = svgEl("g", { class: "edges-layer" });
+        const nodesG = svgEl("g", { class: "nodes-layer" });
+
+        const hiIds = new Set(view.highlightIds || []);
+        const hiEdges = new Set(view.highlightEdges || []);
+        const pressedIds = new Set((interaction && interaction.pressedIds) || []);
+        const isMulticlick = Boolean(interaction && interaction.multiclick);
+        const clickable = Boolean(onNodeClick);
+        const pulseFirst = Boolean(interaction && interaction.pulseFirst) && clickable && !prefersReducedMotion();
+
+        for (const [u, v] of vocabModel.edges) {
+          const p1 = vocabModel.pos[u];
+          const p2 = vocabModel.pos[v];
+          const isHi = hiEdges.has(edgeKey(u, v));
+          const cls = ["tree-edge"];
+          if (isHi) cls.push("is-highlight");
+          else if (view.dimOthers) cls.push("is-dim");
+
+          edgesG.appendChild(svgEl("line", {
+            x1: p1.x,
+            y1: p1.y,
+            x2: p2.x,
+            y2: p2.y,
+            class: cls.join(" ")
+          }));
+        }
+
+        for (const id of vocabModel.nodes) {
+          const p = vocabModel.pos[id];
+          const isStart = view.startId === id;
+          const isHi = hiIds.has(id) || pressedIds.has(id);
+
+          const cls = ["tree-node"];
+          if (!clickable) cls.push("is-static");
+          if (pulseFirst) cls.push("is-pulse");
+          if (isHi) cls.push("is-highlight");
+          else if (view.dimOthers && !isStart) cls.push("is-dim");
+          if (isStart) cls.push("is-start");
+
+          const attrs = {
+            class: cls.join(" "),
+            transform: "translate(" + p.x + "," + p.y + ")",
+            "data-node": id
+          };
+          if (clickable) {
+            attrs.tabindex = "0";
+            attrs.role = "button";
+            attrs["aria-label"] = "Node " + id;
+            if (isMulticlick) {
+              attrs["aria-pressed"] = pressedIds.has(id) ? "true" : "false";
+            }
+          }
+
+          const g = svgEl("g", attrs);
+          g.appendChild(svgEl("circle", { r: 29.5, class: "node-focus-ring" }));
+          g.appendChild(svgEl("circle", { r: 25.5, class: "node-hi-ring" }));
+          if (isStart) {
+            g.appendChild(svgEl("circle", { r: 28, class: "node-ring" }));
+          }
+          g.appendChild(svgEl("circle", { r: 22, class: "node-circle" }));
+          g.appendChild(svgEl("text", { class: "node-label", x: 0, y: 0 }, id));
+
+          if (view.badges && view.badges[id] !== undefined) {
+            renderBadgePills(g, view.badges[id], p.x);
+          }
+
+          if (clickable) {
+            g.addEventListener("click", () => onNodeClick(id));
+            g.addEventListener("keydown", (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onNodeClick(id);
+              }
+            });
+          }
+          nodesG.appendChild(g);
+        }
+
+        vocabSvg.appendChild(edgesG);
+        vocabSvg.appendChild(nodesG);
+      }
+
+      // Binary SVG persistent layers (keyed by label for CSS transform animation)
+      const btEdgesLayer = svgEl("g", { class: "bt-edges-layer" });
+      const btEdgeLabelsLayer = svgEl("g", { class: "bt-edge-labels-layer" });
+      const btEmptiesLayer = svgEl("g", { class: "bt-empties-layer" });
+      const btNodesLayer = svgEl("g", { class: "bt-nodes-layer" });
+      binarySvg.appendChild(btEdgesLayer);
+      binarySvg.appendChild(btEdgeLabelsLayer);
+      binarySvg.appendChild(btEmptiesLayer);
+      binarySvg.appendChild(btNodesLayer);
+
+      const allBinaryLabels = [];
+      const btFallbackPos = {};
+      (function collectBinaryLabels() {
+        const seen = new Set();
+        for (const key of Object.keys(binaryLayouts)) {
+          const lay = binaryLayouts[key];
+          for (const id of lay.labels) {
+            if (!seen.has(id)) {
+              seen.add(id);
+              allBinaryLabels.push(id);
+              btFallbackPos[id] = { x: lay.pos[id].x, y: lay.pos[id].y };
+            }
+          }
+        }
+      })();
+
+      const btNodeEls = {};
+      const btNodePresent = {};
+      const btCurrentPos = {};
+      let btClickHandler = null;
+      let btInspectHandler = null;
+      let edgeAnimFrame = null;
+      let lastBinaryTreeKey = null;
+
+      function initBinaryNodes() {
+        const layout = binaryLayouts.a;
+        for (const id of allBinaryLabels) {
+          const p = layout.pos[id] || btFallbackPos[id];
+          const present = Boolean(layout.pos[id]);
+          btCurrentPos[id] = { x: p.x, y: p.y };
+          btNodePresent[id] = present;
+          const g = svgEl("g", {
+            class: "tree-node bt-node" + (present ? "" : " is-absent"),
+            role: "button",
+            "aria-label": "Node " + id,
+            "data-bt-node": id
+          });
+          if (present) {
+            g.setAttribute("tabindex", "0");
+          } else {
+            g.setAttribute("aria-hidden", "true");
+          }
+          g.style.transform = "translate(" + p.x + "px, " + p.y + "px)";
+          g.appendChild(svgEl("circle", { r: 29.5, class: "node-focus-ring" }));
+          g.appendChild(svgEl("circle", { r: 25.5, class: "node-hi-ring" }));
+          g.appendChild(svgEl("circle", { r: 22, class: "node-circle" }));
+          g.appendChild(svgEl("text", { class: "node-label", x: 0, y: 0 }, id));
+          g.addEventListener("click", () => {
+            if (btClickHandler && btNodePresent[id]) btClickHandler(id);
+          });
+          g.addEventListener("mouseenter", () => {
+            if (btInspectHandler && btNodePresent[id]) btInspectHandler(id);
+          });
+          g.addEventListener("focus", () => {
+            if (btInspectHandler && btNodePresent[id]) btInspectHandler(id);
+          });
+          g.addEventListener("keydown", (e) => {
+            if ((e.key === "Enter" || e.key === " ") && btClickHandler && btNodePresent[id]) {
+              e.preventDefault();
+              btClickHandler(id);
+            }
+          });
+          btNodeEls[id] = g;
+          btNodesLayer.appendChild(g);
+        }
+        lastBinaryTreeKey = "a";
+      }
+
+      function getLiveNodePos(id, fallback) {
+        const tr = getComputedStyle(btNodeEls[id]).transform;
+        if (tr && tr !== "none") {
+          const m = new DOMMatrix(tr);
+          if (Number.isFinite(m.e) && Number.isFinite(m.f)) {
+            return { x: m.e, y: m.f };
+          }
+        }
+        return fallback;
+      }
+
+      function drawBinaryEdgesAt(layout, posMap, view) {
+        btEdgesLayer.replaceChildren();
+        btEdgeLabelsLayer.replaceChildren();
+        const hiEdges = new Set((view && view.highlightEdges) || []);
+        const sf = view && view.slotFill ? view.slotFill : null;
+
+        if (sf) {
+          const filledSet = new Set(sf.order.slice(0, sf.filledCount).map((e) => e.key));
+          const reduce = prefersReducedMotion();
+          for (const edge of sf.order) {
+            const p1 = posMap[edge.from];
+            const p2 = posMap[edge.to];
+            const sx = (p1.x + p2.x) / 2;
+            const sy = (p1.y + p2.y) / 2;
+            const isFilled = filledSet.has(edge.key);
+            const isJust = isFilled && sf.justFilledKey === edge.key;
+
+            if (isFilled) {
+              const cls = ["tree-edge"];
+              if (isJust && !reduce) {
+                cls.push("slot-fill-edge", "is-landing");
+              } else if (isJust) {
+                cls.push("is-highlight");
+              }
+              btEdgesLayer.appendChild(svgEl("line", {
+                x1: p1.x,
+                y1: p1.y,
+                x2: p2.x,
+                y2: p2.y,
+                class: cls.join(" ")
+              }));
+            } else {
+              btEdgesLayer.appendChild(svgEl("line", {
+                x1: p1.x,
+                y1: p1.y,
+                x2: sx,
+                y2: sy,
+                class: "slot-fill-edge is-ghost"
+              }));
+            }
+
+            const sqCls = ["slot-fill-square"];
+            if (isFilled) {
+              sqCls.push("is-filled");
+              if (isJust) sqCls.push("is-just-filled");
+            } else {
+              sqCls.push("is-ghost");
+            }
+            btEdgesLayer.appendChild(svgEl("rect", {
+              x: sx - 9,
+              y: sy - 9,
+              width: 18,
+              height: 18,
+              rx: 2,
+              class: sqCls.join(" "),
+              "data-slot": edge.key
+            }));
+          }
+          return;
+        }
+
+        for (const edge of layout.edges) {
+          const p1 = posMap[edge.from];
+          const p2 = posMap[edge.to];
+          const isHi = hiEdges.has(edgeKey(edge.from, edge.to));
+          btEdgesLayer.appendChild(svgEl("line", {
+            x1: p1.x,
+            y1: p1.y,
+            x2: p2.x,
+            y2: p2.y,
+            class: "tree-edge" + (isHi ? " is-highlight" : "")
+          }));
+
+          if (view && view.edgeLabels) {
+            const mx = (p1.x + p2.x) / 2;
+            const my = (p1.y + p2.y) / 2;
+            btEdgeLabelsLayer.appendChild(svgEl("rect", {
+              x: mx - 8,
+              y: my - 8,
+              width: 16,
+              height: 16,
+              rx: 3,
+              class: "edge-label-bg"
+            }));
+            btEdgeLabelsLayer.appendChild(svgEl("text", {
+              x: mx,
+              y: my,
+              class: "edge-label-text"
+            }, edge.side));
+          }
+        }
+      }
+
+      function renderBinaryEmpties(layout, view) {
+        btEmptiesLayer.replaceChildren();
+        const mode = view.showEmpties || "none";
+        if (mode === "none") return;
+
+        const filterParents = Array.isArray(mode) ? new Set(mode) : null;
+        const shouldFlash = Boolean(view.flashEmpties) && !prefersReducedMotion();
+        for (const emp of layout.empties) {
+          if (filterParents && !filterParents.has(emp.parent)) continue;
+          const p = layout.pos[emp.parent];
+          const grp = svgEl("g", {
+            class: "empty-slot-group" + (shouldFlash ? " is-new" : ""),
+            "data-empty": emp.key
+          });
+          grp.appendChild(svgEl("line", {
+            x1: p.x,
+            y1: p.y,
+            x2: emp.x,
+            y2: emp.y,
+            class: "empty-slot-edge"
+          }));
+          grp.appendChild(svgEl("rect", {
+            x: emp.x - 10,
+            y: emp.y - 10,
+            width: 20,
+            height: 20,
+            rx: 2,
+            class: "empty-slot-box"
+          }));
+          btEmptiesLayer.appendChild(grp);
+        }
+
+        if (shouldFlash) {
+          setTimeout(() => {
+            btEmptiesLayer.querySelectorAll(".empty-slot-group.is-new").forEach((el) => {
+              el.classList.remove("is-new");
+            });
+          }, 900);
+        }
+      }
+
+      function renderCompareBinaryView(compareKeys, view) {
+        binaryCompare.replaceChildren();
+        const hiByTree = view.compareHighlights || {};
+        const hiEdgesByTree = view.compareHighlightEdges || {};
+
+        for (const key of compareKeys) {
+          const layout = binaryLayouts[key];
+          if (!layout) continue;
+          const card = document.createElement("div");
+          card.className = "compare-card";
+
+          const title = document.createElement("p");
+          title.className = "compare-title";
+          title.textContent = layout.name;
+          card.appendChild(title);
+
+          const xs = layout.labels.map((id) => layout.pos[id].x);
+          const ys = layout.labels.map((id) => layout.pos[id].y);
+          const minX = Math.min(...xs) - 42;
+          const maxX = Math.max(...xs) + 42;
+          const minY = Math.min(...ys) - 34;
+          const maxY = Math.max(...ys) + 36;
+          const svg = svgEl("svg", {
+            class: "tree-svg",
+            viewBox: minX + " " + minY + " " + (maxX - minX) + " " + (maxY - minY),
+            "aria-label": layout.name + ", " + layout.nodeCount + "-node binary tree"
+          });
+
+          const hiIds = new Set(hiByTree[key] || []);
+          const hiEdges = new Set(hiEdgesByTree[key] || []);
+
+          const eLayer = svgEl("g", {});
+          const lLayer = svgEl("g", {});
+          const nLayer = svgEl("g", {});
+
+          for (const edge of layout.edges) {
+            const p1 = layout.pos[edge.from];
+            const p2 = layout.pos[edge.to];
+            const isHi = hiEdges.has(edgeKey(edge.from, edge.to));
+            eLayer.appendChild(svgEl("line", {
+              x1: p1.x,
+              y1: p1.y,
+              x2: p2.x,
+              y2: p2.y,
+              class: "tree-edge" + (isHi ? " is-highlight" : "")
+            }));
+            const mx = (p1.x + p2.x) / 2;
+            const my = (p1.y + p2.y) / 2;
+            lLayer.appendChild(svgEl("rect", {
+              x: mx - 8,
+              y: my - 8,
+              width: 16,
+              height: 16,
+              rx: 3,
+              class: "edge-label-bg"
+            }));
+            lLayer.appendChild(svgEl("text", {
+              x: mx,
+              y: my,
+              class: "edge-label-text"
+            }, edge.side));
+          }
+
+          for (const id of layout.labels) {
+            const p = layout.pos[id];
+            const g = svgEl("g", {
+              class: "tree-node is-static" + (hiIds.has(id) ? " is-highlight" : ""),
+              transform: "translate(" + p.x + "," + p.y + ")"
+            });
+            g.appendChild(svgEl("circle", { r: 22, class: "node-circle" }));
+            g.appendChild(svgEl("text", { class: "node-label", x: 0, y: 0 }, id));
+            nLayer.appendChild(g);
+          }
+
+          svg.appendChild(eLayer);
+          svg.appendChild(lLayer);
+          svg.appendChild(nLayer);
+          card.appendChild(svg);
+          binaryCompare.appendChild(card);
+        }
+      }
+
+      function updateStageCounter(text, note, highlight) {
+        if (text) {
+          binaryCounter.hidden = false;
+          binaryCounter.textContent = text;
+          binaryCounter.classList.toggle("is-highlight", Boolean(highlight));
+        } else {
+          binaryCounter.hidden = true;
+          binaryCounter.textContent = "";
+          binaryCounter.classList.remove("is-highlight");
+        }
+        if (text && note) {
+          binaryCounterNote.hidden = false;
+          binaryCounterNote.textContent = note;
+        } else {
+          binaryCounterNote.hidden = true;
+          binaryCounterNote.textContent = "";
+        }
+      }
+
+      function renderBinaryView(view, onNodeClick, interaction) {
+        if (edgeAnimFrame) {
+          cancelAnimationFrame(edgeAnimFrame);
+          edgeAnimFrame = null;
+        }
+
+        const reduce = prefersReducedMotion();
+        btInspectHandler = (interaction && interaction.onInspectHover) || null;
+
+        if (Array.isArray(view.compareKeys) && view.compareKeys.length > 0) {
+          lastBinaryTreeKey = null;
+          btClickHandler = null;
+          binaryTreeName.hidden = false;
+          binaryTreeName.textContent = view.compareKeys.map((k) => binaryLayouts[k].name).join(" vs. ");
+          binarySvg.setAttribute("hidden", "");
+          binaryHiddenPanel.hidden = true;
+          binaryCompare.hidden = false;
+          renderCompareBinaryView(view.compareKeys, view);
+          updateStageCounter("", "", false);
+          return;
+        }
+
+        binaryCompare.hidden = true;
+
+        if (!view.treeKey) {
+          lastBinaryTreeKey = null;
+          btClickHandler = null;
+          binaryTreeName.hidden = true;
+          binaryTreeName.textContent = "";
+          binarySvg.setAttribute("hidden", "");
+          binaryHiddenPanel.hidden = false;
+          binaryHiddenReadout.textContent = "n = " + (view.hiddenN !== undefined ? view.hiddenN : "?");
+          updateStageCounter(view.counterText, view.counterNote, false);
+          return;
+        }
+
+        binarySvg.removeAttribute("hidden");
+        binaryHiddenPanel.hidden = true;
+
+        const treeKey = view.treeKey;
+        const layout = binaryLayouts[treeKey];
+        const treeChanged = lastBinaryTreeKey !== null && lastBinaryTreeKey !== treeKey;
+        lastBinaryTreeKey = treeKey;
+
+        binaryTreeName.hidden = false;
+        binaryTreeName.textContent = layout.name;
+
+        const isVisible = !tabPanels[1].hidden;
+        const shouldAnimate = treeChanged && isVisible && !reduce && view.animate !== false;
+        if (shouldAnimate) {
+          binaryTreeName.classList.remove("is-crossfading");
+          btEdgeLabelsLayer.classList.remove("is-crossfading");
+          void binaryTreeName.offsetWidth;
+          binaryTreeName.classList.add("is-crossfading");
+          btEdgeLabelsLayer.classList.add("is-crossfading");
+        } else {
+          binaryTreeName.classList.remove("is-crossfading");
+          btEdgeLabelsLayer.classList.remove("is-crossfading");
+        }
+
+        btClickHandler = onNodeClick || null;
+        binarySvg.setAttribute("aria-label", layout.name + ", " + layout.nodeCount + "-node binary tree");
+
+        const hiIds = new Set(view.highlightIds || []);
+        const sf = view.slotFill || null;
+        const filledNodes = sf ? new Set([layout.root].concat(sf.order.slice(0, sf.filledCount).map((e) => e.to))) : null;
+        const clickable = Boolean(onNodeClick);
+        const pulseFirst = Boolean(interaction && interaction.pulseFirst) && clickable && !reduce;
+
+        updateStageCounter(view.counterText, view.counterNote, view.flashEmpties);
+
+        if (!shouldAnimate) {
+          for (const id of allBinaryLabels) {
+            const el = btNodeEls[id];
+            const target = layout.pos[id];
+            el.style.transition = "none";
+            if (target) {
+              el.style.transform = "translate(" + target.x + "px, " + target.y + "px)";
+              el.classList.remove("is-absent");
+              el.classList.toggle("is-highlight", hiIds.has(id));
+              el.classList.toggle("is-dim", Boolean(filledNodes && !filledNodes.has(id)));
+              el.classList.toggle("is-static", !clickable);
+              el.classList.toggle("is-pulse", pulseFirst);
+              if (clickable) {
+                el.setAttribute("tabindex", "0");
+                el.setAttribute("role", "button");
+              } else {
+                el.removeAttribute("tabindex");
+                el.removeAttribute("role");
+              }
+              el.removeAttribute("aria-hidden");
+              btCurrentPos[id] = { x: target.x, y: target.y };
+              btNodePresent[id] = true;
+            } else {
+              el.classList.add("is-absent");
+              el.classList.remove("is-highlight", "is-dim", "is-pulse");
+              el.removeAttribute("tabindex");
+              el.removeAttribute("role");
+              el.setAttribute("aria-hidden", "true");
+              btNodePresent[id] = false;
+            }
+          }
+          void binarySvg.getBoundingClientRect();
+          for (const id of allBinaryLabels) {
+            btNodeEls[id].style.transition = "";
+          }
+          drawBinaryEdgesAt(layout, btCurrentPos, view);
+          renderBinaryEmpties(layout, view);
+          return;
+        }
+
+        const enteringNodes = [];
+        for (const id of allBinaryLabels) {
+          const el = btNodeEls[id];
+          const target = layout.pos[id];
+          const wasPresent = btNodePresent[id];
+
+          el.classList.toggle("is-highlight", Boolean(target) && hiIds.has(id));
+          el.classList.toggle("is-dim", Boolean(target && filledNodes && !filledNodes.has(id)));
+          el.classList.toggle("is-static", !clickable);
+          el.classList.toggle("is-pulse", Boolean(target) && pulseFirst);
+
+          if (!target) {
+            el.classList.add("is-absent");
+            el.removeAttribute("tabindex");
+            el.removeAttribute("role");
+            el.setAttribute("aria-hidden", "true");
+            btNodePresent[id] = false;
+          } else if (!wasPresent) {
+            el.style.transition = "none";
+            el.style.transform = "translate(" + target.x + "px, " + target.y + "px)";
+            btCurrentPos[id] = { x: target.x, y: target.y };
+            enteringNodes.push(el);
+            btNodePresent[id] = true;
+          } else {
+            el.classList.remove("is-absent");
+            if (clickable) {
+              el.setAttribute("tabindex", "0");
+              el.setAttribute("role", "button");
+            } else {
+              el.removeAttribute("tabindex");
+              el.removeAttribute("role");
+            }
+            el.removeAttribute("aria-hidden");
+            el.style.transform = "translate(" + target.x + "px, " + target.y + "px)";
+            btNodePresent[id] = true;
+          }
+        }
+
+        if (enteringNodes.length > 0) {
+          void binarySvg.getBoundingClientRect();
+          for (const el of enteringNodes) {
+            el.style.transition = "";
+            el.classList.remove("is-absent");
+            if (clickable) {
+              el.setAttribute("tabindex", "0");
+              el.setAttribute("role", "button");
+            } else {
+              el.removeAttribute("tabindex");
+              el.removeAttribute("role");
+            }
+            el.removeAttribute("aria-hidden");
+          }
+        }
+
+        let startTime = null;
+        const maxDuration = 420;
+        btEmptiesLayer.replaceChildren();
+
+        function tick(now) {
+          if (startTime === null) startTime = now;
+          const elapsed = now - startTime;
+          let allSettled = true;
+          for (const id of layout.labels) {
+            const target = layout.pos[id];
+            const live = getLiveNodePos(id, target);
+            btCurrentPos[id] = live;
+            if (Math.hypot(live.x - target.x, live.y - target.y) > 0.4) {
+              allSettled = false;
+            }
+          }
+          drawBinaryEdgesAt(layout, btCurrentPos, view);
+
+          if ((elapsed < 30 || !allSettled) && elapsed < maxDuration) {
+            edgeAnimFrame = requestAnimationFrame(tick);
+          } else {
+            for (const id of layout.labels) {
+              btCurrentPos[id] = { x: layout.pos[id].x, y: layout.pos[id].y };
+            }
+            drawBinaryEdgesAt(layout, btCurrentPos, view);
+            edgeAnimFrame = null;
+            renderBinaryEmpties(layout, view);
+          }
+        }
+        edgeAnimFrame = requestAnimationFrame(tick);
+      }
+
+      /* ---------------------------------------------------------------------
+       * STEP ENGINE (shared by Part 1 and Part 2)
+       * --------------------------------------------------------------------- */
+      function cloneView(v) {
+        return JSON.parse(JSON.stringify(v));
+      }
+
+      function createPartController(config) {
+        prepareStepChoices(config.steps, 0);
+
+        const state = {
+          initialized: false,
+          stepIndex: 0,
+          taskIndex: 0,
+          attempts: 0,
+          finishedSteps: new Set(),
+          savedSteps: new Map(),
+          savedTasks: new Map(),
+          glossary: [],
+          freshGlossary: new Set(),
+          taskDone: false,
+          taskChoiceGuess: null,
+          multiSelected: new Set(),
+          exploredClicks: 0,
+          exploredNodeId: null,
+          revealedInfo: false,
+          fillCount: 0,
+          justFilledKey: null,
+          usedFillAll: false,
+          feedback: null, // { kind: "correct"|"wrong"|"revealed", text: string }
+          view: null,
+          quizScores: [], // for quickCheck steps
+          quizDone: false,
+          quizVariant: 0,
+          subIndex: 0,
+          pulsedFirstClick: false,
+          animToken: 0
+        };
+
+        const bannerTitle = document.createElement("h2");
+        bannerTitle.className = "banner-title";
+        bannerTitle.tabIndex = -1;
+        const bannerIntro = document.createElement("p");
+        bannerIntro.className = "banner-intro";
+        const bannerResult = document.createElement("div");
+        bannerResult.className = "result-card";
+        bannerResult.hidden = true;
+        const taskBoxEl = document.createElement("div");
+        taskBoxEl.className = "task-box";
+        const taskTopEl = document.createElement("div");
+        taskTopEl.className = "task-top";
+        const feedbackEl = document.createElement("p");
+        feedbackEl.className = "task-feedback";
+        feedbackEl.setAttribute("aria-live", "polite");
+        feedbackEl.setAttribute("aria-atomic", "true");
+        taskBoxEl.appendChild(taskTopEl);
+        taskBoxEl.appendChild(feedbackEl);
+
+        config.bannerEl.replaceChildren();
+        config.bannerEl.appendChild(bannerTitle);
+        config.bannerEl.appendChild(bannerIntro);
+        config.bannerEl.appendChild(bannerResult);
+        config.bannerEl.appendChild(taskBoxEl);
+
+        function addGlossaryTerms(terms) {
+          if (!terms || terms.length === 0) return;
+          for (const t of terms) {
+            if (!state.glossary.includes(t)) {
+              state.glossary.push(t);
+              state.freshGlossary.add(t);
+            }
+          }
+        }
+
+        function currentStep() {
+          return config.steps[state.stepIndex];
+        }
+
+        function currentTask() {
+          const step = currentStep();
+          return step.tasks[state.taskIndex] || null;
+        }
+
+        function saveSnapshot(viewOverride) {
+          const step = currentStep();
+          if (!step || !state.view) return;
+          state.savedSteps.set(step.id, {
+            taskIndex: state.taskIndex,
+            quizScores: state.quizScores.slice(),
+            quizDone: state.quizDone
+          });
+          state.savedTasks.set(step.id + ":" + state.taskIndex, {
+            attempts: state.attempts,
+            subIndex: state.subIndex,
+            taskDone: state.taskDone,
+            taskChoiceGuess: state.taskChoiceGuess,
+            multiSelected: Array.from(state.multiSelected),
+            exploredClicks: state.exploredClicks,
+            exploredNodeId: state.exploredNodeId,
+            revealedInfo: state.revealedInfo,
+            fillCount: state.fillCount,
+            justFilledKey: state.justFilledKey,
+            usedFillAll: state.usedFillAll,
+            feedback: state.feedback ? { kind: state.feedback.kind, text: state.feedback.text } : null,
+            view: cloneView(viewOverride || state.view)
+          });
+        }
+
+        function loadOrInitTask() {
+          const step = currentStep();
+          const snap = state.savedTasks.get(step.id + ":" + state.taskIndex);
+          if (snap) {
+            state.animToken += 1;
+            state.attempts = snap.attempts;
+            state.subIndex = snap.subIndex || 0;
+            state.taskDone = snap.taskDone;
+            state.taskChoiceGuess = snap.taskChoiceGuess;
+            state.multiSelected = new Set(snap.multiSelected);
+            state.exploredClicks = snap.exploredClicks;
+            state.exploredNodeId = snap.exploredNodeId;
+            state.revealedInfo = snap.revealedInfo;
+            state.fillCount = snap.fillCount;
+            state.justFilledKey = snap.justFilledKey;
+            state.usedFillAll = snap.usedFillAll;
+            state.feedback = snap.feedback ? { kind: snap.feedback.kind, text: snap.feedback.text } : null;
+            state.view = cloneView(snap.view);
+            return;
+          }
+          initTask();
+        }
+
+        function enterStep(idx, shouldFocus, skipOutgoingSave) {
+          if (state.initialized && !skipOutgoingSave) {
+            saveSnapshot();
+          }
+          state.animToken += 1;
+          state.stepIndex = idx;
+          state.freshGlossary = new Set();
+          const step = currentStep();
+          const savedStep = state.savedSteps.get(step.id);
+          state.quizScores = savedStep ? savedStep.quizScores.slice() : [];
+          state.quizDone = savedStep ? Boolean(savedStep.quizDone) : false;
+
+          if (step.isQuickCheck && state.quizDone && savedStep) {
+            state.taskIndex = savedStep.taskIndex;
+          } else if (state.finishedSteps.has(step.id)) {
+            state.taskIndex = 0;
+          } else if (savedStep) {
+            state.taskIndex = savedStep.taskIndex;
+          } else {
+            state.taskIndex = 0;
+          }
+
+          addGlossaryTerms(step.glossaryIntro || []);
+          loadOrInitTask();
+          state.initialized = true;
+          saveSnapshot();
+          renderAll(shouldFocus);
+        }
+
+        function initTask() {
+          state.animToken += 1;
+          state.attempts = 0;
+          state.subIndex = 0;
+          state.taskDone = false;
+          state.taskChoiceGuess = null;
+          state.multiSelected = new Set();
+          state.exploredClicks = 0;
+          state.exploredNodeId = null;
+          state.revealedInfo = false;
+          state.fillCount = 0;
+          state.justFilledKey = null;
+          state.usedFillAll = false;
+          state.feedback = null;
+          state.view = cloneView(config.baseView);
+
+          const step = currentStep();
+          if (step.initialView) {
+            Object.assign(state.view, cloneView(step.initialView));
+          }
+          const task = currentTask();
+          if (task && task.onShow) {
+            task.onShow(state.view, state, renderView);
+          }
+        }
+
+        function completeCurrentTask() {
+          const step = currentStep();
+          const task = currentTask();
+          state.taskDone = true;
+          if (task && task.glossaryAdds) {
+            addGlossaryTerms(task.glossaryAdds);
+          }
+          if (task && task.onDone) {
+            task.onDone(state.view, state);
+          }
+          if (state.taskIndex >= step.tasks.length - 1) {
+            state.finishedSteps.add(step.id);
+            if (step.glossaryOnFinish) {
+              addGlossaryTerms(step.glossaryOnFinish);
+            }
+            if (step.isQuickCheck) {
+              config.onQuickCheckChange(true);
+            }
+          }
+          saveSnapshot();
+        }
+
+        function advanceTaskOrStep() {
+          saveSnapshot();
+          const step = currentStep();
+          if (state.taskIndex < step.tasks.length - 1) {
+            state.taskIndex += 1;
+            loadOrInitTask();
+            saveSnapshot();
+            renderAll(false);
+          } else {
+            goNextStep();
+          }
+        }
+
+        function goNextStep() {
+          if (state.stepIndex < config.steps.length - 1) {
+            enterStep(state.stepIndex + 1, true);
+          } else {
+            config.onGoOtherPart();
+          }
+        }
+
+        function goBackStep() {
+          if (state.stepIndex > 0) {
+            enterStep(state.stepIndex - 1, true);
+          } else if (config.onBackAtStart) {
+            config.onBackAtStart();
+          } else {
+            state.feedback = { kind: "correct", text: "You are at Step 1." };
+            renderAll(true);
+          }
+        }
+
+        function handleSkipOrNext() {
+          const step = currentStep();
+          if (state.finishedSteps.has(step.id)) {
+            goNextStep();
+            return;
+          }
+          // Skip step: reveal current task answer, add step glossary terms, and mark step finished
+          const task = currentTask();
+          state.finishedSteps.add(step.id);
+          for (const t of step.tasks) {
+            if (t.glossaryAdds) addGlossaryTerms(t.glossaryAdds);
+          }
+          if (step.glossaryOnFinish) addGlossaryTerms(step.glossaryOnFinish);
+          if (step.isQuickCheck) {
+            for (let i = 0; i < step.tasks.length; i++) {
+              if (state.quizScores[i] === undefined) state.quizScores[i] = false;
+            }
+            state.quizDone = true;
+            config.onQuickCheckChange(true);
+            saveSnapshot();
+            renderAll(false);
+            return;
+          }
+          if (task) {
+            if (task.type === "choice" && task.answer !== undefined) {
+              state.taskChoiceGuess = task.answer;
+            }
+            if (task.onDone) task.onDone(state.view, state);
+            state.taskDone = true;
+            state.feedback = {
+              kind: "revealed",
+              text: "Skipped. " + (task.explain || "Moving on is fine \u2014 use Next when ready.")
+            };
+          }
+          saveSnapshot();
+          renderAll(false);
+        }
+
+        function handleNodeInteraction(id) {
+          const task = currentTask();
+          if (!task) return;
+
+          if (task.type === "click") {
+            if (state.taskDone) return;
+            const hasSubs = Array.isArray(task.subChecks) && task.subChecks.length > 0;
+            const subIdx = hasSubs ? state.subIndex : 0;
+            const checkFn = hasSubs ? task.subChecks[subIdx] : task.check;
+            const ok = checkFn(id);
+
+            if (ok) {
+              if (hasSubs && subIdx < task.subChecks.length - 1) {
+                state.subIndex = subIdx + 1;
+                state.attempts = 0;
+                state.animToken += 1;
+                if (task.onSubDone) {
+                  task.onSubDone(subIdx, state.view, state);
+                }
+                const subMsg = (task.subExplains && task.subExplains[subIdx]) || "Good. Keep going.";
+                state.feedback = { kind: "correct", text: subMsg };
+                saveSnapshot();
+                renderAll(false);
+                return;
+              }
+              state.animToken += 1;
+              state.feedback = { kind: "correct", text: "Correct. " + (task.explain || "") };
+              completeCurrentTask();
+            } else {
+              state.attempts += 1;
+              const hintText = task.hints && task.hints.length > 0 ? task.hints[0] : "";
+              const hasVisual = typeof task.visualHint === "function" || (hasSubs && typeof task.subVisualHint === "function");
+
+              if (state.attempts === 1) {
+                state.feedback = {
+                  kind: "wrong",
+                  text: hintText || ("Not node " + id + " \u2014 try again.")
+                };
+              } else if (state.attempts === 2 && hasVisual) {
+                state.feedback = {
+                  kind: "wrong",
+                  text: hintText || "Look at the highlighted area on the tree, then try again."
+                };
+                const cleanView = cloneView(state.view);
+                if (hasSubs && task.subVisualHint) {
+                  task.subVisualHint(subIdx, state.view, state);
+                } else {
+                  task.visualHint(state.view, state);
+                }
+                state.animToken += 1;
+                const tok = state.animToken;
+                saveSnapshot(cleanView);
+                renderAll(false);
+                setTimeout(() => {
+                  if (state.animToken !== tok || state.taskDone) return;
+                  state.view = cleanView;
+                  renderView();
+                }, 2000);
+                return;
+              } else {
+                state.animToken += 1;
+                state.feedback = { kind: "revealed", text: "Answer revealed. " + (task.explain || "") };
+                completeCurrentTask();
+              }
+            }
+            saveSnapshot();
+            renderAll(false);
+          } else if (task.type === "multiclick") {
+            if (state.taskDone) return;
+            if (state.multiSelected.has(id)) {
+              state.multiSelected.delete(id);
+            } else {
+              state.multiSelected.add(id);
+            }
+            if (state.feedback && state.feedback.kind === "wrong") {
+              state.feedback = null;
+            }
+            saveSnapshot();
+            renderAll(false);
+          } else if (task.type === "explore") {
+            state.exploredClicks += 1;
+            state.exploredNodeId = id;
+            if (task.onExplore) task.onExplore(id, state.view, state);
+            saveSnapshot();
+            renderAll(false);
+          }
+        }
+
+        function handleChoice(val) {
+          const task = currentTask();
+          if (!task || state.taskDone) return;
+          const ok = task.check(val);
+          const step = currentStep();
+
+          if (step.isQuickCheck) {
+            state.taskChoiceGuess = val;
+            state.quizScores[state.taskIndex] = ok;
+            state.feedback = {
+              kind: ok ? "correct" : "revealed",
+              text: (ok ? "Correct. " : "Not quite. ") + (task.explain || "")
+            };
+            completeCurrentTask();
+            saveSnapshot();
+            renderAll(false);
+            return;
+          }
+
+          if (ok) {
+            state.taskChoiceGuess = val;
+            state.feedback = { kind: "correct", text: "Correct. " + (task.explain || "") };
+            completeCurrentTask();
+          } else {
+            state.attempts += 1;
+            if (state.attempts === 1 && task.hints && task.hints.length > 0) {
+              state.feedback = { kind: "wrong", text: task.hints[0] };
+            } else {
+              state.taskChoiceGuess = val;
+              state.feedback = { kind: "revealed", text: "Answer revealed. " + (task.explain || "") };
+              completeCurrentTask();
+            }
+          }
+          saveSnapshot();
+          renderAll(false);
+        }
+
+        function handleMultiCheck() {
+          const task = currentTask();
+          if (!task || state.taskDone) return;
+          const result = task.checkMulti(Array.from(state.multiSelected));
+          if (result.ok) {
+            state.feedback = { kind: "correct", text: "Correct. " + (task.explain || "") };
+            completeCurrentTask();
+          } else {
+            state.attempts += 1;
+            if (state.attempts === 1) {
+              state.feedback = { kind: "wrong", text: result.message };
+            } else {
+              state.feedback = { kind: "revealed", text: "Answer revealed. " + (task.explain || "") };
+              completeCurrentTask();
+            }
+          }
+          saveSnapshot();
+          renderAll(false);
+        }
+
+        function handleContinue() {
+          if (!state.taskDone) {
+            completeCurrentTask();
+          }
+          advanceTaskOrStep();
+        }
+
+        function handleSlotFillOne() {
+          const task = currentTask();
+          if (!task || task.type !== "slotfill") return;
+          const order = task.getFillOrder();
+          if (state.fillCount >= order.length) return;
+          const edge = order[state.fillCount];
+          state.fillCount += 1;
+          state.justFilledKey = edge.key;
+          if (task.onFillUpdate) task.onFillUpdate(state.view, state);
+          if (state.fillCount >= order.length) {
+            const layout = binaryLayouts[task.treeKey || "c"];
+            state.feedback = {
+              kind: "correct",
+              text: "Filled: " + order.length + " (that is n \u2212 1). Empty: " + layout.emptyCount + " (that is n + 1)."
+            };
+          } else if (state.fillCount === 1) {
+            state.feedback = {
+              kind: "correct",
+              text: "Every node except the root sits in exactly one parent's slot."
+            };
+          } else {
+            const sideWord = edge.side === "L" ? "left" : "right";
+            state.feedback = {
+              kind: "correct",
+              text: "Node " + edge.to + " landed in " + edge.from + "'s " + sideWord + " slot."
+            };
+          }
+          saveSnapshot();
+          renderAll(false);
+        }
+
+        function handleSlotFillAll() {
+          const task = currentTask();
+          if (!task || task.type !== "slotfill") return;
+          const order = task.getFillOrder();
+          if (state.fillCount >= order.length) return;
+          state.fillCount = order.length;
+          state.usedFillAll = true;
+          state.justFilledKey = null;
+          if (task.onFillUpdate) task.onFillUpdate(state.view, state);
+          const layout = binaryLayouts[task.treeKey || "c"];
+          state.feedback = {
+            kind: "correct",
+            text: "Every node except the root sits in exactly one parent's slot. Filled: " + order.length + " (n \u2212 1), Empty: " + layout.emptyCount + " (n + 1)."
+          };
+          saveSnapshot();
+          renderAll(false);
+        }
+
+        function handleReveal() {
+          const task = currentTask();
+          if (!task) return;
+          state.revealedInfo = true;
+          completeCurrentTask();
+          state.feedback = { kind: "correct", text: task.explain || "Done." };
+          saveSnapshot();
+          renderAll(false);
+        }
+
+        function defaultGuidanceText(task) {
+          if (task.type === "click") {
+            if (task.idleFeedback) return task.idleFeedback;
+            return "Click a node circle in the tree diagram to answer.";
+          }
+          if (task.type === "multiclick") {
+            if (state.multiSelected.size === 0) {
+              return "Click nodes in the tree diagram to select them, then press Check.";
+            }
+            return "Selected (" + state.multiSelected.size + "): " + Array.from(state.multiSelected).join(", ") + ". Press Check when ready.";
+          }
+          if (task.type === "explore") {
+            if (state.exploredNodeId) {
+              return "Inspecting node " + state.exploredNodeId + ". Click other nodes or press Continue.";
+            }
+            return task.idleFeedback || "Click any node to see its relatives light up.";
+          }
+          return "";
+        }
+
+        function scrollActiveChip() {
+          const activeChip = config.stepperEl.querySelector(".step-chip.is-current");
+          if (!activeChip || config.stepperEl.clientWidth === 0) return;
+          const sRect = config.stepperEl.getBoundingClientRect();
+          const cRect = activeChip.getBoundingClientRect();
+          const targetLeft = config.stepperEl.scrollLeft + (cRect.left - sRect.left) - (config.stepperEl.clientWidth - cRect.width) / 2;
+          if (typeof config.stepperEl.scrollTo === "function") {
+            config.stepperEl.scrollTo({
+              left: Math.max(0, targetLeft),
+              behavior: prefersReducedMotion() ? "auto" : "smooth"
+            });
+          } else {
+            config.stepperEl.scrollLeft = Math.max(0, targetLeft);
+          }
+        }
+
+        function renderStepper() {
+          config.stepperEl.replaceChildren();
+          config.steps.forEach((step, i) => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            const isCurrent = i === state.stepIndex;
+            const isDone = state.finishedSteps.has(step.id);
+            btn.className = "step-chip" + (isCurrent ? " is-current" : "") + (isDone ? " is-done" : "");
+            btn.setAttribute("aria-current", isCurrent ? "step" : "false");
+            btn.setAttribute("aria-label", "Step " + (i + 1) + ": " + step.title + (isDone ? " (finished)" : ""));
+
+            const num = document.createElement("span");
+            num.className = "chip-num";
+            num.textContent = String(i + 1);
+            btn.appendChild(num);
+
+            const title = document.createElement("span");
+            title.textContent = step.title;
+            btn.appendChild(title);
+
+            if (isDone) {
+              const chk = document.createElement("span");
+              chk.className = "chip-check";
+              chk.setAttribute("aria-hidden", "true");
+              chk.textContent = "\u2713";
+              btn.appendChild(chk);
+            }
+
+            btn.addEventListener("click", () => enterStep(i, true));
+            config.stepperEl.appendChild(btn);
+          });
+          scrollActiveChip();
+        }
+
+        function resetQuickCheckStep(step) {
+          state.savedSteps.delete(step.id);
+          for (let i = 0; i < step.tasks.length; i++) {
+            state.savedTasks.delete(step.id + ":" + i);
+          }
+          state.finishedSteps.delete(step.id);
+          state.quizScores = [];
+          state.quizDone = false;
+          state.quizVariant += 1;
+          if (typeof step.buildVariant === "function") {
+            step.tasks = step.buildVariant(state.quizVariant);
+            prepareStepChoices(config.steps, state.quizVariant);
+          }
+        }
+
+        function renderBanner(shouldFocus) {
+          const step = currentStep();
+          const task = currentTask();
+
+          bannerTitle.textContent = step.title;
+
+          if (step.intro) {
+            bannerIntro.hidden = false;
+            setRichText(bannerIntro, step.intro);
+          } else {
+            bannerIntro.hidden = true;
+            bannerIntro.textContent = "";
+          }
+
+          if (step.isQuickCheck && state.quizDone) {
+            bannerResult.hidden = false;
+            taskBoxEl.hidden = true;
+            bannerResult.replaceChildren();
+            const total = step.tasks.length;
+            const got = step.tasks.filter((_, i) => state.quizScores[i] === true).length;
+
+            const score = document.createElement("p");
+            score.className = "result-score";
+            score.textContent = "You got " + got + " of " + total + ".";
+            bannerResult.appendChild(score);
+
+            const misses = step.tasks
+              .map((t, i) => ({ t, i }))
+              .filter(({ i }) => !state.quizScores[i]);
+
+            if (misses.length > 0) {
+              const ul = document.createElement("ul");
+              ul.className = "miss-list";
+              for (const { t } of misses) {
+                const li = document.createElement("li");
+                li.className = "miss-item";
+                const msg = document.createElement("span");
+                msg.textContent = t.missExplain || t.explain || "";
+                li.appendChild(msg);
+                if (t.reviewStepId !== undefined) {
+                  const revIdx = config.steps.findIndex((s) => s.id === t.reviewStepId);
+                  if (revIdx !== -1) {
+                    const rev = document.createElement("button");
+                    rev.type = "button";
+                    rev.className = "btn";
+                    rev.textContent = "Review step " + (revIdx + 1);
+                    rev.addEventListener("click", () => enterStep(revIdx, true));
+                    li.appendChild(rev);
+                  }
+                }
+                ul.appendChild(li);
+              }
+              bannerResult.appendChild(ul);
+            }
+
+            if (step.rememberLines && step.rememberLines.length > 0) {
+              const remTitle = document.createElement("p");
+              remTitle.className = "predict-prompt";
+              remTitle.textContent = "What to remember";
+              bannerResult.appendChild(remTitle);
+
+              const rul = document.createElement("ul");
+              rul.className = "remember-list";
+              for (const line of step.rememberLines) {
+                const rli = document.createElement("li");
+                rli.textContent = line;
+                rul.appendChild(rli);
+              }
+              bannerResult.appendChild(rul);
+            }
+
+            const btnRow = document.createElement("div");
+            btnRow.className = "task-controls";
+            const tryBtn = document.createElement("button");
+            tryBtn.type = "button";
+            tryBtn.className = "btn";
+            tryBtn.textContent = "Try again";
+            tryBtn.addEventListener("click", () => {
+              resetQuickCheckStep(step);
+              enterStep(state.stepIndex, true, true);
+            });
+            btnRow.appendChild(tryBtn);
+
+            const otherBtn = document.createElement("button");
+            otherBtn.type = "button";
+            otherBtn.className = "btn is-vermilion";
+            otherBtn.textContent = config.nextPartLabel;
+            otherBtn.addEventListener("click", () => config.onGoOtherPart());
+            btnRow.appendChild(otherBtn);
+
+            bannerResult.appendChild(btnRow);
+          } else if (task) {
+            bannerResult.hidden = true;
+            bannerResult.replaceChildren();
+            taskBoxEl.hidden = false;
+            taskTopEl.replaceChildren();
+
+            if (task.workedExample) {
+              const we = document.createElement("div");
+              we.className = "worked-example";
+              if (task.workedExample.label) {
+                const lbl = document.createElement("span");
+                lbl.className = "worked-example-label";
+                lbl.textContent = task.workedExample.label;
+                we.appendChild(lbl);
+              }
+              const txt = document.createElement("span");
+              setRichText(txt, task.workedExample.text);
+              we.appendChild(txt);
+              taskTopEl.appendChild(we);
+            }
+
+            const prompt = document.createElement("p");
+            prompt.className = "task-prompt";
+            setRichText(prompt, task.prompt);
+            taskTopEl.appendChild(prompt);
+
+            if (task.codeCard) {
+              const pre = document.createElement("pre");
+              pre.className = "code-card";
+              const code = document.createElement("code");
+              code.textContent = task.codeCard;
+              pre.appendChild(code);
+              taskTopEl.appendChild(pre);
+            }
+
+            const controls = document.createElement("div");
+            controls.className = "task-controls";
+
+            if (task.type === "slotfill") {
+              const order = task.getFillOrder();
+              const allFilled = state.fillCount >= order.length;
+              if (!allFilled) {
+                const oneBtn = document.createElement("button");
+                oneBtn.type = "button";
+                oneBtn.className = "btn is-primary";
+                oneBtn.textContent = "Fill a slot";
+                oneBtn.addEventListener("click", handleSlotFillOne);
+                controls.appendChild(oneBtn);
+
+                const allBtn = document.createElement("button");
+                allBtn.type = "button";
+                allBtn.className = "btn";
+                allBtn.textContent = "Fill all";
+                allBtn.addEventListener("click", handleSlotFillAll);
+                controls.appendChild(allBtn);
+              }
+              const contBtn = document.createElement("button");
+              contBtn.type = "button";
+              contBtn.className = "btn is-primary";
+              contBtn.textContent = "Continue";
+              contBtn.disabled = !allFilled && !state.taskDone;
+              contBtn.addEventListener("click", handleContinue);
+              controls.appendChild(contBtn);
+            } else if (task.type === "explore") {
+              const btn = document.createElement("button");
+              btn.type = "button";
+              btn.className = "btn is-primary";
+              btn.textContent = "Continue";
+              btn.addEventListener("click", handleContinue);
+              controls.appendChild(btn);
+            } else if (task.type === "multiclick") {
+              if (!state.taskDone) {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "btn is-primary";
+                btn.textContent = "Check";
+                btn.disabled = state.multiSelected.size === 0;
+                btn.addEventListener("click", handleMultiCheck);
+                controls.appendChild(btn);
+              }
+            } else if (task.type === "choice") {
+              controls.appendChild(buildVocabPredictBox(
+                "Guess first, then check:",
+                task.choices,
+                state.taskDone ? state.taskChoiceGuess : null,
+                task.answer,
+                handleChoice,
+                null
+              ));
+            } else if (task.type === "reveal") {
+              if (!state.revealedInfo) {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "btn is-primary";
+                btn.textContent = task.buttonLabel || "Reveal";
+                btn.addEventListener("click", handleReveal);
+                controls.appendChild(btn);
+              }
+            }
+
+            if (state.taskDone && task.type !== "explore" && task.type !== "slotfill") {
+              if (state.taskIndex < step.tasks.length - 1) {
+                const nextTaskBtn = document.createElement("button");
+                nextTaskBtn.type = "button";
+                nextTaskBtn.className = "btn is-vermilion";
+                nextTaskBtn.textContent = step.isQuickCheck ? "Next question" : "Next task";
+                nextTaskBtn.addEventListener("click", advanceTaskOrStep);
+                controls.appendChild(nextTaskBtn);
+              } else if (step.isQuickCheck && !state.quizDone) {
+                const resBtn = document.createElement("button");
+                resBtn.type = "button";
+                resBtn.className = "btn is-vermilion";
+                resBtn.textContent = "See results";
+                resBtn.addEventListener("click", () => {
+                  state.quizDone = true;
+                  saveSnapshot();
+                  renderAll(false);
+                });
+                controls.appendChild(resBtn);
+              }
+            }
+
+            if (controls.childNodes.length > 0) {
+              taskTopEl.appendChild(controls);
+            }
+
+            if (task.codeAccordion) {
+              const det = document.createElement("details");
+              det.className = "algebra-details";
+              const sum = document.createElement("summary");
+              sum.textContent = task.codeAccordion.summary;
+              det.appendChild(sum);
+              const pre = document.createElement("pre");
+              pre.className = "code-card";
+              const code = document.createElement("code");
+              code.textContent = task.codeAccordion.code;
+              pre.appendChild(code);
+              det.appendChild(pre);
+              taskTopEl.appendChild(det);
+            }
+
+            if (task.type === "slotfill") {
+              const order = task.getFillOrder();
+              if (state.fillCount >= 1) {
+                const cap = document.createElement("p");
+                cap.className = "task-subnote";
+                cap.textContent = "Every node except the root sits in exactly one parent's slot.";
+                taskTopEl.appendChild(cap);
+              }
+              if (state.fillCount >= order.length) {
+                const layout = binaryLayouts[task.treeKey || "c"];
+                const why = document.createElement("p");
+                why.className = "task-subnote";
+                why.textContent = "Every empty slot is a place where a search stops, a null check happens, or a new node can be attached.";
+                taskTopEl.appendChild(why);
+
+                const det = document.createElement("details");
+                det.className = "algebra-details";
+                const sum = document.createElement("summary");
+                sum.textContent = "Show the algebra";
+                det.appendChild(sum);
+                const alg = document.createElement("p");
+                alg.textContent = "2n slots \u2212 (n \u2212 1) filled = n + 1 empty  (" + (layout.nodeCount * 2) + " \u2212 " + layout.edgeCount + " = " + layout.emptyCount + ")";
+                det.appendChild(alg);
+                taskTopEl.appendChild(det);
+              }
+            }
+
+            if (state.revealedInfo && task.postRevealNote) {
+              const sub = document.createElement("p");
+              sub.className = "task-subnote";
+              sub.textContent = task.postRevealNote;
+              taskTopEl.appendChild(sub);
+            }
+
+            feedbackEl.className = "task-feedback";
+            if (state.feedback) {
+              feedbackEl.hidden = false;
+              feedbackEl.classList.add("is-" + state.feedback.kind);
+              feedbackEl.textContent = state.feedback.text;
+            } else {
+              const guidance = defaultGuidanceText(task);
+              if (guidance) {
+                feedbackEl.hidden = false;
+                feedbackEl.textContent = guidance;
+              } else {
+                feedbackEl.hidden = true;
+                feedbackEl.textContent = "";
+              }
+            }
+          }
+
+          if (shouldFocus) {
+            bannerTitle.focus();
+          }
+        }
+
+        function renderSide() {
+          const step = currentStep();
+          config.sideEl.replaceChildren();
+
+          if (step.ruleReminder) {
+            const block = document.createElement("div");
+            block.className = "side-block";
+            const p = document.createElement("p");
+            p.className = "rule-note";
+            p.textContent = step.ruleReminder;
+            block.appendChild(p);
+            config.sideEl.appendChild(block);
+          }
+
+          if (state.exploredNodeId && config.buildFactsBlock) {
+            const factsEl = config.buildFactsBlock(state.exploredNodeId, state.view);
+            if (factsEl) config.sideEl.appendChild(factsEl);
+          }
+
+          if (step.codeNote) {
+            const block = document.createElement("div");
+            block.className = "side-block";
+            const box = document.createElement("div");
+            box.className = "code-fact";
+            if (step.codeNote.label) {
+              const lbl = document.createElement("span");
+              lbl.className = "code-fact-label";
+              lbl.textContent = step.codeNote.label;
+              box.appendChild(lbl);
+            }
+            const pre = document.createElement("pre");
+            pre.className = "code-fact-lines";
+            const lines = step.codeNote.lines || [];
+            lines.forEach((ln, idx) => {
+              if (idx > 0) pre.appendChild(document.createTextNode("\n"));
+              appendCodeWithNulls(pre, ln);
+            });
+            box.appendChild(pre);
+            block.appendChild(box);
+            config.sideEl.appendChild(block);
+          }
+
+          // Block 1: In this step (legend)
+          const legendBlock = document.createElement("div");
+          legendBlock.className = "side-block";
+          const lh = document.createElement("h3");
+          lh.className = "side-title";
+          lh.textContent = "In this step";
+          legendBlock.appendChild(lh);
+
+          const ul = document.createElement("ul");
+          ul.className = "legend-list";
+          const items = step.legend || [
+            { swatch: "default", text: "Circle = node" },
+            { swatch: "highlight", text: "Terracotta = active or highlighted" }
+          ];
+          for (const item of items) {
+            const li = document.createElement("li");
+            li.className = "legend-item";
+            const sw = document.createElement("span");
+            sw.className = "swatch" + (item.swatch !== "default" ? " is-" + item.swatch : "");
+            sw.setAttribute("aria-hidden", "true");
+            li.appendChild(sw);
+            const sp = document.createElement("span");
+            sp.textContent = item.text;
+            li.appendChild(sp);
+            ul.appendChild(li);
+          }
+          legendBlock.appendChild(ul);
+          config.sideEl.appendChild(legendBlock);
+
+          // Block 2: Words so far (glossary)
+          const glossBlock = document.createElement("div");
+          glossBlock.className = "side-block";
+          const gh = document.createElement("h3");
+          gh.className = "side-title";
+          gh.textContent = "Words so far";
+          glossBlock.appendChild(gh);
+
+          if (state.glossary.length === 0) {
+            const p = document.createElement("p");
+            p.className = "side-hint";
+            p.textContent = "New words appear here as you meet them.";
+            glossBlock.appendChild(p);
+          } else {
+            const gl = document.createElement("div");
+            gl.className = "glossary-list";
+            for (const term of state.glossary) {
+              const row = document.createElement("div");
+              row.className = "glossary-item" + (state.freshGlossary.has(term) ? " is-fresh" : "");
+              const tSpan = document.createElement("span");
+              tSpan.className = "glossary-term";
+              tSpan.textContent = term + ": ";
+              const dSpan = document.createElement("span");
+              dSpan.className = "glossary-def";
+              dSpan.textContent = GLOSSARY_DEFS[term] || "";
+              row.appendChild(tSpan);
+              row.appendChild(dSpan);
+              gl.appendChild(row);
+            }
+            glossBlock.appendChild(gl);
+          }
+          config.sideEl.appendChild(glossBlock);
+        }
+
+        function renderNav() {
+          const step = currentStep();
+          const stepDone = state.finishedSteps.has(step.id);
+          const nextStep = config.steps[state.stepIndex + 1];
+
+          config.navEl.replaceChildren();
+
+          const pair = document.createElement("div");
+          pair.className = "nav-pair";
+
+          const backBtn = document.createElement("button");
+          backBtn.type = "button";
+          backBtn.className = "btn";
+          backBtn.textContent = "Back";
+          backBtn.addEventListener("click", goBackStep);
+          pair.appendChild(backBtn);
+
+          const nextBtn = document.createElement("button");
+          nextBtn.type = "button";
+          if (stepDone) {
+            nextBtn.className = "btn is-vermilion";
+            nextBtn.textContent = nextStep ? "Next: " + nextStep.title : config.nextPartLabel;
+          } else {
+            nextBtn.className = "btn";
+            nextBtn.textContent = "Skip step";
+          }
+          nextBtn.addEventListener("click", handleSkipOrNext);
+          pair.appendChild(nextBtn);
+
+          config.navEl.appendChild(pair);
+
+          const restartBtn = document.createElement("button");
+          restartBtn.type = "button";
+          restartBtn.className = "link-btn";
+          restartBtn.textContent = "Restart this part";
+          restartBtn.addEventListener("click", resetPart);
+          config.navEl.appendChild(restartBtn);
+        }
+
+        function renderView() {
+          const task = currentTask();
+          const clickable = Boolean(
+            task && (task.type === "click" || task.type === "multiclick" || task.type === "explore") && !(state.taskDone && task.type !== "explore")
+          );
+          const isFirstClickTask = Boolean(
+            task &&
+            task.type === "click" &&
+            clickable &&
+            !state.taskDone &&
+            state.stepIndex === 0 &&
+            state.taskIndex === 0 &&
+            (state.subIndex || 0) === 0 &&
+            (!config.isPanelVisible || config.isPanelVisible())
+          );
+          const pulseFirst = isFirstClickTask && !state.pulsedFirstClick && !prefersReducedMotion();
+          if (pulseFirst) {
+            state.pulsedFirstClick = true;
+          }
+          config.renderTree(
+            state.view,
+            clickable ? handleNodeInteraction : null,
+            {
+              multiclick: Boolean(task && task.type === "multiclick"),
+              pressedIds: Array.from(state.multiSelected),
+              pulseFirst
+            }
+          );
+        }
+
+        function renderAll(shouldFocus) {
+          renderStepper();
+          renderBanner(shouldFocus);
+          renderSide();
+          renderNav();
+          renderView();
+        }
+
+        function resetPart() {
+          state.initialized = false;
+          state.pulsedFirstClick = false;
+          state.finishedSteps = new Set();
+          state.savedSteps.clear();
+          state.savedTasks.clear();
+          state.glossary = [];
+          state.freshGlossary = new Set();
+          state.quizVariant = 0;
+          for (const st of config.steps) {
+            if (typeof st.buildVariant === "function") {
+              st.tasks = st.buildVariant(0);
+            }
+          }
+          prepareStepChoices(config.steps, 0);
+          config.onQuickCheckChange(false);
+          enterStep(0, true);
+        }
+
+        return {
+          start: () => enterStep(0, false),
+          refreshView: () => {
+            renderView();
+            scrollActiveChip();
+          }
+        };
+      }
+
+      const tabVocabBtn = document.getElementById("tab-vocab");
+      const tabBinaryBtn = document.getElementById("tab-binary");
+
+      function addFact(dl, label, value) {
+        const dt = document.createElement("dt");
+        dt.textContent = label;
+        const dd = document.createElement("dd");
+        dd.textContent = value;
+        dl.appendChild(dt);
+        dl.appendChild(dd);
+      }
+
+      function buildVocabFactsBlock(id) {
+        const block = document.createElement("div");
+        block.className = "side-block";
+        const h = document.createElement("h3");
+        h.className = "side-title";
+        h.textContent = "Node " + id;
+        block.appendChild(h);
+
+        const pId = vocabModel.parent[id];
+        const kids = vocabModel.children[id];
+        const sibs = vocabModel.getSiblings(id);
+
+        const dl = document.createElement("dl");
+        dl.className = "fact-list";
+        addFact(dl, "Node", id);
+        addFact(dl, "Parent", pId === null ? "none (root)" : pId);
+        addFact(dl, "Children", kids.length ? kids.join(", ") : "none");
+        addFact(dl, "Siblings", sibs.length ? sibs.join(", ") : "none");
+        let role;
+        if (kids.length === 0) {
+          role = pId === null ? "root (leaf)" : "leaf";
+        } else {
+          role = pId === null ? "root (internal node)" : "internal node";
+        }
+        addFact(dl, "Role", role);
+        block.appendChild(dl);
+        return block;
+      }
+
+      function buildBinaryFactsBlock(id, view) {
+        const treeKey = view && view.treeKey;
+        const layout = treeKey ? binaryLayouts[treeKey] : null;
+        const node = layout && layout.nodes[id];
+        if (!node) return null;
+
+        const block = document.createElement("div");
+        block.className = "side-block";
+        const h = document.createElement("h3");
+        h.className = "side-title";
+        h.textContent = "Node " + id;
+        block.appendChild(h);
+
+        const emptyHere = (node.l ? 0 : 1) + (node.r ? 0 : 1);
+        const dl = document.createElement("dl");
+        dl.className = "fact-list";
+        addFact(dl, "Tree", layout.name);
+        addFact(dl, "Left child", node.l || "none");
+        addFact(dl, "Right child", node.r || "none");
+        addFact(dl, "Empty slots here", String(emptyHere));
+        block.appendChild(dl);
+
+        const codeBox = document.createElement("div");
+        codeBox.className = "code-fact";
+        const lbl = document.createElement("span");
+        lbl.className = "code-fact-label";
+        lbl.textContent = "In code";
+        codeBox.appendChild(lbl);
+
+        const line = document.createElement("span");
+        line.appendChild(document.createTextNode("node " + id + ": left = "));
+        if (node.l) {
+          line.appendChild(document.createTextNode(node.l));
+        } else {
+          const nl = document.createElement("span");
+          nl.className = "code-null";
+          nl.textContent = "null";
+          line.appendChild(nl);
+        }
+        line.appendChild(document.createTextNode(", right = "));
+        if (node.r) {
+          line.appendChild(document.createTextNode(node.r));
+        } else {
+          const nr = document.createElement("span");
+          nr.className = "code-null";
+          nr.textContent = "null";
+          line.appendChild(nr);
+        }
+        codeBox.appendChild(line);
+        block.appendChild(codeBox);
+        return block;
+      }
+
+      function buildPart1QuickCheckTasks(variant) {
+        const v = variant || 0;
+        const sibPool = ["7", "5", "2", "8", "6", "3"].filter((id) => vocabModel.getSiblings(id).length > 0);
+        const sibTarget = sibPool[v % sibPool.length];
+        const sibAns = vocabModel.getSiblings(sibTarget)[0];
+        const sibSet = new Set(vocabModel.getSiblings(sibTarget));
+        const sibDistractors = vocabModel.nodes.filter((id) => id !== sibTarget && !sibSet.has(id)).slice(0, 3);
+        const sibChoices = [sibAns].concat(sibDistractors).map((x) => ({ value: x, label: x }));
+
+        const depthPool = ["9", "6", "10", "2", "7", "4"].filter((id) => vocabModel.depth[id] !== undefined);
+        const depthTarget = depthPool[v % depthPool.length];
+        const depthAns = vocabModel.depth[depthTarget];
+
+        const heightPool = ["2", "3", "7", "1", "4", "6"].filter((id) => vocabModel.height[id] !== undefined);
+        const heightTarget = heightPool[v % heightPool.length];
+        const heightAns = vocabModel.height[heightTarget];
+        const heightPath = vocabModel.longestDownPath[heightTarget];
+
+        const stmtVariants = [
+          {
+            choices: [
+              { value: "a", label: "Node 4 is an ancestor of node 10" },
+              { value: "b", label: "Node 10 is a descendant of node 3" },
+              { value: "c", label: "Node 5 is a sibling of node 7" },
+              { value: "d", label: "Node 1 has depth 1" }
+            ],
+            answer: "b",
+            explain: "You can walk downward from 3 to 10 (3 \u2192 7 \u2192 10).",
+            missExplain: "Q4 (true statement): Node 10 is a descendant of node 3 (3 \u2192 7 \u2192 10).",
+            check: (val) => val === "b" && vocabModel.getDescendants("3").includes("10")
+          },
+          {
+            choices: [
+              { value: "a", label: "Node 3 is an ancestor of node 10" },
+              { value: "b", label: "Node 8 is a parent of node 10" },
+              { value: "c", label: "Node 6 is a sibling of node 7" },
+              { value: "d", label: "Node 9 has height 1" }
+            ],
+            answer: "a",
+            explain: "Node 3 sits on the path from root 1 down to node 10 (1 \u2192 3 \u2192 7 \u2192 10).",
+            missExplain: "Q4 (true statement): Node 3 is an ancestor of node 10.",
+            check: (val) => val === "a" && vocabModel.getAncestors("10").includes("3")
+          },
+          {
+            choices: [
+              { value: "a", label: "Node 7 is a leaf" },
+              { value: "b", label: "Node 5 and node 6 are siblings" },
+              { value: "c", label: "Node 2 is a descendant of node 3" },
+              { value: "d", label: "Node 4 has depth 2" }
+            ],
+            answer: "b",
+            explain: "5 and 6 share the same parent, node 2.",
+            missExplain: "Q4 (true statement): Node 5 and node 6 are siblings (parent 2).",
+            check: (val) => val === "b" && vocabModel.getSiblings("5").includes("6")
+          }
+        ];
+        const stmt = stmtVariants[v % stmtVariants.length];
+
+        return [
+          {
+            type: "choice",
+            prompt: "Which node is a sibling of " + sibTarget + "?",
+            action: "pick one option",
+            choices: sibChoices,
+            answer: sibAns,
+            reviewStepId: "p1-meet",
+            explain: sibTarget + " and " + sibAns + " share the same parent (node " + vocabModel.parent[sibTarget] + ").",
+            missExplain: "Q1 (sibling of " + sibTarget + "): " + sibTarget + " and " + sibAns + " share parent " + vocabModel.parent[sibTarget] + ".",
+            check: (val) => vocabModel.getSiblings(sibTarget).includes(val)
+          },
+          {
+            type: "choice",
+            prompt: "What is the depth of node " + depthTarget + "?",
+            action: "pick one option",
+            choices: makeIntChoices(0, Math.max(3, vocabModel.maxDepth), depthAns),
+            answer: depthAns,
+            reviewStepId: "p1-depth-vs-height",
+            explain: vocabModel.rootPath[depthTarget].join(" \u2192 ") + " crosses " + depthAns + " " + edgeWord(depthAns) + " from the root.",
+            missExplain: "Q2 (depth of " + depthTarget + "): " + vocabModel.rootPath[depthTarget].join(" \u2192 ") + " has " + depthAns + " " + edgeWord(depthAns) + " from the root.",
+            check: (val) => val === depthAns
+          },
+          {
+            type: "choice",
+            prompt: "What is the height of node " + heightTarget + "?",
+            action: "pick one option",
+            choices: makeIntChoices(0, Math.max(3, vocabModel.treeHeight), heightAns),
+            answer: heightAns,
+            reviewStepId: "p1-depth-vs-height",
+            explain: heightAns === 0
+              ? "Node " + heightTarget + " is a leaf, so its height is 0."
+              : "The longest path down from " + heightTarget + " (" + heightPath.join(" \u2192 ") + ") takes " + heightAns + " " + edgeWord(heightAns) + ".",
+            missExplain: "Q3 (height of " + heightTarget + "): " + (heightAns === 0 ? "leaf has height 0." : heightPath.join(" \u2192 ") + " takes " + heightAns + " " + edgeWord(heightAns) + "."),
+            check: (val) => val === heightAns
+          },
+          {
+            type: "choice",
+            prompt: "Which statement is true?",
+            action: "pick the true statement",
+            choices: stmt.choices,
+            answer: stmt.answer,
+            reviewStepId: "p1-above-below",
+            explain: stmt.explain,
+            missExplain: stmt.missExplain,
+            check: stmt.check
+          }
+        ];
+      }
+
+      function buildPart2QuickCheckTasks(variant) {
+        const v = variant || 0;
+        const swapPool = [
+          { treeKey: "a", id: "A" },
+          { treeKey: "a", id: "B" },
+          { treeKey: "c", id: "B" },
+          { treeKey: "c", id: "C" }
+        ].filter((item) => {
+          const lay = binaryLayouts[item.treeKey];
+          return lay && lay.nodes[item.id] && lay.nodes[item.id].l && lay.nodes[item.id].r;
+        });
+        const sw = swapPool[v % swapPool.length];
+        const swLay = binaryLayouts[sw.treeKey];
+        const swNode = swLay.nodes[sw.id];
+
+        const n1Pool = [20, 15, 25, 30];
+        const n1 = n1Pool[v % n1Pool.length];
+        const n2Pool = [12, 8, 16, 24];
+        const n2 = n2Pool[v % n2Pool.length];
+
+        const slotScenarios = [
+          {
+            prompt: "A node has a left child but no right child. How many empty slots does that node have?",
+            answer: 1,
+            treeKey: "b",
+            match: (n) => Boolean(n.l) && !n.r,
+            explain: "The left slot holds a child; only the right slot is empty (1 empty slot).",
+            missExplain: "Q4 (one child): one slot is filled, so 1 slot is empty."
+          },
+          {
+            prompt: "A node is a leaf (no left child and no right child). How many empty slots does that node have?",
+            answer: 2,
+            treeKey: "a",
+            match: (n) => !n.l && !n.r,
+            explain: "Both the left slot and the right slot have no child (2 empty slots).",
+            missExplain: "Q4 (leaf node): both slots are empty, so 2 slots are empty."
+          },
+          {
+            prompt: "A node has both a left child and a right child. How many empty slots does that node have?",
+            answer: 0,
+            treeKey: "a",
+            match: (n) => Boolean(n.l) && Boolean(n.r),
+            explain: "Both the left slot and the right slot hold a child, leaving 0 empty slots.",
+            missExplain: "Q4 (two children): both slots are filled, so 0 slots are empty."
+          },
+          {
+            prompt: "A node has a right child but no left child. How many empty slots does that node have?",
+            answer: 1,
+            treeKey: "b",
+            match: (n) => !n.l && Boolean(n.r),
+            explain: "The right slot holds a child; only the left slot is empty (1 empty slot).",
+            missExplain: "Q4 (one child): one slot is filled, so 1 slot is empty."
+          }
+        ];
+        const sc = slotScenarios[v % slotScenarios.length];
+
+        return [
+          {
+            type: "choice",
+            prompt: "In " + swLay.name + ", node " + sw.id + " has left child " + swNode.l + " and right child " + swNode.r + ". If you swap them so " + swNode.r + " is on the left and " + swNode.l + " is on the right, is it the same binary tree?",
+            action: "pick one option",
+            choices: [
+              { value: "no-diff", label: "No, swapping left and right makes a different binary tree" },
+              { value: "yes-kids", label: "Yes, " + sw.id + " still has the same two children" },
+              { value: "yes-count", label: "Yes, the node count does not change" },
+              { value: "yes-slots", label: "Yes, it has the same number of empty slots" }
+            ],
+            answer: "no-diff",
+            reviewStepId: "p2-lr",
+            explain: "In a binary tree, left and right are distinct places. Swapping two different children changes the tree.",
+            missExplain: "Q1 (left and right): No \u2014 left and right slots are distinct, so swapping them changes the tree.",
+            onShow: (view) => {
+              view.treeKey = sw.treeKey;
+              view.edgeLabels = true;
+              view.showEmpties = "none";
+              view.counterText = "";
+              view.highlightIds = [sw.id, swNode.l, swNode.r];
+            },
+            check: (val) => val === "no-diff"
+          },
+          {
+            type: "choice",
+            prompt: "A binary tree has " + n1 + " nodes. How many empty slots?",
+            action: "pick one option",
+            choices: makeIntChoices(n1 - 1, n1 + 2, emptySlots(n1)),
+            answer: emptySlots(n1),
+            reviewStepId: "p2-bigger",
+            explain: "By the n + 1 rule, " + n1 + " + 1 = " + emptySlots(n1) + " empty slots.",
+            missExplain: "Q2 (" + n1 + " nodes): n + 1 = " + n1 + " + 1 = " + emptySlots(n1) + " empty slots.",
+            onShow: (view) => {
+              view.treeKey = null;
+              view.hiddenN = n1;
+              view.showEmpties = "none";
+              view.counterText = "";
+            },
+            check: (val) => val === emptySlots(n1)
+          },
+          {
+            type: "choice",
+            prompt: "Two binary trees both have " + n2 + " nodes but different shapes. Do they have the same number of empty slots?",
+            action: "pick one option",
+            choices: [
+              { value: "yes", label: "Yes, always" },
+              { value: "no", label: "No, never" },
+              { value: "shape", label: "It depends on the shape" },
+              { value: "full", label: "Only if both are full" }
+            ],
+            answer: "yes",
+            reviewStepId: "p2-same-size",
+            explain: n2 + " nodes always have " + n2 + " + 1 = " + emptySlots(n2) + " empty slots, whatever the shape.",
+            missExplain: "Q3 (same n, different shapes): Yes, always \u2014 the count depends on n, not shape.",
+            onShow: (view) => {
+              view.treeKey = null;
+              view.hiddenN = n2;
+              view.showEmpties = "none";
+              view.counterText = "";
+            },
+            check: (val) => val === "yes"
+          },
+          {
+            type: "choice",
+            prompt: sc.prompt,
+            action: "pick one option",
+            choices: [0, 1, 2, 3].map((val) => ({ value: val, label: String(val) })),
+            answer: sc.answer,
+            reviewStepId: "p2-empty",
+            explain: sc.explain,
+            missExplain: sc.missExplain,
+            onShow: (view) => {
+              view.treeKey = sc.treeKey;
+              view.edgeLabels = true;
+              view.showEmpties = "none";
+              view.counterText = "";
+            },
+            onDone: (view) => {
+              const lay = binaryLayouts[sc.treeKey];
+              const hit = lay.labels.find((id) => sc.match(lay.nodes[id]));
+              view.treeKey = sc.treeKey;
+              view.edgeLabels = true;
+              if (hit) {
+                view.highlightIds = [hit];
+                view.showEmpties = [hit];
+              }
+            },
+            check: (val) => val === sc.answer
+          }
+        ];
+      }
+
+      const part1Steps = [
+        {
+          id: "p1-meet",
+          title: "Meet the tree",
+          intro: "This is a **tree**. The circles are **nodes**. The lines between them are **edges**. A tree grows downward.",
+          glossaryIntro: ["tree", "node", "edge"],
+          legend: [
+            { swatch: "default", text: "Circle = node" },
+            { swatch: "start", text: "Dashed ring = target node" },
+            { swatch: "highlight", text: "Terracotta = highlighted answer or role" }
+          ],
+          tasks: [
+            {
+              type: "click",
+              prompt: "Click the **root**: the one node with nothing above it.",
+              hints: ["The root is the only node with no line going up to it."],
+              explain: "Node " + vocabModel.root + " is the root. Every other node hangs below it.",
+              glossaryAdds: ["root"],
+              visualHint: (view) => {
+                const root = vocabModel.root;
+                const kids = vocabModel.children[root] || [];
+                view.highlightEdges = kids.map((c) => edgeKey(root, c));
+              },
+              check: (id) => id === vocabModel.root,
+              onDone: (view) => {
+                view.highlightIds = [vocabModel.root];
+                view.badges = { [vocabModel.root]: "root" };
+              }
+            },
+            {
+              type: "click",
+              prompt: "Click the **parent** of node 6: the node directly above it, joined by one edge.",
+              hints: ["Start at dashed node 6 and take one step up toward the root."],
+              explain: vocabModel.parent["6"] + " is the parent of 6.",
+              glossaryAdds: ["parent"],
+              onShow: (view) => {
+                view.startId = "6";
+              },
+              visualHint: (view) => {
+                const p = vocabModel.parent["6"];
+                view.startId = "6";
+                view.highlightEdges = p ? [edgeKey(p, "6")] : [];
+              },
+              check: (id) => id === vocabModel.parent["6"],
+              onDone: (view) => {
+                const p = vocabModel.parent["6"];
+                view.startId = "6";
+                view.highlightIds = [p];
+                view.highlightEdges = [edgeKey(p, "6")];
+                view.badges = { [p]: "parent" };
+              }
+            },
+            {
+              type: "click",
+              prompt: "Now go the other way. Click a **child** of node 2: a node directly below it.",
+              hints: ["Pick a node connected directly below node 2\u2014not node 1 above it."],
+              explain: (() => {
+                const kids = vocabModel.children["2"];
+                const childNoun = kids.length === 1 ? "child" : "children";
+                return "Node 2 has " + numberWord(kids.length) + " " + childNoun + ": " + kids.join(" and ") + ".";
+              })(),
+              glossaryAdds: ["child"],
+              onShow: (view) => {
+                view.startId = "2";
+              },
+              visualHint: (view) => {
+                const kids = vocabModel.children["2"] || [];
+                view.startId = "2";
+                view.highlightEdges = kids.map((c) => edgeKey("2", c));
+              },
+              check: (id) => vocabModel.children["2"].includes(id),
+              onDone: (view) => {
+                const kids = vocabModel.children["2"];
+                view.startId = "2";
+                view.highlightIds = kids.slice();
+                view.highlightEdges = kids.map((c) => edgeKey("2", c));
+                view.badges = Object.fromEntries(kids.map((c) => [c, "child"]));
+              }
+            },
+            {
+              type: "click",
+              prompt: "Click a **sibling** of node 3: a node with the same parent.",
+              hints: ["Find node 3's parent, then click another child of that parent."],
+              explain: vocabModel.children[vocabModel.parent["3"]].join(", ") + " are siblings. They all hang from " + vocabModel.parent["3"] + ".",
+              glossaryAdds: ["sibling"],
+              onShow: (view) => {
+                view.startId = "3";
+              },
+              visualHint: (view) => {
+                const p = vocabModel.parent["3"];
+                view.startId = "3";
+                view.highlightIds = p ? [p] : [];
+                view.highlightEdges = p ? [edgeKey(p, "3")] : [];
+              },
+              check: (id) => vocabModel.getSiblings("3").includes(id),
+              onDone: (view) => {
+                const sibs = vocabModel.getSiblings("3");
+                view.startId = "3";
+                view.highlightIds = sibs.slice();
+                view.badges = Object.fromEntries(sibs.map((s) => [s, "sibling"]));
+              }
+            },
+            {
+              type: "click",
+              prompt: "Click a **leaf**: a node with no children.",
+              hints: ["Pick a node where a branch stops and nothing hangs underneath it."],
+              explain: "A leaf has no children. A node that has children is an internal node.",
+              glossaryAdds: ["leaf", "internal node"],
+              visualHint: (view) => {
+                const sampleLeaves = vocabModel.leaves.slice(0, 2);
+                view.highlightEdges = sampleLeaves
+                  .map((l) => vocabModel.parent[l] ? edgeKey(vocabModel.parent[l], l) : null)
+                  .filter(Boolean);
+              },
+              check: (id) => vocabModel.children[id].length === 0,
+              onDone: (view) => {
+                view.highlightIds = vocabModel.leaves.slice();
+                view.badges = Object.fromEntries(vocabModel.leaves.map((l) => [l, "leaf"]));
+              }
+            },
+            {
+              type: "explore",
+              prompt: "Click any node to see its relatives light up.",
+              idleFeedback: "Click any node to see its relatives light up.",
+              explain: "Every node's role depends on its nearby edges.",
+              onExplore: (id, view) => {
+                view.startId = id;
+                view.highlightIds = [];
+                view.highlightEdges = [];
+                view.badges = {};
+                const p = vocabModel.parent[id];
+                if (p !== null) {
+                  view.highlightIds.push(p);
+                  view.highlightEdges.push(edgeKey(p, id));
+                  view.badges[p] = "parent";
+                }
+                for (const c of vocabModel.children[id]) {
+                  view.highlightIds.push(c);
+                  view.highlightEdges.push(edgeKey(id, c));
+                  view.badges[c] = "child";
+                }
+                for (const s of vocabModel.getSiblings(id)) {
+                  view.highlightIds.push(s);
+                  view.badges[s] = "sibling";
+                }
+              }
+            }
+          ]
+        },
+        {
+          id: "p1-above-below",
+          title: "Above and below",
+          intro: "Parent and child are one step apart. An **ancestor** is any node on the way up to the root. A **descendant** is any node somewhere below.",
+          legend: [
+            { swatch: "start", text: "Dashed ring = selected node" },
+            { swatch: "highlight", text: "Terracotta = ancestors and descendants" }
+          ],
+          tasks: [
+            {
+              type: "click",
+              prompt: "Click node 3. Ancestors light up above it, descendants below.",
+              explain: (() => {
+                const anc = vocabModel.getAncestors("3");
+                const desc = vocabModel.getDescendants("3");
+                return "Above 3: " + (anc.length ? anc.join(", ") : "none") + " (ancestor). Below 3: " + (desc.length ? desc.join(", ") : "none") + " (descendants).";
+              })(),
+              glossaryAdds: ["ancestor", "descendant"],
+              visualHint: (view) => {
+                view.highlightIds = [vocabModel.root];
+                view.highlightEdges = [edgeKey(vocabModel.root, "3")];
+              },
+              check: (id) => id === "3",
+              onDone: (view) => {
+                const anc = vocabModel.getAncestors("3");
+                const desc = vocabModel.getDescendants("3");
+                view.startId = "3";
+                view.highlightIds = anc.concat(desc);
+                view.dimOthers = true;
+                view.badges = {};
+                view.highlightEdges = [];
+                for (const a of anc) view.badges[a] = "ancestor";
+                for (const d of desc) view.badges[d] = "descendant";
+                for (const [u, v] of vocabModel.edges) {
+                  if ((anc.includes(u) || u === "3" || desc.includes(u)) && (anc.includes(v) || v === "3" || desc.includes(v))) {
+                    view.highlightEdges.push(edgeKey(u, v));
+                  }
+                }
+              }
+            },
+            {
+              type: "click",
+              prompt: "Now click node 7 and see what changes.",
+              explain: (() => {
+                const anc = vocabModel.getAncestors("7");
+                const desc = vocabModel.getDescendants("7");
+                return "Above 7: " + (anc.length ? anc.join(", ") : "none") + " (ancestors). Below 7: " + (desc.length ? desc.join(", ") : "none") + " (descendant).";
+              })(),
+              visualHint: (view) => {
+                const p = vocabModel.parent["7"];
+                view.highlightIds = p ? [p] : [];
+                view.highlightEdges = p ? [edgeKey(p, "7")] : [];
+              },
+              check: (id) => id === "7",
+              onDone: (view) => {
+                const anc = vocabModel.getAncestors("7");
+                const desc = vocabModel.getDescendants("7");
+                view.startId = "7";
+                view.highlightIds = anc.concat(desc);
+                view.dimOthers = true;
+                view.badges = {};
+                view.highlightEdges = [];
+                for (const a of anc) view.badges[a] = "ancestor";
+                for (const d of desc) view.badges[d] = "descendant";
+                const pathNodes = new Set(anc.concat(["7"], desc));
+                for (const [u, v] of vocabModel.edges) {
+                  if (pathNodes.has(u) && pathNodes.has(v)) {
+                    view.highlightEdges.push(edgeKey(u, v));
+                  }
+                }
+              }
+            },
+            {
+              type: "choice",
+              prompt: "Is node 10 a descendant of node 3?",
+              fixedOrder: true,
+              choices: [{ value: "yes", label: "Yes" }, { value: "no", label: "No" }],
+              answer: "yes",
+              hints: ["Check if you can step only downward from node 3 to reach node 10 without climbing back up."],
+              explain: "You can walk down from 3 to 10: 3 \u2192 7 \u2192 10.",
+              onShow: (view) => {
+                view.startId = "3";
+              },
+              check: (val) => val === "yes",
+              onDone: (view) => {
+                view.startId = "3";
+                view.highlightIds = ["7", "10"];
+                view.highlightEdges = [edgeKey("3", "7"), edgeKey("7", "10")];
+                view.badges = { "10": "descendant" };
+              }
+            },
+            {
+              type: "choice",
+              prompt: "Is node 9 a descendant of node 3?",
+              fixedOrder: true,
+              choices: [{ value: "yes", label: "Yes" }, { value: "no", label: "No" }],
+              answer: "no",
+              hints: ["Descending only moves down edges\u2014if you have to climb up to node 1 first, it is not a descendant."],
+              explain: "9 hangs under 4, a different branch.",
+              onShow: (view) => {
+                view.startId = "3";
+              },
+              check: (val) => val === "no",
+              onDone: (view) => {
+                view.startId = "3";
+                view.highlightIds = ["4", "9"];
+                view.highlightEdges = [edgeKey("1", "4"), edgeKey("4", "9")];
+              }
+            },
+            {
+              type: "multiclick",
+              prompt: "Click **all** the ancestors of node 10, then press Check.",
+              action: "toggle the ancestor nodes, then press Check",
+              explain: "The ancestors of 10 are " + vocabModel.getAncestors("10").slice().reverse().join(", ") + ".",
+              onShow: (view) => {
+                view.startId = "10";
+              },
+              checkMulti: (selected) => {
+                const expected = vocabModel.getAncestors("10");
+                const selSet = new Set(selected);
+                const expSet = new Set(expected);
+                const missing = expected.filter((x) => !selSet.has(x));
+                const extra = selected.filter((x) => !expSet.has(x));
+                if (missing.length === 0 && extra.length === 0) {
+                  return { ok: true };
+                }
+                const parts = ["Walk up from 10, one parent at a time."];
+                if (missing.length > 0) parts.push("Missing: " + missing.join(", ") + ".");
+                if (extra.length > 0) parts.push("Not an ancestor: " + extra.join(", ") + ".");
+                return { ok: false, message: parts.join(" ") };
+              },
+              onDone: (view, st) => {
+                const expected = vocabModel.getAncestors("10");
+                const path = vocabModel.rootPath["10"];
+                st.multiSelected = new Set(expected);
+                view.startId = "10";
+                view.highlightIds = expected.slice();
+                view.highlightEdges = path.slice(0, -1).map((u, i) => edgeKey(u, path[i + 1]));
+                view.badges = Object.fromEntries(expected.map((a) => [a, "ancestor"]));
+              }
+            }
+          ]
+        },
+        (() => {
+          const desc3 = vocabModel.getDescendants("3");
+          const desc3Set = new Set(desc3);
+          const leafDesc3 = desc3.filter((id) => vocabModel.children[id].length === 0);
+          const leaf3Set = new Set(leafDesc3);
+          const leaf3Ans = leafDesc3[0] || vocabModel.leaves[0];
+          const internalDesc3 = desc3.find((id) => vocabModel.children[id].length > 0);
+          const nonDescLeaf = vocabModel.leaves.find((id) => !desc3Set.has(id));
+          const anc3 = vocabModel.getAncestors("3")[0];
+          const leaf3Raw = [];
+          const leaf3Used = new Set();
+          for (const candidate of [leaf3Ans, internalDesc3, nonDescLeaf, anc3]) {
+            if (candidate && !leaf3Used.has(candidate)) {
+              leaf3Used.add(candidate);
+              leaf3Raw.push(candidate);
+            }
+          }
+          for (const candidate of vocabModel.nodes) {
+            if (leaf3Raw.length >= 4) break;
+            const qualifies = desc3Set.has(candidate) && vocabModel.children[candidate].length === 0;
+            if (!leaf3Used.has(candidate) && !qualifies) {
+              leaf3Used.add(candidate);
+              leaf3Raw.push(candidate);
+            }
+          }
+          const leaf3Choices = leaf3Raw.map((id) => ({ value: id, label: id }));
+          const leaf3Question = leafDesc3.length > 1
+            ? "Which of these is a leaf and a descendant of node 3?"
+            : "Which node is a leaf and also a descendant of node 3?";
+
+          const p7 = vocabModel.parent["7"];
+          const p7Desc = p7 ? vocabModel.getDescendants(p7) : [];
+          const p7OtherDesc = p7Desc.find((id) => id !== "7" && vocabModel.parent[id] === p7) || p7Desc.find((id) => id !== "7");
+          const p7SubSet = new Set(p7Desc.concat(p7 ? [p7] : []));
+          const p7Distractors = vocabModel.nodes.filter((id) => !p7SubSet.has(id) && id !== p7OtherDesc).slice(0, 3);
+          const p7Raw = (p7OtherDesc ? [p7OtherDesc] : []).concat(p7Distractors);
+          const p7Choices = p7Raw.map((id) => ({ value: id, label: id }));
+
+          return {
+            id: "p1-checkpoint",
+            title: "Quick practice",
+            intro: "Mix the words so far before we measure distances.",
+            legend: [
+              { swatch: "highlight", text: "Terracotta = highlighted answer" }
+            ],
+            tasks: [
+              {
+                type: "choice",
+                prompt: leaf3Question,
+                action: "choose one node",
+                choices: leaf3Choices,
+                answer: leaf3Ans,
+                hints: ["Narrow your choices to node 3's branch first, then reject any node that still has a child."],
+                explain: "Node " + leaf3Ans + " hangs below 3 and has no children, so it is both a descendant of 3 and a leaf.",
+                onShow: (view) => {
+                  view.startId = "3";
+                },
+                check: (val) => val === leaf3Ans && leaf3Set.has(val),
+                onDone: (view) => {
+                  const path = vocabModel.rootPath[leaf3Ans] || [];
+                  const idx3 = path.indexOf("3");
+                  const seg = idx3 >= 0 ? path.slice(idx3) : ["3", leaf3Ans];
+                  view.startId = "3";
+                  view.highlightIds = [leaf3Ans];
+                  view.highlightEdges = seg.slice(0, -1).map((u, i) => edgeKey(u, seg[i + 1]));
+                  view.badges = { [leaf3Ans]: "leaf" };
+                }
+              },
+              {
+                type: "choice",
+                prompt: "Node 7's parent is also an ancestor of which node?",
+                choices: p7Choices,
+                answer: p7OtherDesc,
+                hints: ["Find who sits directly above node 7, then see which option hangs inside that parent's branch."],
+                explain: "Node 7's parent is " + p7 + ", and " + p7OtherDesc + " sits below " + p7 + ".",
+                onShow: (view) => {
+                  view.startId = "7";
+                },
+                check: (val) => val === p7OtherDesc,
+                onDone: (view) => {
+                  const path = vocabModel.rootPath[p7OtherDesc] || [];
+                  const idxP = path.indexOf(p7);
+                  const seg = idxP >= 0 ? path.slice(idxP) : [p7, p7OtherDesc];
+                  view.startId = p7;
+                  view.highlightIds = [p7OtherDesc];
+                  view.highlightEdges = seg.slice(0, -1).map((u, i) => edgeKey(u, seg[i + 1]));
+                  view.badges = { [p7]: "parent", [p7OtherDesc]: "descendant" };
+                }
+              }
+            ]
+          };
+        })(),
+        {
+          id: "p1-depth",
+          title: "Depth",
+          intro: "**Depth** tells you how far down a node is: count the edges from the root down to it.",
+          glossaryIntro: ["depth"],
+          ruleReminder: "depth = edges up to the root. height = edges down to the deepest leaf.",
+          legend: [
+            { swatch: "start", text: "Dashed ring = target node" },
+            { swatch: "highlight", text: "Terracotta = path from root" }
+          ],
+          tasks: [
+            (() => {
+              const path6 = vocabModel.rootPath["6"];
+              const depth6 = vocabModel.depth["6"];
+              const hopText = path6.slice(0, -1).map((u, i) => u + " to " + path6[i + 1]).join(", ");
+              const path6Edges = path6.slice(0, -1).map((u, i) => edgeKey(u, path6[i + 1]));
+              return {
+                type: "choice",
+                workedExample: {
+                  label: "Worked example",
+                  text: "Going from root " + vocabModel.root + " to node 6 crosses " + depth6 + " " + edgeWord(depth6) + " (" + hopText + "). So depth(6) = " + depth6 + "."
+                },
+                prompt: "What is the depth of node 10?",
+                choices: makeIntChoices(0, Math.max(4, vocabModel.maxDepth), vocabModel.depth["10"]),
+                answer: vocabModel.depth["10"],
+                hints: ["Trace the path from the root down to node 10 and count the lines between the circles, not the circles."],
+                explain: vocabModel.rootPath["10"].join(" \u2192 ") + " is " + vocabModel.depth["10"] + " " + edgeWord(vocabModel.depth["10"]) + ".",
+                onShow: (view) => {
+                  view.startId = "10";
+                  view.highlightIds = path6.slice();
+                  view.highlightEdges = path6Edges.slice();
+                  view.badges = { "6": String(depth6) };
+                },
+                check: (val) => val === vocabModel.depth["10"],
+                onDone: (view) => {
+                  const path = vocabModel.rootPath["10"];
+                  view.startId = "10";
+                  view.highlightIds = path.slice();
+                  view.highlightEdges = path.slice(0, -1).map((u, i) => edgeKey(u, path[i + 1]));
+                  view.badges = { "10": String(vocabModel.depth["10"]) };
+                }
+              };
+            })(),
+            {
+              type: "choice",
+              prompt: "What is the depth of node 4?",
+              choices: makeIntChoices(0, Math.max(4, vocabModel.maxDepth), vocabModel.depth["4"]),
+              answer: vocabModel.depth["4"],
+              hints: ["Count the edges on the path from the root, not the nodes."],
+              explain: vocabModel.rootPath["4"].join(" \u2192 ") + " is " + vocabModel.depth["4"] + " " + edgeWord(vocabModel.depth["4"]) + ".",
+              onShow: (view) => {
+                view.startId = "4";
+              },
+              check: (val) => val === vocabModel.depth["4"],
+              onDone: (view) => {
+                const path = vocabModel.rootPath["4"];
+                view.startId = "4";
+                view.highlightIds = path.slice();
+                view.highlightEdges = path.slice(0, -1).map((u, i) => edgeKey(u, path[i + 1]));
+                view.badges = { "4": String(vocabModel.depth["4"]) };
+              }
+            },
+            {
+              type: "choice",
+              prompt: "What is the depth of the root, node " + vocabModel.root + "?",
+              choices: makeIntChoices(0, Math.max(4, vocabModel.maxDepth), vocabModel.depth[vocabModel.root]),
+              answer: vocabModel.depth[vocabModel.root],
+              hints: ["Count how many edges you actually cross to walk from root " + vocabModel.root + " to itself."],
+              explain: "The root is already at the top: 0 edges.",
+              onShow: (view) => {
+                view.startId = vocabModel.root;
+              },
+              check: (val) => val === vocabModel.depth[vocabModel.root],
+              onDone: (view) => {
+                view.highlightIds = [vocabModel.root];
+                view.badges = { [vocabModel.root]: String(vocabModel.depth[vocabModel.root]) };
+              }
+            },
+            {
+              type: "reveal",
+              prompt: "See the depth of every node at once.",
+              action: "press the button to show all depth badges",
+              buttonLabel: "Show the depth of every node",
+              postRevealNote: "Nodes at the same depth are on the same level.",
+              explain: "Nodes at the same depth sit on the same level. Each level down adds 1 to the depth.",
+              onDone: (view) => {
+                view.badges = Object.fromEntries(vocabModel.nodes.map((id) => [id, String(vocabModel.depth[id])]));
+              }
+            }
+          ]
+        },
+        {
+          id: "p1-height",
+          title: "Height",
+          intro: "Now look the other way. **Height** counts the edges going *down* from a node to the deepest leaf below it. A leaf has nothing below it, so its height is 0.",
+          glossaryIntro: ["height"],
+          ruleReminder: "depth = edges up to the root. height = edges down to the deepest leaf.",
+          legend: [
+            { swatch: "start", text: "Dashed ring = node being measured" },
+            { swatch: "highlight", text: "Terracotta = longest path down" }
+          ],
+          tasks: [
+            (() => {
+              const longest3 = vocabModel.longestDownPath["3"];
+              const h3 = vocabModel.height["3"];
+              const kids3 = vocabModel.children["3"];
+              const longEdges = longest3.slice(0, -1).map((u, i) => edgeKey(u, longest3[i + 1]));
+              const rWord = numberWord(kids3.length);
+              const rCap = rWord[0].toUpperCase() + rWord.slice(1);
+              return {
+                type: "choice",
+                workedExample: {
+                  label: "Worked example",
+                  text: rCap + " " + (kids3.length === 1 ? "route goes" : "routes go") + " down from node 3; the longest (" + longest3.join(" \u2192 ") + ") crosses " + h3 + " " + edgeWord(h3) + ", so height(3) = " + h3 + "."
+                },
+                prompt: "What is the height of node 7?",
+                choices: makeIntChoices(0, Math.max(3, vocabModel.treeHeight), vocabModel.height["7"]),
+                answer: vocabModel.height["7"],
+                hints: ["Look only below node 7\u2014ignore everything above it\u2014and count the edges along the path down to a leaf."],
+                explain: vocabModel.longestDownPath["7"].join(" \u2192 ") + " is " + vocabModel.height["7"] + " " + edgeWord(vocabModel.height["7"]) + " down to a leaf.",
+                onShow: (view) => {
+                  view.startId = "7";
+                  view.highlightIds = longest3.slice();
+                  view.highlightEdges = longEdges.slice();
+                  view.badges = { "3": String(h3) };
+                },
+                check: (val) => val === vocabModel.height["7"],
+                onDone: (view) => {
+                  const p = vocabModel.longestDownPath["7"];
+                  view.startId = "7";
+                  view.highlightIds = p.slice();
+                  view.highlightEdges = p.slice(0, -1).map((u, i) => edgeKey(u, p[i + 1]));
+                  view.badges = { "7": String(vocabModel.height["7"]) };
+                }
+              };
+            })(),
+            {
+              type: "choice",
+              prompt: "What is the height of node 6?",
+              choices: makeIntChoices(0, Math.max(3, vocabModel.treeHeight), vocabModel.height["6"]),
+              answer: vocabModel.height["6"],
+              hints: ["Look directly below node 6 to see whether any edges drop down from it to a leaf."],
+              explain: vocabModel.height["6"] === 0 ? "A leaf has nothing below it." : vocabModel.longestDownPath["6"].join(" \u2192 ") + " takes " + vocabModel.height["6"] + " " + edgeWord(vocabModel.height["6"]) + ".",
+              onShow: (view) => {
+                view.startId = "6";
+              },
+              check: (val) => val === vocabModel.height["6"],
+              onDone: (view) => {
+                const p = vocabModel.longestDownPath["6"];
+                view.highlightIds = p.slice();
+                view.highlightEdges = p.slice(0, -1).map((u, i) => edgeKey(u, p[i + 1]));
+                view.badges = { "6": String(vocabModel.height["6"]) };
+              }
+            },
+            {
+              type: "choice",
+              prompt: "What is the height of node 2?",
+              choices: makeIntChoices(0, Math.max(3, vocabModel.treeHeight), vocabModel.height["2"]),
+              answer: vocabModel.height["2"],
+              hints: ["Count the edges along the longest branch going down from node 2, not the nodes or siblings."],
+              explain: vocabModel.longestDownPath["2"].join(" \u2192 ") + " takes " + vocabModel.height["2"] + " " + edgeWord(vocabModel.height["2"]) + ".",
+              onShow: (view) => {
+                view.startId = "2";
+              },
+              check: (val) => val === vocabModel.height["2"],
+              onDone: (view) => {
+                const p = vocabModel.longestDownPath["2"];
+                view.startId = "2";
+                view.highlightIds = p.slice();
+                view.highlightEdges = p.slice(0, -1).map((u, i) => edgeKey(u, p[i + 1]));
+                view.badges = { "2": String(vocabModel.height["2"]) };
+              }
+            },
+            {
+              type: "choice",
+              prompt: "The **height of the tree** is the height of its root. What is it here?",
+              choices: makeIntChoices(0, Math.max(3, vocabModel.treeHeight), vocabModel.treeHeight),
+              answer: vocabModel.treeHeight,
+              hints: ["Start at root " + vocabModel.root + " and find the leaf farthest below it; count the edges on that route."],
+              explain: vocabModel.longestDownPath[vocabModel.root].join(" \u2192 ") + " takes " + vocabModel.treeHeight + " " + edgeWord(vocabModel.treeHeight) + ".",
+              glossaryAdds: ["height of the tree"],
+              onShow: (view) => {
+                view.startId = vocabModel.root;
+              },
+              check: (val) => val === vocabModel.treeHeight,
+              onDone: (view) => {
+                const p = vocabModel.longestDownPath[vocabModel.root];
+                view.highlightIds = p.slice();
+                view.highlightEdges = p.slice(0, -1).map((u, i) => edgeKey(u, p[i + 1]));
+                view.badges = { [vocabModel.root]: String(vocabModel.treeHeight) };
+              }
+            },
+            {
+              type: "reveal",
+              prompt: "Depth looks UP to the root. Height looks DOWN to the leaves.",
+              action: "press the button to see the height of every node",
+              buttonLabel: "Show the height of every node",
+              postRevealNote: "Notice the leaves all have height 0.",
+              explain: "Every leaf has height 0; each parent above is 1 taller than its tallest child.",
+              onShow: (view) => {
+                view.startId = "7";
+                view.highlightIds = ["7"];
+                view.badges = { "7": ["depth " + vocabModel.depth["7"], "height " + vocabModel.height["7"]] };
+              },
+              onDone: (view) => {
+                view.startId = null;
+                view.highlightIds = [];
+                view.badges = Object.fromEntries(vocabModel.nodes.map((id) => [id, String(vocabModel.height[id])]));
+              }
+            }
+          ]
+        },
+        (() => {
+          const [cmpA, cmpB] = findDepthVsHeightPair(vocabModel);
+          const dA = vocabModel.depth[cmpA];
+          const dB = vocabModel.depth[cmpB];
+          const hA = vocabModel.height[cmpA];
+          const hB = vocabModel.height[cmpB];
+          const deeperFirst = dB > dA && hA > hB;
+          const correctVal = deeperFirst ? "b_deeper_a_taller" : "a_deeper_b_taller";
+          return {
+            id: "p1-depth-vs-height",
+            title: "Depth or height?",
+            intro: "Depth and height measure opposite directions on the **same** node. Depth counts edges **up** to the root; height counts edges **down** to the deepest leaf.",
+            ruleReminder: "depth = UP to root. height = DOWN to deepest leaf.",
+            legend: [
+              { swatch: "highlight", text: "Terracotta = highlighted node" },
+              { swatch: "badge-depth", text: "d = depth (up to root)" },
+              { swatch: "badge-height", text: "h = height (down to leaf)" }
+            ],
+            tasks: [
+              {
+                type: "choice",
+                prompt: "Compare node " + cmpA + " and node " + cmpB + ". Which has the greater depth, and which has the greater height?",
+                action: "choose the matching pair",
+                choices: [
+                  { value: "b_deeper_a_taller", label: cmpB + " is deeper, " + cmpA + " is taller" },
+                  { value: "a_deeper_b_taller", label: cmpA + " is deeper, " + cmpB + " is taller" },
+                  { value: "b_both", label: cmpB + " is both" },
+                  { value: "a_both", label: cmpA + " is both" }
+                ],
+                answer: correctVal,
+                hints: ["Check how far each node is from root " + vocabModel.root + " (depth), then look below each node (height)."],
+                explain: "depth(" + cmpB + ") = " + dB + " vs depth(" + cmpA + ") = " + dA + "; height(" + cmpA + ") = " + hA + " vs height(" + cmpB + ") = " + hB + ".",
+                onShow: (view) => {
+                  view.highlightIds = [cmpA, cmpB];
+                },
+                check: (val) => val === correctVal,
+                onDone: (view) => {
+                  view.highlightIds = [cmpA, cmpB];
+                  view.badges = {
+                    [cmpA]: [{ text: "d:" + dA, kind: "depth" }, { text: "h:" + hA, kind: "height" }],
+                    [cmpB]: [{ text: "d:" + dB, kind: "depth" }, { text: "h:" + hB, kind: "height" }]
+                  };
+                }
+              },
+              {
+                type: "click",
+                prompt: "Click a node whose depth is greater than its height.",
+                hints: ["Try nodes far from root " + vocabModel.root + " that have little or nothing hanging below them."],
+                visualHint: (view) => {
+                  view.highlightIds = [vocabModel.root];
+                  view.highlightEdges = [edgeKey("1", "4"), edgeKey("4", "9")];
+                },
+                explain: (() => {
+                  const matches = vocabModel.nodes.filter((id) => vocabModel.depth[id] > vocabModel.height[id]);
+                  return "Nodes with depth > height here: " + matches.join(", ") + " (for example, leaves have height 0).";
+                })(),
+                check: (id) => vocabModel.depth[id] > vocabModel.height[id],
+                onDone: (view) => {
+                  const matches = vocabModel.nodes.filter((id) => vocabModel.depth[id] > vocabModel.height[id]);
+                  view.highlightIds = matches;
+                  view.badges = Object.fromEntries(matches.map((id) => [
+                    id,
+                    [{ text: "d:" + vocabModel.depth[id], kind: "depth" }, { text: "h:" + vocabModel.height[id], kind: "height" }]
+                  ]));
+                }
+              }
+            ]
+          };
+        })(),
+        (() => {
+          const sub3Desc = vocabModel.getDescendants("3");
+          const sub3Count = 1 + sub3Desc.length;
+          return {
+            id: "p1-subtree",
+            title: "Subtree",
+            intro: "A node together with everything below it forms a **subtree**.",
+            glossaryIntro: ["subtree"],
+            legend: [
+              { swatch: "start", text: "Dashed ring = subtree root" },
+              { swatch: "highlight", text: "Terracotta = nodes in subtree" }
+            ],
+            tasks: [
+              {
+                type: "explore",
+                prompt: "Click any node. It and everything below it light up. That is its **subtree**.",
+                idleFeedback: "Click any node to see its subtree light up.",
+                explain: "Every node is the root of its own subtree.",
+                onExplore: (id, view) => {
+                  const sub = [id].concat(vocabModel.getDescendants(id));
+                  const subSet = new Set(sub);
+                  view.startId = id;
+                  view.highlightIds = sub;
+                  view.dimOthers = true;
+                  view.highlightEdges = vocabModel.edges
+                    .filter(([u, v]) => subSet.has(u) && subSet.has(v))
+                    .map(([u, v]) => edgeKey(u, v));
+                  view.badges = { [id]: sub.length + (sub.length === 1 ? " node" : " nodes") };
+                }
+              },
+              {
+                type: "choice",
+                prompt: "How many nodes are in the subtree of node 3?",
+                action: "count node 3 and everything below it",
+                choices: makeIntChoices(Math.max(1, sub3Count - 2), sub3Count + 1, sub3Count),
+                answer: sub3Count,
+                hints: ["Include node 3 itself plus all of its descendants."],
+                explain: "Node 3 plus its descendants (" + (sub3Desc.length ? sub3Desc.join(", ") : "none") + ") makes " + sub3Count + " " + (sub3Count === 1 ? "node" : "nodes") + ".",
+                onShow: (view) => {
+                  view.startId = "3";
+                },
+                check: (val) => val === sub3Count,
+                onDone: (view) => {
+                  const sub = ["3"].concat(sub3Desc);
+                  const subSet = new Set(sub);
+                  view.startId = "3";
+                  view.highlightIds = sub;
+                  view.dimOthers = true;
+                  view.highlightEdges = vocabModel.edges
+                    .filter(([u, v]) => subSet.has(u) && subSet.has(v))
+                    .map(([u, v]) => edgeKey(u, v));
+                  view.badges = { "3": sub.length + (sub.length === 1 ? " node" : " nodes") };
+                }
+              }
+            ]
+          };
+        })(),
+        (() => {
+          const qcTasks = buildPart1QuickCheckTasks(0);
+          const countWord = numberWord(qcTasks.length);
+          const countCap = countWord[0].toUpperCase() + countWord.slice(1);
+          return {
+            id: "p1-quick-check",
+            title: "Quick check",
+            intro: countCap + " quick " + (qcTasks.length === 1 ? "question" : "questions") + " to check the words so far.",
+            isQuickCheck: true,
+            legend: [
+              { swatch: "default", text: "Use the tree to check your answer" }
+            ],
+            buildVariant: buildPart1QuickCheckTasks,
+            tasks: qcTasks
+          };
+        })()
+      ];
+
+      const part2Steps = [
+        {
+          id: "p2-lr",
+          title: "Left and right matter",
+          intro: "In a **binary tree** every node has at most two children. They have names: the **left child** and the **right child**.",
+          glossaryIntro: ["binary tree", "left child", "right child"],
+          initialView: { treeKey: "a", edgeLabels: true, showEmpties: "none" },
+          codeNote: {
+            label: "In Java",
+            lines: [
+              "class Node {",
+              "  String value;",
+              "  Node left;",
+              "  Node right;",
+              "}"
+            ]
+          },
+          legend: [
+            { swatch: "default", text: "L = left child, R = right child" },
+            { swatch: "highlight", text: "Terracotta = highlighted node and edge" }
+          ],
+          tasks: [
+            {
+              type: "click",
+              prompt: "Click the left child of A, then the right child of A.",
+              idleFeedback: "Click the left child of node A in the tree diagram.",
+              subChecks: [
+                (id) => id === binaryLayouts.a.nodes.A.l,
+                (id) => id === binaryLayouts.a.nodes.A.r
+              ],
+              subExplains: [
+                binaryLayouts.a.nodes.A.l + " sits on A's left edge. Now click the right child of A."
+              ],
+              subVisualHint: (subIdx, view) => {
+                const target = subIdx === 0 ? binaryLayouts.a.nodes.A.l : binaryLayouts.a.nodes.A.r;
+                view.highlightIds = ["A"];
+                view.highlightEdges = [edgeKey("A", target)];
+              },
+              onSubDone: (subIdx, view) => {
+                const l = binaryLayouts.a.nodes.A.l;
+                view.highlightIds = [l];
+                view.highlightEdges = [edgeKey("A", l)];
+              },
+              hints: ["Read the L and R labels on the edges leaving node A to tell left from right."],
+              explain: binaryLayouts.a.nodes.A.l + " is A's left child, and " + binaryLayouts.a.nodes.A.r + " is A's right child.",
+              onDone: (view) => {
+                const l = binaryLayouts.a.nodes.A.l;
+                const r = binaryLayouts.a.nodes.A.r;
+                view.highlightIds = [l, r];
+                view.highlightEdges = [edgeKey("A", l), edgeKey("A", r)];
+              }
+            },
+            {
+              type: "choice",
+              workedExample: {
+                label: "Tree (b)",
+                text: "Same letters, new arrangement."
+              },
+              prompt: "In Tree (b), is D the left or right child of C?",
+              fixedOrder: true,
+              choices: [{ value: "L", label: "Left" }, { value: "R", label: "Right" }],
+              answer: binaryLayouts.b.nodes.C.l === "D" ? "L" : "R",
+              hints: ["Follow the line from C down to D and check its L or R box."],
+              explain: "D sits on C's " + (binaryLayouts.b.nodes.C.l === "D" ? "left" : "right") + " edge in Tree (b).",
+              onShow: (view) => {
+                view.treeKey = "b";
+                view.edgeLabels = true;
+              },
+              check: (val) => val === (binaryLayouts.b.nodes.C.l === "D" ? "L" : "R"),
+              onDone: (view) => {
+                view.treeKey = "b";
+                view.edgeLabels = true;
+                view.highlightIds = ["C", "D"];
+                view.highlightEdges = [edgeKey("C", "D")];
+              }
+            },
+            {
+              type: "click",
+              prompt: "Node D has one child. Click it.",
+              hints: ["Look strictly downward along the edge leaving node D, away from node C above it."],
+              explain: (binaryLayouts.b.nodes.D.l || binaryLayouts.b.nodes.D.r) + " is D's " + (binaryLayouts.b.nodes.D.l ? "left" : "right") + " child.",
+              onShow: (view) => {
+                view.treeKey = "b";
+                view.edgeLabels = true;
+              },
+              visualHint: (view) => {
+                const ch = binaryLayouts.b.nodes.D.l || binaryLayouts.b.nodes.D.r;
+                view.highlightIds = ["D"];
+                view.highlightEdges = ch ? [edgeKey("D", ch)] : [];
+              },
+              check: (id) => id === (binaryLayouts.b.nodes.D.l || binaryLayouts.b.nodes.D.r),
+              onDone: (view) => {
+                const ch = binaryLayouts.b.nodes.D.l || binaryLayouts.b.nodes.D.r;
+                view.treeKey = "b";
+                view.edgeLabels = true;
+                view.highlightIds = [ch];
+                view.highlightEdges = [edgeKey("D", ch)];
+              }
+            },
+            (() => {
+              const diff = findDifferentChildPlace(binaryLayouts.a, binaryLayouts.b);
+              const diffExplain = diff
+                ? "In (a), " + diff.id + " is " + diff.a.parent + "'s " + diff.a.side + " child. In (b), " + diff.id + " is " + diff.b.parent + "'s " + diff.b.side + " child."
+                : "Letters sit in different left and right places in the two trees.";
+              return {
+                type: "choice",
+                prompt: "Tree (a) and Tree (b) use the same " + numberWord(binaryLayouts.a.nodeCount) + " letters. Are they the same binary tree?",
+                action: "pick one option",
+                choices: [
+                  { value: "diff-lr", label: "No. Letters sit in different left/right places." },
+                  { value: "same-letters", label: "Yes, they have the same letters" },
+                  { value: "same-edges", label: "Yes, they have the same number of edges" },
+                  { value: "diff-count", label: "No, they have different numbers of nodes" }
+                ],
+                answer: "diff-lr",
+                hints: ["Compare the left and right edge labels of the same node across Tree (a) and Tree (b)."],
+                explain: diffExplain,
+                onShow: (view) => {
+                  view.compareKeys = ["a", "b"];
+                },
+                check: (val) => val === "diff-lr",
+                onDone: (view) => {
+                  view.compareKeys = ["a", "b"];
+                  if (diff) {
+                    view.compareHighlights = { a: [diff.a.parent, diff.id], b: [diff.b.parent, diff.id] };
+                    view.compareHighlightEdges = { a: [edgeKey(diff.a.parent, diff.id)], b: [edgeKey(diff.b.parent, diff.id)] };
+                  }
+                }
+              };
+            })()
+          ]
+        },
+        {
+          id: "p2-empty",
+          title: "Empty slots",
+          intro: "Every node has two **slots**, one left and one right. A slot with no child is an **empty slot** (programmers say *null*). Dashed squares show them.",
+          glossaryIntro: ["slot", "empty slot (null)"],
+          initialView: { treeKey: "a", edgeLabels: true, showEmpties: "none" },
+          codeNote: {
+            label: "Empty slot = null",
+            lines: [
+              "node.left == null  // empty slot",
+              "node.right == null // empty slot"
+            ]
+          },
+          legend: [
+            { swatch: "default", text: "L = left slot, R = right slot" },
+            { swatch: "empty", text: "Dashed square = empty slot (null)" }
+          ],
+          tasks: [
+            {
+              type: "choice",
+              workedExample: {
+                label: "Worked example",
+                text: "C has no children, so both of its slots are empty (shown as dashed squares on node C)."
+              },
+              codeAccordion: {
+                summary: "How this looks in Java",
+                code: "class Node {\n    String value;\n    Node left;    // null means: empty left slot\n    Node right;   // null means: empty right slot\n}"
+              },
+              prompt: "This tree has " + binaryLayouts.a.nodeCount + " nodes. How many empty slots does the whole tree have?",
+              choices: [
+                binaryLayouts.a.nodeCount - 1,
+                binaryLayouts.a.nodeCount,
+                binaryLayouts.a.nodeCount + 1,
+                binaryLayouts.a.nodeCount + 2
+              ].map((v) => ({ value: v, label: String(v) })),
+              answer: binaryLayouts.a.emptyCount,
+              hints: ["Each node has a left slot and a right slot. Count the dashed squares you can see, or count which slots already have a child."],
+              explain: binaryLayouts.a.nodeCount + " nodes x 2 slots = " + (binaryLayouts.a.nodeCount * 2) + " slots. " + binaryLayouts.a.edgeCount + " edges fill " + binaryLayouts.a.edgeCount + " of them. " + (binaryLayouts.a.nodeCount * 2) + " \u2212 " + binaryLayouts.a.edgeCount + " = " + binaryLayouts.a.emptyCount + ".",
+              onShow: (view) => {
+                view.treeKey = "a";
+                view.edgeLabels = true;
+                view.showEmpties = ["C"];
+                view.highlightIds = ["C"];
+              },
+              check: (val) => val === binaryLayouts.a.emptyCount,
+              onDone: (view) => {
+                view.showEmpties = "all";
+                view.flashEmpties = true;
+                view.counterText = binaryLayouts.a.nodeCount + " nodes, " + binaryLayouts.a.emptyCount + " empty slots";
+              }
+            }
+          ]
+        },
+        {
+          id: "p2-same-size",
+          title: "Same size, different shape",
+          intro: "Now look at **Tree (b)**\u2014a new branch arrangement.",
+          initialView: { treeKey: "b", edgeLabels: false, showEmpties: "none" },
+          legend: [
+            { swatch: "default", text: "Circle = node" },
+            { swatch: "empty", text: "Dashed square = empty slot" }
+          ],
+          tasks: [
+            {
+              type: "choice",
+              prompt: "How many empty slots now?",
+              choices: [
+                binaryLayouts.b.nodeCount - 1,
+                binaryLayouts.b.nodeCount,
+                binaryLayouts.b.nodeCount + 1,
+                binaryLayouts.b.nodeCount + 2
+              ].map((v) => ({ value: v, label: String(v) })),
+              answer: binaryLayouts.b.emptyCount,
+              hints: ["Compare Tree (b) with the tree you just solved. What stayed the same, and what changed?"],
+              explain: "Same number of nodes (" + binaryLayouts.b.nodeCount + "), same number of empty slots (" + binaryLayouts.b.emptyCount + "). The shape did not matter.",
+              check: (val) => val === binaryLayouts.b.emptyCount,
+              onDone: (view) => {
+                view.showEmpties = "all";
+                view.flashEmpties = true;
+                view.counterText = binaryLayouts.b.nodeCount + " nodes, " + binaryLayouts.b.emptyCount + " empty slots";
+              }
+            }
+          ]
+        },
+        {
+          id: "p2-bigger",
+          title: "A bigger tree",
+          intro: "Here is **Tree (c)**. New nodes join and the tree grows to " + binaryLayouts.c.nodeCount + " nodes.",
+          initialView: { treeKey: "c", edgeLabels: false, showEmpties: "none" },
+          legend: [
+            { swatch: "default", text: "Circle = node" },
+            { swatch: "empty", text: "Dashed square = empty slot" }
+          ],
+          tasks: [
+            {
+              type: "choice",
+              prompt: "This tree has " + binaryLayouts.c.nodeCount + " nodes. How many empty slots?",
+              choices: [
+                binaryLayouts.c.nodeCount - 1,
+                binaryLayouts.c.nodeCount,
+                binaryLayouts.c.nodeCount + 1,
+                binaryLayouts.c.nodeCount + 2
+              ].map((v) => ({ value: v, label: String(v) })),
+              answer: binaryLayouts.c.emptyCount,
+              hints: ["Each line between two nodes fills exactly one slot. Think about how many slots exist in total and how many are already filled."],
+              explain: "The number of nodes changed from " + binaryLayouts.b.nodeCount + " to " + binaryLayouts.c.nodeCount + ", and the empty slots changed from " + binaryLayouts.b.emptyCount + " to " + binaryLayouts.c.emptyCount + ". The count follows n, not the shape.",
+              check: (val) => val === binaryLayouts.c.emptyCount,
+              onDone: (view) => {
+                view.showEmpties = "all";
+                view.flashEmpties = true;
+                view.counterText = binaryLayouts.c.nodeCount + " nodes, " + binaryLayouts.c.emptyCount + " empty slots";
+              }
+            },
+            (() => {
+              function applySlotFillView(view, filled, justKey) {
+                const layout = binaryLayouts.c;
+                const order = getBinaryFillOrder(layout);
+                const totalSlots = layout.nodeCount * 2;
+                const empty = totalSlots - filled;
+                view.treeKey = "c";
+                view.showEmpties = "all";
+                view.slotFill = {
+                  order,
+                  filledCount: filled,
+                  justFilledKey: justKey
+                };
+                view.counterText = filled >= order.length
+                  ? "Slots: " + totalSlots + " | Filled: " + filled + " (that is n \u2212 1) | Empty: " + empty + " (that is n + 1)"
+                  : "Slots: " + totalSlots + " | Filled: " + filled + " | Empty: " + empty;
+                view.counterNote = "Remember: " + layout.nodeCount + " nodes";
+              }
+
+              return {
+                type: "slotfill",
+                treeKey: "c",
+                prompt: "Watch all " + (binaryLayouts.c.nodeCount * 2) + " slots start empty, then fill one slot per non-root node. What do you notice about the empty ones?",
+                explain: "Every node except the root fills 1 parent slot, leaving n + 1 (" + emptySlots(binaryLayouts.c.nodeCount) + ") empty slots.",
+                glossaryAdds: ["n + 1 rule"],
+                getFillOrder: () => getBinaryFillOrder(binaryLayouts.c),
+                onFillUpdate: (view, st) => applySlotFillView(view, st.fillCount, st.justFilledKey),
+                onShow: (view, st) => applySlotFillView(view, st.fillCount || 0, st.justFilledKey || null),
+                onDone: (view, st) => {
+                  const order = getBinaryFillOrder(binaryLayouts.c);
+                  st.fillCount = order.length;
+                  st.justFilledKey = null;
+                  applySlotFillView(view, order.length, null);
+                }
+              };
+            })(),
+            {
+              type: "choice",
+              prompt: "A binary tree has 10 nodes. How many empty slots?",
+              choices: [9, 10, 11, 12].map((v) => ({ value: v, label: String(v) })),
+              answer: emptySlots(10),
+              hints: ["Think back to the pattern you saw when the slots filled one by one. How does the number of empty slots compare with the number of nodes?"],
+              explain: "n + 1 = " + emptySlots(10) + ".",
+              onShow: (view) => {
+                view.treeKey = null;
+                view.hiddenN = 10;
+                view.showEmpties = "none";
+                view.counterText = "";
+              },
+              check: (val) => val === emptySlots(10)
+            }
+          ]
+        },
+        (() => {
+          const qcTasks = buildPart2QuickCheckTasks(0);
+          const countWord = numberWord(qcTasks.length);
+          const countCap = countWord[0].toUpperCase() + countWord.slice(1);
+          return {
+            id: "p2-quick-check",
+            title: "Quick check",
+            intro: countCap + " quick " + (qcTasks.length === 1 ? "question" : "questions") + " on binary trees, left/right order, and empty slots.",
+            isQuickCheck: true,
+            initialView: { treeKey: "a", edgeLabels: true, showEmpties: "none", counterText: "" },
+            legend: [
+              { swatch: "default", text: "Apply left/right order and the n + 1 rule" }
+            ],
+            rememberLines: [
+              "Every node has a left slot and a right slot.",
+              "A slot with no child is empty (null).",
+              "n nodes always have n + 1 empty slots, whatever the shape.",
+              "Every empty slot is a place where a search stops, a null check happens, or a new node can be attached."
+            ],
+            buildVariant: buildPart2QuickCheckTasks,
+            tasks: qcTasks
+          };
+        })()
+      ];
+
+      const part1 = createPartController({
+        stepperEl: document.getElementById("vocab-stepper"),
+        bannerEl: document.getElementById("vocab-banner"),
+        sideEl: document.getElementById("vocab-side"),
+        navEl: document.getElementById("vocab-nav"),
+        isPanelVisible: () => !tabPanels[0].hidden,
+        baseView: { startId: null, highlightIds: [], highlightEdges: [], badges: {}, dimOthers: false },
+        steps: part1Steps,
+        renderTree: renderVocabView,
+        buildFactsBlock: buildVocabFactsBlock,
+        nextPartLabel: "Go to Part 2: Binary trees",
+        onGoOtherPart: () => {
+          activateTab(1);
+          part2.refreshView();
+        },
+        onQuickCheckChange: (done) => {
+          tabVocabBtn.textContent = done ? "Part 1 \u00b7 Vocabulary \u2713" : "Part 1 \u00b7 Vocabulary";
+        }
+      });
+
+      const part2 = createPartController({
+        stepperEl: document.getElementById("binary-stepper"),
+        bannerEl: document.getElementById("binary-banner"),
+        sideEl: document.getElementById("binary-side"),
+        navEl: document.getElementById("binary-nav"),
+        isPanelVisible: () => !tabPanels[1].hidden,
+        baseView: { treeKey: "a", showEmpties: "none", edgeLabels: false, highlightIds: [], highlightEdges: [], counterText: "", counterNote: "" },
+        steps: part2Steps,
+        renderTree: renderBinaryView,
+        buildFactsBlock: buildBinaryFactsBlock,
+        nextPartLabel: "Back to Part 1",
+        onBackAtStart: () => {
+          activateTab(0);
+          part1.refreshView();
+        },
+        onGoOtherPart: () => {
+          activateTab(0);
+          part1.refreshView();
+        },
+        onQuickCheckChange: (done) => {
+          tabBinaryBtn.textContent = done ? "Part 2 \u00b7 Binary trees \u2713" : "Part 2 \u00b7 Binary trees";
+        }
+      });
+
+      function validateLessonData() {
+        const warn = (msg) => {
+          console.warn("[Lesson data warning]", msg);
+        };
+        if (!vocabModel.root || vocabModel.parent[vocabModel.root] !== null) {
+          warn("vocabModel.root is missing or has a non-null parent.");
+        }
+        const requiredVocabNodes = ["2", "3", "4", "6", "7", "9", "10"];
+        for (const id of requiredVocabNodes) {
+          if (vocabModel.depth[id] === undefined) {
+            warn("vocabModel is missing expected node '" + id + "'.");
+          }
+        }
+        if (vocabModel.depth["6"] !== undefined && vocabModel.parent["6"] === null) {
+          warn("Expected node 6 to have a parent.");
+        }
+        if (vocabModel.children["2"] && vocabModel.children["2"].length < 1) {
+          warn("Expected node 2 to have at least 1 child.");
+        }
+        if (vocabModel.depth["3"] !== undefined && vocabModel.getSiblings("3").length < 1) {
+          warn("Expected node 3 to have at least 1 sibling.");
+        }
+        if (vocabModel.leaves.length < 1) {
+          warn("Expected at least 1 leaf in vocabModel.");
+        }
+        if (vocabModel.depth["3"] !== undefined) {
+          const desc3 = vocabModel.getDescendants("3");
+          if (!desc3.some((id) => vocabModel.children[id].length === 0)) {
+            warn("Expected node 3 to have at least 1 leaf descendant for p1-checkpoint.");
+          }
+          if (!desc3.includes("10") || desc3.includes("9")) {
+            warn("Expected 10 (and not 9) to be a descendant of node 3.");
+          }
+          if (!vocabModel.longestDownPath["3"] || vocabModel.longestDownPath["3"].length < 2) {
+            warn("Expected longest downward path from node 3 to have length >= 2.");
+          }
+        }
+        if (vocabModel.depth["7"] !== undefined) {
+          const p7 = vocabModel.parent["7"];
+          const p7Other = p7 ? vocabModel.getDescendants(p7).filter((id) => id !== "7") : [];
+          if (!p7 || p7Other.length < 1) {
+            warn("Expected node 7's parent to have another descendant for p1-checkpoint.");
+          }
+        }
+        if (!vocabModel.nodes.some((id) => vocabModel.depth[id] > vocabModel.height[id])) {
+          warn("Expected at least one node with depth > height.");
+        }
+
+        for (const k of ["a", "b", "c"]) {
+          const lay = binaryLayouts[k];
+          if (!lay) {
+            warn("Missing binaryLayouts." + k + ".");
+            continue;
+          }
+          if (lay.emptyCount !== lay.nodeCount + 1) {
+            warn("binaryLayouts." + k + " violates n + 1 empty slots rule.");
+          }
+        }
+        const a = binaryLayouts.a;
+        const b = binaryLayouts.b;
+        const c = binaryLayouts.c;
+        if (a) {
+          if (!a.nodes.A || !a.nodes.A.l || !a.nodes.A.r) {
+            warn("Expected binaryLayouts.a node A to have both left and right children.");
+          }
+          if (!a.nodes.C || a.nodes.C.l || a.nodes.C.r) {
+            warn("Expected binaryLayouts.a node C to be a leaf (no children).");
+          }
+        }
+        if (b) {
+          if (!b.nodes.C || (b.nodes.C.l !== "D" && b.nodes.C.r !== "D")) {
+            warn("Expected binaryLayouts.b node D to be a child of C.");
+          }
+          if (!b.nodes.D || (Boolean(b.nodes.D.l) === Boolean(b.nodes.D.r))) {
+            warn("Expected binaryLayouts.b node D to have exactly one child.");
+          }
+        }
+        if (a && b) {
+          if (a.nodeCount !== b.nodeCount) {
+            warn("Expected Tree (a) and Tree (b) to have the same nodeCount.");
+          }
+          if (!findDifferentChildPlace(a, b)) {
+            warn("Expected Tree (a) and Tree (b) to differ in at least one child placement.");
+          }
+        }
+        if (b && c && c.nodeCount === b.nodeCount) {
+          warn("Expected Tree (c) to differ in size from Tree (b).");
+        }
+      }
+
+      validateLessonData();
+      initBinaryNodes();
+      part1.start();
+      part2.start();
+    })();
+  </script>
+</body>
+</html>
