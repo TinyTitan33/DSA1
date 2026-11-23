@@ -1,0 +1,2659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search and insert</title>
+  <style>
+    :root {
+      --paper: #f5f8f4;
+      --paper-alt: #e5ede3;
+      --surface: #ffffff;
+      --ink: #142e22;
+      --ink-muted: #3e5e4f;
+      --ink-faint: #6f8a7c;
+      --text-faint: #4c6b5c;
+      --rule: #c4d6c0;
+      --primary: #166534;
+      --primary-hover: #12522a;
+      --ochre: #b45309;
+      --ochre-text: #92400e;
+      --ochre-tint: #fef3c7;
+      --vermilion: #b91c1c;
+      --vermilion-text: #991b1b;
+      --vermilion-tint: #fee2e2;
+      --font-serif: Georgia, "Times New Roman", serif;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      line-height: 1.45;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .app {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 12px 16px 28px;
+    }
+
+    /* Header */
+    .masthead {
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      margin: 0 0 2px;
+      font-family: var(--font-serif);
+      font-size: clamp(1.3rem, 2.4vw, 1.65rem);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+    }
+
+    .masthead-sub {
+      margin: 0;
+      font-size: 0.94rem;
+      color: var(--ink-muted);
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: -1.5px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .tab-btn {
+      appearance: none;
+      min-height: 44px;
+      padding: 7px 16px;
+      border: 1.5px solid var(--ink);
+      border-bottom: 0;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      background: var(--paper-alt);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .tab-btn:hover:not([aria-selected="true"]) {
+      background: var(--surface);
+    }
+
+    .tab-btn[aria-selected="true"] {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+    }
+
+    .tab-panel {
+      background: var(--surface);
+      border: 1.5px solid var(--ink);
+      border-radius: 0 var(--radius-md) var(--radius-md) var(--radius-md);
+      padding: 12px 16px 14px;
+    }
+
+    /* Task box & Concept line */
+    .task-box {
+      margin: 0 0 8px;
+      padding: 8px 12px;
+      background: var(--ochre-tint);
+      border: 1.5px solid var(--ochre);
+      border-left-width: 4px;
+      border-radius: var(--radius-sm);
+      font-size: 0.96rem;
+      color: var(--ink);
+    }
+
+    .task-box strong {
+      color: var(--ochre-text);
+    }
+
+    .tab-intro {
+      margin: 0 0 10px;
+      font-size: 0.93rem;
+      color: var(--ink-muted);
+      line-height: 1.38;
+    }
+
+    /* Focus rings strictly ink */
+    button:focus-visible,
+    input:focus-visible,
+    summary:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 2px solid var(--ink);
+      outline-offset: 2px;
+    }
+
+    /* Controls */
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .control-group {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .control-label {
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .num-input {
+      width: 78px;
+      min-height: 44px;
+      padding: 6px 10px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .num-input:disabled,
+    .num-input[readonly] {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .chip-row {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn {
+      appearance: none;
+      min-height: 44px;
+      padding: 6px 14px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn:hover:not(:disabled):not([aria-disabled="true"]) {
+      background: var(--paper-alt);
+    }
+
+    .btn.is-primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+    }
+
+    .btn.is-primary:hover:not(:disabled):not([aria-disabled="true"]) {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+
+    .btn:disabled,
+    .btn[aria-disabled="true"] {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-link {
+      appearance: none;
+      min-height: 44px;
+      padding: 6px 10px;
+      border: 1px dashed var(--ink-faint);
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--ink-muted);
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-link:hover {
+      background: var(--paper);
+      color: var(--ink);
+      border-color: var(--ink);
+    }
+
+    .chip-btn {
+      appearance: none;
+      min-height: 44px;
+      min-width: 44px;
+      padding: 6px 12px;
+      border: 1.5px solid var(--ink);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 0.92rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .chip-btn.is-choice {
+      font-family: var(--font-sans);
+      padding: 6px 16px;
+    }
+
+    .chip-btn:hover:not(:disabled):not([aria-pressed="true"]) {
+      background: var(--paper-alt);
+    }
+
+    .chip-btn[aria-pressed="true"] {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+    }
+
+    .chip-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .chip-btn.is-wrong {
+      background: var(--vermilion-tint);
+      border-color: var(--vermilion);
+      color: var(--vermilion-text);
+    }
+
+    .action-group {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .extra-drawer {
+      margin: -2px 0 10px;
+      padding: 8px 12px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 16px;
+    }
+
+    /* Readouts */
+    .readout-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 6px 16px;
+      margin-bottom: 10px;
+      font-size: 0.92rem;
+    }
+
+    .readout-items {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 6px 18px;
+    }
+
+    .readout-item {
+      color: var(--ink-muted);
+    }
+
+    .readout-item strong {
+      font-family: var(--font-mono);
+      color: var(--ink);
+    }
+
+    .readout-item.is-chain strong,
+    .readout-item.is-chain {
+      color: var(--vermilion-text);
+      font-weight: 700;
+    }
+
+    .readout-ref {
+      font-size: 0.875rem;
+      color: var(--text-faint);
+      font-family: var(--font-mono);
+    }
+
+    /* Insert target banner */
+    .insert-target-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      padding: 8px 12px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+    }
+
+    .target-token-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--ochre-text);
+      color: #ffffff;
+      font-family: var(--font-mono);
+      font-size: 1.05rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+
+    .target-prompt {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--ink);
+      flex: 1 1 200px;
+    }
+
+    .insert-target-bar .btn {
+      margin-left: auto;
+    }
+
+    /* Stage & Split View */
+    .search-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(240px, 1fr);
+      gap: 12px;
+      align-items: stretch;
+      margin-bottom: 10px;
+    }
+
+    .order-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .order-card {
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .order-card-head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 6px 12px;
+      padding-bottom: 6px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .order-card-title {
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: var(--ink);
+      font-family: var(--font-mono);
+    }
+
+    .order-card-sub {
+      margin: 4px 0 0;
+      font-size: 0.82rem;
+      color: var(--ink-muted);
+      width: 100%;
+    }
+
+    .order-card .stage-box {
+      border: 0;
+      padding: 2px;
+      margin-bottom: 0;
+      flex: 1 1 auto;
+    }
+
+    .stage-box {
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      padding: 8px;
+      margin-bottom: 10px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .search-grid .stage-box {
+      margin-bottom: 0;
+    }
+
+    .tree-svg {
+      width: 100%;
+      max-height: 460px;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+      user-select: none;
+    }
+
+    /* Trace panel */
+    .trace-box {
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .trace-title {
+      margin: 0 0 6px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--ink-muted);
+      border-bottom: 1px solid var(--rule);
+      padding-bottom: 4px;
+    }
+
+    .trace-list {
+      margin: 0;
+      padding-left: 20px;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: var(--ink);
+      flex: 1 1 auto;
+    }
+
+    .trace-list li {
+      padding: 2px 0;
+    }
+
+    .trace-list li.is-latest {
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .trace-placeholder {
+      margin: 6px 0 0;
+      font-size: 0.88rem;
+      color: var(--text-faint);
+    }
+
+    /* SVG Tree Styling */
+    .tree-edge {
+      stroke: var(--ink-faint);
+      stroke-width: 1.75;
+      stroke-linecap: round;
+    }
+
+    .tree-edge.is-path {
+      stroke: var(--primary);
+      stroke-width: 3;
+    }
+
+    .tree-edge.is-chain {
+      stroke: var(--vermilion);
+      stroke-width: 2.5;
+    }
+
+    .tree-slot-edge {
+      stroke: var(--ink-faint);
+      stroke-width: 1.5;
+      stroke-linecap: round;
+    }
+
+    .tree-slot-edge.is-vermilion {
+      stroke: var(--vermilion);
+      stroke-width: 2;
+    }
+
+    .tree-node-circle {
+      fill: var(--surface);
+      stroke: var(--ink);
+      stroke-width: 1.5;
+    }
+
+    .tree-node-text {
+      fill: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    .tree-node.is-visited .tree-node-circle {
+      stroke: var(--primary);
+      stroke-width: 2.75;
+      fill: var(--surface);
+    }
+
+    .tree-node.is-current .tree-node-circle {
+      fill: var(--ochre-tint);
+      stroke: var(--ochre);
+      stroke-width: 2.5;
+    }
+
+    .tree-node.is-current .tree-node-text {
+      fill: var(--ochre-text);
+    }
+
+    .tree-slot-hit {
+      fill: transparent;
+      stroke: none;
+      pointer-events: all;
+    }
+
+    .tree-slot-circle {
+      fill: var(--paper);
+      stroke: var(--ink-faint);
+      stroke-width: 1.5;
+      stroke-dasharray: 4 3;
+    }
+
+    .tree-slot.is-interactive .tree-slot-circle {
+      fill: var(--surface);
+      stroke: var(--ink-muted);
+      stroke-width: 2;
+    }
+
+    .tree-slot-q {
+      fill: var(--ink-muted);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    @keyframes slot-pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    .tree-slot.is-interactive {
+      cursor: pointer;
+    }
+
+    .tree-slot.is-interactive .slot-pulse-wrap {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: slot-pulse 2.2s ease-in-out infinite;
+    }
+
+    .tree-slot.is-interactive:hover .tree-slot-circle {
+      stroke: var(--primary);
+      stroke-width: 2.75;
+      fill: var(--paper-alt);
+    }
+
+    .tree-slot.is-interactive:hover .tree-slot-q {
+      fill: var(--primary);
+    }
+
+    .tree-slot.is-interactive:focus-visible {
+      outline: none;
+    }
+
+    .tree-slot.is-interactive:focus-visible .tree-slot-circle {
+      stroke: var(--ink);
+      stroke-width: 2.75;
+    }
+
+    .tree-slot.is-end-marker .tree-slot-box {
+      fill: var(--vermilion-tint);
+      stroke: var(--vermilion);
+      stroke-width: 2;
+    }
+
+    .tree-slot.is-end-marker .tree-slot-x {
+      fill: var(--vermilion-text);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    .tree-slot.is-wrong .tree-slot-circle {
+      fill: var(--vermilion-tint);
+      stroke: var(--vermilion);
+      stroke-width: 2.25;
+      stroke-dasharray: none;
+    }
+
+    .tree-slot.is-wrong .tree-slot-q {
+      fill: var(--vermilion-text);
+    }
+
+    .tree-empty-label {
+      fill: var(--ink-muted);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      text-anchor: middle;
+    }
+
+    .token-circle {
+      fill: var(--ochre-text);
+      stroke: #ffffff;
+      stroke-width: 2;
+    }
+
+    .token-text {
+      fill: #ffffff;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .token-pill-bg {
+      fill: var(--ochre-tint);
+      stroke: var(--ochre);
+      stroke-width: 1.4;
+    }
+
+    .token-pill-text {
+      fill: var(--ochre-text);
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      font-weight: 700;
+      dominant-baseline: central;
+    }
+
+    @keyframes wrong-shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-4px); }
+      40% { transform: translateX(4px); }
+      60% { transform: translateX(-3px); }
+      80% { transform: translateX(3px); }
+    }
+
+    .slot-shake {
+      animation: wrong-shake 0.3s ease;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .slot-shake,
+      .tree-slot.is-interactive .slot-pulse-wrap {
+        animation: none;
+      }
+    }
+
+    /* Sorted List Strip (Tab 1) */
+    .strip-block {
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      margin-bottom: 10px;
+    }
+
+    .strip-head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .strip-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .strip-meta {
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .list-strip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .list-cell {
+      min-width: 40px;
+      height: 36px;
+      padding: 0 10px;
+      border: 1.5px solid var(--rule);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .list-cell.is-checked {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+    }
+
+    .list-cell.is-current {
+      background: var(--ochre-text);
+      border-color: var(--ochre-text);
+      color: #ffffff;
+    }
+
+    .list-cell.is-stop-miss {
+      background: var(--vermilion-tint);
+      border-color: var(--vermilion);
+      color: var(--vermilion-text);
+    }
+
+    .strip-note {
+      margin: 6px 0 0;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--ink-muted);
+      min-height: 1.2em;
+    }
+
+    /* Status line */
+    .status {
+      margin: 0;
+      padding: 8px 12px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-left: 3px solid var(--ink);
+      border-radius: var(--radius-sm);
+      font-size: 0.94rem;
+      color: var(--ink);
+      min-height: 44px;
+      white-space: pre-line;
+    }
+
+    .status.is-wrong {
+      background: var(--vermilion-tint);
+      border-color: var(--vermilion);
+      border-left-width: 3px;
+      color: var(--vermilion-text);
+    }
+
+    /* Footer / Next tab bar */
+    .next-tab-bar {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--rule);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px 12px;
+    }
+
+    .next-tab-preview {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--ink-muted);
+    }
+
+    .footer-note {
+      margin: 10px 0 0;
+      padding-top: 8px;
+      border-top: 1px solid var(--rule);
+      font-size: 0.9rem;
+      color: var(--ink-muted);
+    }
+
+    .more-examples {
+      margin-top: 10px;
+      padding: 8px 12px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+    }
+
+    .more-examples summary {
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--ink);
+      min-height: 32px;
+      display: flex;
+      align-items: center;
+    }
+
+    .more-examples-body {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    @media (max-width: 780px) {
+      .search-grid,
+      .order-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .action-group {
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="masthead">
+      <h1>Search and insert</h1>
+      <p class="masthead-sub">The cost of a search is the height of the tree, and the height depends on insert order.</p>
+    </header>
+
+    <div class="tab-bar" role="tablist" aria-label="Search and insert topics">
+      <button class="tab-btn" type="button" role="tab" id="tab-search" aria-controls="panel-search" aria-selected="true" tabindex="0">Search</button>
+      <button class="tab-btn" type="button" role="tab" id="tab-insert" aria-controls="panel-insert" aria-selected="false" tabindex="-1">Insert</button>
+      <button class="tab-btn" type="button" role="tab" id="tab-order" aria-controls="panel-order" aria-selected="false" tabindex="-1">Insert order</button>
+    </div>
+
+    <!-- TAB 1: SEARCH -->
+    <section class="tab-panel" id="panel-search" role="tabpanel" aria-labelledby="tab-search" tabindex="0">
+      <p class="task-box" id="search-task-box"><strong>Your task:</strong> <span id="search-task-text">Press Step to follow the search for 35 down the tree.</span></p>
+      <p class="tab-intro">Each comparison moves down one level, so a search makes at most height + 1 comparisons.</p>
+
+      <div class="controls-row">
+        <div class="control-group">
+          <span class="control-label">Value</span>
+          <div class="chip-row" aria-label="Example search values">
+            <button class="chip-btn" type="button" data-search-chip="30">30</button>
+            <button class="chip-btn" type="button" data-search-chip="35" aria-pressed="true">35</button>
+            <button class="chip-btn" type="button" data-search-chip="70">70</button>
+            <button class="chip-btn" type="button" data-search-chip="5">5</button>
+          </div>
+          <button class="btn-link" type="button" id="search-own-toggle" aria-expanded="false" aria-controls="search-own-drawer">Try your own</button>
+        </div>
+        <div class="action-group">
+          <button class="btn is-primary" type="button" id="search-step-btn">Step</button>
+          <button class="btn" type="button" id="search-reset-btn">Reset</button>
+        </div>
+      </div>
+
+      <div class="extra-drawer" id="search-own-drawer" hidden>
+        <div class="control-group">
+          <label class="control-label" for="search-input">Search x</label>
+          <input class="num-input" id="search-input" type="number" min="0" max="99" step="1" value="35" inputmode="numeric" />
+        </div>
+        <div class="control-group">
+          <span class="control-label">Keys</span>
+          <div class="chip-row" role="group" aria-label="Tree size">
+            <button class="chip-btn" type="button" data-search-size="7" aria-pressed="true">7</button>
+            <button class="chip-btn" type="button" data-search-size="15" aria-pressed="false">15</button>
+            <button class="chip-btn" type="button" data-search-size="31" aria-pressed="false">31</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="readout-bar">
+        <div class="readout-items">
+          <span class="readout-item">Comparisons: <strong id="search-comps">0</strong></span>
+          <span class="readout-item">Height <strong id="search-height">2</strong>, so at most <strong id="search-max-comps">3</strong> <span id="search-max-word">comparisons</span></span>
+        </div>
+        <span class="readout-ref">Height counts edges: a single node has height 0.</span>
+      </div>
+
+      <div class="search-grid">
+        <div class="stage-box">
+          <svg class="tree-svg" id="search-svg" aria-label="Binary search tree for search simulation"></svg>
+        </div>
+        <aside class="trace-box" aria-label="Comparison trace">
+          <h2 class="trace-title">Tree comparisons</h2>
+          <ol class="trace-list" id="search-trace"></ol>
+          <p class="trace-placeholder" id="search-trace-empty">Press Step to compare 35 with the root (40).</p>
+        </aside>
+      </div>
+
+      <div class="strip-block" id="search-list-block" hidden>
+        <div class="strip-head">
+          <span class="strip-label">Same search as a list scan</span>
+          <span class="strip-meta">List steps: <span id="search-list-steps">0</span></span>
+        </div>
+        <div class="list-strip" id="search-list-strip" aria-label="Sorted list of keys"></div>
+        <p class="strip-note" id="search-list-note">Not started yet.</p>
+        <p class="strip-note" id="search-gap-note" hidden></p>
+      </div>
+
+      <p class="status" id="search-status" aria-live="polite"></p>
+
+      <div class="next-tab-bar">
+        <p class="next-tab-preview">Next: Insert — place new values where a search for them falls off the tree.</p>
+        <button class="btn" type="button" data-next-tab="1">Go to Insert -&gt;</button>
+      </div>
+    </section>
+
+    <!-- TAB 2: INSERT -->
+    <section class="tab-panel" id="panel-insert" role="tabpanel" aria-labelledby="tab-insert" tabindex="0" hidden>
+      <p class="task-box" id="insert-task-box"><strong>Your task:</strong> <span id="insert-task-text">Click the empty circle where 35 belongs.</span></p>
+      <p class="tab-intro">A new value goes exactly where a search for it falls off the tree. Predict the slot.</p>
+
+      <div class="controls-row">
+        <div class="control-group">
+          <button class="btn-link" type="button" id="insert-own-toggle" aria-expanded="false" aria-controls="insert-own-drawer">Try your own number</button>
+        </div>
+        <div class="action-group">
+          <span class="readout-ref" id="insert-tally">Predictions: 0 right / 0 wrong</span>
+          <button class="btn" type="button" id="insert-reset-btn">Reset</button>
+        </div>
+      </div>
+
+      <div class="extra-drawer" id="insert-own-drawer" hidden>
+        <label class="control-label" for="insert-input">Insert x</label>
+        <input class="num-input" id="insert-input" type="number" min="0" max="99" step="1" value="35" inputmode="numeric" />
+      </div>
+
+      <div class="insert-target-bar" id="insert-target-bar">
+        <span class="target-token-badge" id="insert-target-badge">35</span>
+        <p class="target-prompt" id="insert-target-prompt">Where does 35 go? Click the empty circle where it belongs.</p>
+        <button class="btn is-primary" type="button" id="insert-next-val-btn" hidden>Next value -&gt;</button>
+      </div>
+
+      <div class="readout-bar">
+        <div class="readout-items">
+          <span class="readout-item"><strong id="insert-nodes-count">7</strong> nodes</span>
+          <span class="readout-item"><strong id="insert-slots-count">8</strong> empty slots</span>
+          <span class="readout-item" id="insert-height-wrap">height <strong id="insert-height">2</strong></span>
+        </div>
+      </div>
+
+      <div class="stage-box" id="insert-stage-box" aria-busy="false">
+        <svg class="tree-svg" id="insert-svg" aria-label="Binary search tree with clickable empty slots"></svg>
+      </div>
+
+      <p class="status" id="insert-status" aria-live="polite">8 empty slots are open.</p>
+      <p class="footer-note" id="insert-bridge" hidden>Notice the height changed? That is the next tab.</p>
+
+      <div class="next-tab-bar">
+        <p class="next-tab-preview">Next: Insert order — see how the order you insert values changes the tree's height.</p>
+        <button class="btn" type="button" id="insert-next-tab-btn" data-next-tab="2">Go to Insert order -&gt;</button>
+      </div>
+    </section>
+
+    <!-- TAB 3: INSERT ORDER -->
+    <section class="tab-panel" id="panel-order" role="tabpanel" aria-labelledby="tab-order" tabindex="0" hidden>
+      <p class="task-box"><strong>Your task:</strong> Which tree will be shorter? Click Tree A or Tree B, then press Build both trees.</p>
+      <p class="tab-intro">Same values, different order, different shape.</p>
+
+      <div class="controls-row">
+        <div class="control-group">
+          <button class="chip-btn is-choice" type="button" id="order-pick-a" aria-pressed="false">Tree A</button>
+          <button class="chip-btn is-choice" type="button" id="order-pick-b" aria-pressed="false">Tree B</button>
+        </div>
+        <div class="action-group">
+          <button class="btn is-primary" type="button" id="order-build-btn">Build both trees</button>
+          <button class="btn" type="button" id="order-reset-btn">Reset</button>
+        </div>
+      </div>
+
+      <div class="order-grid">
+        <div class="order-card">
+          <div class="order-card-head">
+            <span class="order-card-title" id="order-left-title">Tree A: middle first (4 2 6 1 3 5 7)</span>
+            <span class="readout-item">Height <strong id="order-left-height">—</strong></span>
+          </div>
+          <div class="stage-box">
+            <svg class="tree-svg" id="order-left-svg" aria-label="Tree A built in middle-first order 4 2 6 1 3 5 7"></svg>
+          </div>
+        </div>
+
+        <div class="order-card">
+          <div class="order-card-head">
+            <span class="order-card-title" id="order-right-title">Tree B: sorted (1 2 3 4 5 6 7)</span>
+            <span class="readout-item" id="order-right-height-wrap">Height <strong id="order-right-height">—</strong></span>
+            <p class="order-card-sub" id="order-right-sub" hidden>Different number of keys, so compare shape, not height.</p>
+          </div>
+          <div class="stage-box">
+            <svg class="tree-svg" id="order-right-svg" aria-label="Tree B built in sorted order 1 2 3 4 5 6 7"></svg>
+          </div>
+        </div>
+      </div>
+
+      <p class="readout-ref" style="margin: 0 0 10px;">Worst-case search = height + 1 comparisons.</p>
+
+      <p class="status" id="order-status" aria-live="polite">Pick Tree A or Tree B, then press Build both trees.</p>
+
+      <details class="more-examples" id="order-more-details" hidden>
+        <summary>More examples</summary>
+        <div class="more-examples-body">
+          <span class="control-label">Test on Tree B</span>
+          <button class="chip-btn" type="button" data-order-extra="0" aria-pressed="false">5 3 8 1 4</button>
+          <button class="chip-btn" type="button" data-order-extra="1" aria-pressed="false">1 5 2 6 3</button>
+        </div>
+      </details>
+
+      <p class="footer-note" id="order-avl-note" hidden>Keeping the height small whatever the order is the job of the AVL tree, on the next page.</p>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+      const BASE_KEYS = [40, 20, 60, 10, 30, 50, 70];
+      const SORTED_KEYS = [10, 20, 30, 40, 50, 60, 70];
+      const INSERT_QUEUE = [35, 55, 5, 65, 25, 45, 15, 75];
+      const MAX_INSERT_NODES = 15;
+      const COL_W = 34;
+      const ROW_H = 64;
+      const TOP_Y = 30;
+      const NODE_R = 18;
+      const SLOT_R = 10;
+
+      const ORDER_LEFT = { label: '4 2 6 1 3 5 7', keys: [4, 2, 6, 1, 3, 5, 7] };
+      const ORDER_RIGHT = { label: '1 2 3 4 5 6 7', keys: [1, 2, 3, 4, 5, 6, 7] };
+      const EXTRA_ORDERS = [
+        { label: '5 3 8 1 4', keys: [5, 3, 8, 1, 4], note: '5 3 8 1 4 happens to stay balanced at height 2 (3 comparisons worst case).' },
+        { label: '1 5 2 6 3', keys: [1, 5, 2, 6, 3], note: '1 5 2 6 3 zig-zags to height 3 (4 comparisons worst case) — only some mixed orders stay flat.' }
+      ];
+
+      const reduceMotionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+      function isReducedMotion() {
+        return !!reduceMotionQuery.matches;
+      }
+
+      /* ---------------- Shared Tree Helpers ---------------- */
+      function makeNode(key) {
+        return { key: key, left: null, right: null };
+      }
+
+      function insertTree(root, key) {
+        if (!root) return makeNode(key);
+        if (key < root.key) root.left = insertTree(root.left, key);
+        else if (key > root.key) root.right = insertTree(root.right, key);
+        return root;
+      }
+
+      function buildTree(keys) {
+        let root = null;
+        for (let i = 0; i < keys.length; i++) {
+          root = insertTree(root, keys[i]);
+        }
+        return root;
+      }
+
+      function buildBalancedFromSorted(sortedArr) {
+        function buildSlice(lo, hi) {
+          if (lo > hi) return null;
+          const mid = Math.floor((lo + hi) / 2);
+          const node = makeNode(sortedArr[mid]);
+          node.left = buildSlice(lo, mid - 1);
+          node.right = buildSlice(mid + 1, hi);
+          return node;
+        }
+        return buildSlice(0, sortedArr.length - 1);
+      }
+
+      function makeSearchDataset(size) {
+        if (size === 15) {
+          const arr = [];
+          for (let i = 1; i <= 15; i++) arr.push(i * 5);
+          return { sorted: arr, tree: buildBalancedFromSorted(arr) };
+        }
+        if (size === 31) {
+          const arr = [];
+          for (let i = 1; i <= 31; i++) arr.push(i * 3);
+          return { sorted: arr, tree: buildBalancedFromSorted(arr) };
+        }
+        return { sorted: SORTED_KEYS.slice(), tree: buildBalancedFromSorted(SORTED_KEYS) };
+      }
+
+      function treeHeight(root) {
+        if (!root) return -1;
+        return 1 + Math.max(treeHeight(root.left), treeHeight(root.right));
+      }
+
+      function countNodes(root) {
+        if (!root) return 0;
+        return 1 + countNodes(root.left) + countNodes(root.right);
+      }
+
+      function treeHasKey(root, key) {
+        let curr = root;
+        while (curr) {
+          if (key === curr.key) return true;
+          curr = key < curr.key ? curr.left : curr.right;
+        }
+        return false;
+      }
+
+      function searchPath(root, x) {
+        const steps = [];
+        let curr = root;
+        if (!curr) {
+          return { steps: [], found: false, terminal: { parent: null, side: null } };
+        }
+        while (curr) {
+          if (x === curr.key) {
+            steps.push({ node: curr, cmp: '=' });
+            return { steps: steps, found: true, terminal: null };
+          }
+          if (x < curr.key) {
+            steps.push({ node: curr, cmp: '<' });
+            if (!curr.left) {
+              return { steps: steps, found: false, terminal: { parent: curr, side: 'left' } };
+            }
+            curr = curr.left;
+          } else {
+            steps.push({ node: curr, cmp: '>' });
+            if (!curr.right) {
+              return { steps: steps, found: false, terminal: { parent: curr, side: 'right' } };
+            }
+            curr = curr.right;
+          }
+        }
+        return { steps: steps, found: false, terminal: null };
+      }
+
+      function isChainTree(root) {
+        const n = countNodes(root);
+        return n >= 3 && treeHeight(root) === n - 1;
+      }
+
+      function parseWholeNumber(raw) {
+        const s = String(raw).trim();
+        if (!/^\d+$/.test(s)) return null;
+        const v = Number(s);
+        if (!Number.isInteger(v) || v < 0 || v > 99) return null;
+        return v;
+      }
+
+      /* ---------------- In-Order Grid Layout ---------------- */
+      function computeLayout(root, opts) {
+        const showAllSlots = !!(opts && opts.showAllSlots);
+        const endSlot = opts && opts.endSlot ? opts.endSlot : null;
+        const wrongSlot = opts && opts.wrongSlot ? opts.wrongSlot : null;
+
+        if (!root) {
+          const vw = 480;
+          const vh = 190;
+          return {
+            nodes: [],
+            byKey: new Map(),
+            edges: [],
+            slots: [],
+            slotById: new Map(),
+            viewBox: '0 -28 ' + vw + ' ' + vh,
+            viewW: vw,
+            emptyCenter: { x: vw / 2, y: 66 }
+          };
+        }
+
+        const nodes = [];
+        const byKey = new Map();
+
+        function walk(node, depth, parent, side) {
+          if (!node) return;
+          walk(node.left, depth + 1, node, 'left');
+          const rank = nodes.length;
+          const item = {
+            node: node,
+            key: node.key,
+            depth: depth,
+            rank: rank,
+            parentKey: parent ? parent.key : null,
+            side: side,
+            col: 2 * rank + 1,
+            x: 0,
+            y: depth * ROW_H + TOP_Y
+          };
+          nodes.push(item);
+          byKey.set(node.key, item);
+          walk(node.right, depth + 1, node, 'right');
+        }
+        walk(root, 0, null, null);
+
+        const n = nodes.length;
+        const padX = 56;
+        const gridSpan = 2 * n * COL_W;
+        const viewW = Math.max(480, gridSpan + padX * 2);
+        const offsetX = (viewW - gridSpan) / 2;
+
+        let maxDepth = 0;
+        for (let i = 0; i < nodes.length; i++) {
+          nodes[i].x = offsetX + nodes[i].col * COL_W;
+          if (nodes[i].depth > maxDepth) maxDepth = nodes[i].depth;
+        }
+
+        const edges = [];
+        const slots = [];
+        const slotById = new Map();
+
+        function maybeAddSlot(item, side, gapIndex) {
+          const id = item.key + ':' + side;
+          const isEnd = endSlot && endSlot.parentKey === item.key && endSlot.side === side;
+          const isWrong = wrongSlot && wrongSlot.parentKey === item.key && wrongSlot.side === side;
+          if (!showAllSlots && !isEnd && !isWrong) return;
+          const depth = item.depth + 1;
+          if (depth > maxDepth) maxDepth = depth;
+          const slot = {
+            id: id,
+            parentKey: item.key,
+            parentX: item.x,
+            parentY: item.y,
+            side: side,
+            gap: gapIndex,
+            col: 2 * gapIndex,
+            x: offsetX + 2 * gapIndex * COL_W,
+            y: depth * ROW_H + TOP_Y,
+            isEnd: !!isEnd,
+            isWrong: !!isWrong
+          };
+          slots.push(slot);
+          slotById.set(id, slot);
+        }
+
+        for (let i = 0; i < nodes.length; i++) {
+          const item = nodes[i];
+          if (item.parentKey !== null) {
+            const pItem = byKey.get(item.parentKey);
+            edges.push({
+              fromKey: pItem.key,
+              toKey: item.key,
+              x1: pItem.x,
+              y1: pItem.y,
+              x2: item.x,
+              y2: item.y
+            });
+          }
+          if (!item.node.left) maybeAddSlot(item, 'left', item.rank);
+          if (!item.node.right) maybeAddSlot(item, 'right', item.rank + 1);
+        }
+
+        const minY = -28;
+        const maxY = Math.max(150, maxDepth * ROW_H + TOP_Y + 34);
+        return {
+          nodes: nodes,
+          byKey: byKey,
+          edges: edges,
+          slots: slots,
+          slotById: slotById,
+          viewBox: '0 ' + minY + ' ' + viewW + ' ' + (maxY - minY),
+          viewW: viewW,
+          emptyCenter: null
+        };
+      }
+
+      function svgEl(tag, attrs, textContent) {
+        const el = document.createElementNS(SVG_NS, tag);
+        if (attrs) {
+          const keys = Object.keys(attrs);
+          for (let i = 0; i < keys.length; i++) {
+            el.setAttribute(keys[i], String(attrs[keys[i]]));
+          }
+        }
+        if (textContent !== undefined) el.textContent = String(textContent);
+        return el;
+      }
+
+      function renderTree(svg, root, opts) {
+        const options = opts || {};
+        const layout = computeLayout(root, options);
+        svg.setAttribute('viewBox', layout.viewBox);
+        svg.style.minWidth = root ? Math.round(layout.viewW * 0.8) + 'px' : '0px';
+        svg.innerHTML = '';
+
+        if (!root) {
+          const cx = layout.emptyCenter.x;
+          const cy = layout.emptyCenter.y;
+          const emptyText = options.emptyLabel || 'Press Build both trees to grow';
+          svg.appendChild(svgEl('text', {
+            x: cx,
+            y: cy + 8,
+            class: 'tree-empty-label'
+          }, emptyText));
+          return layout;
+        }
+
+        const pathNodes = options.pathNodes || new Set();
+        const pathEdges = options.pathEdges || new Set();
+        const currentKey = options.currentKey !== undefined ? options.currentKey : null;
+        const chainHighlight = !!options.chainHighlight;
+        const interactiveSlots = !!options.interactiveSlots;
+        const onSlotSelect = options.onSlotSelect || null;
+        const shakeSlotId = options.shakeSlotId || null;
+
+        const edgeLayer = svgEl('g');
+        const slotLayer = svgEl('g');
+        const nodeLayer = svgEl('g');
+        const tokenLayer = svgEl('g');
+
+        for (let i = 0; i < layout.edges.length; i++) {
+          const e = layout.edges[i];
+          const edgeId = e.fromKey + '->' + e.toKey;
+          let cls = 'tree-edge';
+          if (chainHighlight) cls += ' is-chain';
+          else if (pathEdges.has(edgeId)) cls += ' is-path';
+          edgeLayer.appendChild(svgEl('line', {
+            x1: e.x1,
+            y1: e.y1,
+            x2: e.x2,
+            y2: e.y2,
+            class: cls
+          }));
+        }
+
+        for (let i = 0; i < layout.slots.length; i++) {
+          const s = layout.slots[i];
+          let edgeCls = 'tree-slot-edge';
+          if (s.isEnd || s.isWrong) edgeCls += ' is-vermilion';
+          slotLayer.appendChild(svgEl('line', {
+            x1: s.parentX,
+            y1: s.parentY,
+            x2: s.x,
+            y2: s.y,
+            class: edgeCls
+          }));
+
+          /* Non-interactive search miss marker uses a small square "x" rather than a dashed circle */
+          if (s.isEnd && !interactiveSlots && !options.showAllSlots) {
+            const gEnd = svgEl('g', { class: 'tree-slot is-end-marker', 'data-slot-id': s.id });
+            gEnd.appendChild(svgEl('rect', {
+              x: s.x - 10,
+              y: s.y - 10,
+              width: 20,
+              height: 20,
+              rx: 3,
+              class: 'tree-slot-box'
+            }));
+            gEnd.appendChild(svgEl('text', {
+              x: s.x,
+              y: s.y,
+              class: 'tree-slot-x'
+            }, 'x'));
+            slotLayer.appendChild(gEnd);
+            continue;
+          }
+
+          let slotCls = 'tree-slot';
+          if (interactiveSlots) slotCls += ' is-interactive';
+          if (s.isWrong) slotCls += ' is-wrong';
+
+          const g = svgEl('g', { class: slotCls, 'data-slot-id': s.id });
+          if (interactiveSlots) {
+            let slotFromKeyboard = false;
+            g.setAttribute('tabindex', '0');
+            g.setAttribute('role', 'button');
+            g.setAttribute('aria-label', 'empty slot ' + s.side + ' of ' + s.parentKey);
+            g.addEventListener('click', function () {
+              const fromKey = slotFromKeyboard;
+              slotFromKeyboard = false;
+              if (onSlotSelect) onSlotSelect(s, fromKey);
+            });
+            g.addEventListener('keydown', function (ev) {
+              if (ev.key === 'Enter' || ev.key === ' ') {
+                ev.preventDefault();
+                slotFromKeyboard = true;
+                if (onSlotSelect) {
+                  const fromKey = slotFromKeyboard;
+                  slotFromKeyboard = false;
+                  onSlotSelect(s, fromKey);
+                }
+              }
+            });
+          }
+
+          const inner = svgEl('g', shakeSlotId === s.id ? { class: 'slot-shake' } : null);
+          if (interactiveSlots) {
+            const pulseWrap = svgEl('g', { class: 'slot-pulse-wrap' });
+            pulseWrap.appendChild(svgEl('circle', {
+              cx: s.x,
+              cy: s.y,
+              r: 24,
+              class: 'tree-slot-hit'
+            }));
+            pulseWrap.appendChild(svgEl('circle', {
+              cx: s.x,
+              cy: s.y,
+              r: SLOT_R,
+              class: 'tree-slot-circle'
+            }));
+            pulseWrap.appendChild(svgEl('text', {
+              x: s.x,
+              y: s.y,
+              class: 'tree-slot-q'
+            }, '?'));
+            inner.appendChild(pulseWrap);
+          } else {
+            inner.appendChild(svgEl('circle', {
+              cx: s.x,
+              cy: s.y,
+              r: SLOT_R,
+              class: 'tree-slot-circle'
+            }));
+          }
+          g.appendChild(inner);
+          slotLayer.appendChild(g);
+        }
+
+        for (let i = 0; i < layout.nodes.length; i++) {
+          const item = layout.nodes[i];
+          let cls = 'tree-node';
+          if (item.key === currentKey) cls += ' is-current';
+          else if (pathNodes.has(item.key)) cls += ' is-visited';
+
+          const g = svgEl('g', { class: cls });
+          g.appendChild(svgEl('circle', {
+            cx: item.x,
+            cy: item.y,
+            r: NODE_R,
+            class: 'tree-node-circle'
+          }));
+          g.appendChild(svgEl('text', {
+            x: item.x,
+            y: item.y,
+            class: 'tree-node-text'
+          }, item.key));
+          nodeLayer.appendChild(g);
+        }
+
+        svg.appendChild(edgeLayer);
+        svg.appendChild(slotLayer);
+        svg.appendChild(nodeLayer);
+        svg.appendChild(tokenLayer);
+        layout.tokenLayer = tokenLayer;
+        return layout;
+      }
+
+      /* ---------------- Animated Token Helpers ---------------- */
+      function drawToken(tokenLayer, viewW, x, y, value, label) {
+        tokenLayer.innerHTML = '';
+        const g = svgEl('g');
+        g.appendChild(svgEl('circle', {
+          cx: x,
+          cy: y,
+          r: 15,
+          class: 'token-circle'
+        }));
+        g.appendChild(svgEl('text', {
+          x: x,
+          y: y,
+          class: 'token-text'
+        }, value));
+
+        if (label) {
+          const onLeft = x > viewW * 0.56;
+          const charW = 7.6;
+          const pillW = Math.max(66, label.length * charW + 16);
+          const pillH = 24;
+          const pad = 21;
+          const rx = onLeft ? Math.max(4, x - pad - pillW) : Math.min(viewW - pillW - 4, x + pad);
+          const ry = y - pillH / 2;
+          g.appendChild(svgEl('rect', {
+            x: rx,
+            y: ry,
+            width: pillW,
+            height: pillH,
+            rx: 4,
+            class: 'token-pill-bg'
+          }));
+          g.appendChild(svgEl('text', {
+            x: rx + pillW / 2,
+            y: y,
+            'text-anchor': 'middle',
+            class: 'token-pill-text'
+          }, label));
+        }
+        tokenLayer.appendChild(g);
+      }
+
+      function easeInOut(t) {
+        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      }
+
+      function tweenPoint(tokenLayer, viewW, fromPt, toPt, value, label, durationMs, isAlive) {
+        return new Promise(function (resolve) {
+          if (!isAlive()) {
+            resolve(false);
+            return;
+          }
+          if (isReducedMotion() || durationMs <= 0) {
+            drawToken(tokenLayer, viewW, toPt.x, toPt.y, value, label);
+            resolve(true);
+            return;
+          }
+          const start = performance.now();
+          let rafId = 0;
+          let timerId = 0;
+          let settled = false;
+
+          function scheduleNext() {
+            rafId = requestAnimationFrame(onTick);
+            timerId = setTimeout(onTick, 16);
+          }
+
+          function onTick() {
+            if (settled) return;
+            cancelAnimationFrame(rafId);
+            clearTimeout(timerId);
+            if (!isAlive()) {
+              settled = true;
+              resolve(false);
+              return;
+            }
+            const now = performance.now();
+            const t = Math.min(1, (now - start) / durationMs);
+            const e = easeInOut(t);
+            const x = fromPt.x + (toPt.x - fromPt.x) * e;
+            const y = fromPt.y + (toPt.y - fromPt.y) * e;
+            drawToken(tokenLayer, viewW, x, y, value, label);
+            if (t < 1) {
+              scheduleNext();
+            } else {
+              settled = true;
+              resolve(true);
+            }
+          }
+          scheduleNext();
+        });
+      }
+
+      function pauseMs(ms, isAlive) {
+        return new Promise(function (resolve) {
+          if (!isAlive() || isReducedMotion() || ms <= 0) {
+            resolve(isAlive());
+            return;
+          }
+          setTimeout(function () {
+            resolve(isAlive());
+          }, ms);
+        });
+      }
+
+      function scrollStageToViewX(svg, viewW, viewX, instant) {
+        const stageBox = svg.closest('.stage-box');
+        if (!stageBox || !viewW || viewX === null || viewX === undefined) return;
+        if (stageBox.scrollWidth <= stageBox.clientWidth) return;
+        const svgRect = svg.getBoundingClientRect();
+        const vb = svg.viewBox && svg.viewBox.baseVal;
+        const viewH = (vb && vb.height) ? vb.height : 0;
+        let renderedContentW = svgRect.width || stageBox.scrollWidth;
+        let contentOffsetX = 0;
+        if (viewH > 0 && svgRect.width > 0 && svgRect.height > 0) {
+          const scale = Math.min(svgRect.width / viewW, svgRect.height / viewH);
+          renderedContentW = viewW * scale;
+          contentOffsetX = (svgRect.width - renderedContentW) / 2;
+        }
+        const px = contentOffsetX + (viewX / viewW) * renderedContentW;
+        const maxScroll = stageBox.scrollWidth - stageBox.clientWidth;
+        const targetLeft = Math.max(0, Math.min(maxScroll, px - stageBox.clientWidth / 2));
+        const behavior = (instant || isReducedMotion()) ? 'auto' : 'smooth';
+        if (typeof stageBox.scrollTo === 'function') {
+          stageBox.scrollTo({ left: targetLeft, behavior: behavior });
+        } else {
+          stageBox.scrollLeft = targetLeft;
+        }
+      }
+
+      async function animatePathDown(layout, val, path, hopMs, isAlive, onFocusX) {
+        const steps = path.steps;
+        if (!steps.length || !layout.tokenLayer) return true;
+        const firstPos = layout.byKey.get(steps[0].node.key);
+        let prevPt = { x: firstPos.x, y: firstPos.y - 34 };
+
+        for (let i = 0; i < steps.length; i++) {
+          const st = steps[i];
+          const target = layout.byKey.get(st.node.key);
+          if (onFocusX) onFocusX(target.x);
+          const dirText = st.cmp === '<' ? 'go left' : (st.cmp === '>' ? 'go right' : 'found');
+          const label = val + ' ' + st.cmp + ' ' + st.node.key + (st.cmp === '=' ? ': ' : '? ') + dirText;
+          const ok = await tweenPoint(layout.tokenLayer, layout.viewW, prevPt, target, val, label, hopMs, isAlive);
+          if (!ok) return false;
+          prevPt = { x: target.x, y: target.y };
+        }
+
+        if (!path.found && path.terminal && path.terminal.parent) {
+          const slotId = path.terminal.parent.key + ':' + path.terminal.side;
+          const slotPos = layout.slotById.get(slotId);
+          if (slotPos) {
+            if (onFocusX) onFocusX(slotPos.x);
+            const ok = await tweenPoint(layout.tokenLayer, layout.viewW, prevPt, slotPos, val, 'lands here', Math.round(hopMs * 0.85), isAlive);
+            if (!ok) return false;
+          }
+        }
+        return true;
+      }
+
+      /* ---------------- Tabs ---------------- */
+      const tabButtons = Array.prototype.slice.call(document.querySelectorAll('.tab-btn'));
+      const tabPanels = Array.prototype.slice.call(document.querySelectorAll('.tab-panel'));
+
+      function selectTab(idx) {
+        for (let i = 0; i < tabButtons.length; i++) {
+          const active = i === idx;
+          tabButtons[i].setAttribute('aria-selected', active ? 'true' : 'false');
+          tabButtons[i].setAttribute('tabindex', active ? '0' : '-1');
+          tabPanels[i].hidden = !active;
+        }
+      }
+
+      tabButtons.forEach(function (btn, idx) {
+        btn.addEventListener('click', function () {
+          selectTab(idx);
+        });
+        btn.addEventListener('keydown', function (ev) {
+          let next = null;
+          if (ev.key === 'ArrowRight') next = (idx + 1) % tabButtons.length;
+          else if (ev.key === 'ArrowLeft') next = (idx - 1 + tabButtons.length) % tabButtons.length;
+          else if (ev.key === 'Home') next = 0;
+          else if (ev.key === 'End') next = tabButtons.length - 1;
+          if (next !== null) {
+            ev.preventDefault();
+            selectTab(next);
+            tabButtons[next].focus();
+          }
+        });
+      });
+
+      document.querySelectorAll('[data-next-tab]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          const targetIdx = Number(btn.getAttribute('data-next-tab'));
+          selectTab(targetIdx);
+          tabButtons[targetIdx].focus();
+        });
+      });
+
+      /* =======================================================
+       * TAB 1: SEARCH
+       * ======================================================= */
+      (function initSearchTab() {
+        const taskTextEl = document.getElementById('search-task-text');
+        const inputEl = document.getElementById('search-input');
+        const ownToggleBtn = document.getElementById('search-own-toggle');
+        const ownDrawerEl = document.getElementById('search-own-drawer');
+        const chipEls = Array.prototype.slice.call(document.querySelectorAll('[data-search-chip]'));
+        const sizeEls = Array.prototype.slice.call(document.querySelectorAll('[data-search-size]'));
+        const stepBtn = document.getElementById('search-step-btn');
+        const resetBtn = document.getElementById('search-reset-btn');
+        const compsEl = document.getElementById('search-comps');
+        const heightEl = document.getElementById('search-height');
+        const maxCompsEl = document.getElementById('search-max-comps');
+        const maxWordEl = document.getElementById('search-max-word');
+        const svg = document.getElementById('search-svg');
+        const traceEl = document.getElementById('search-trace');
+        const traceEmptyEl = document.getElementById('search-trace-empty');
+        const listBlockEl = document.getElementById('search-list-block');
+        const listStepsEl = document.getElementById('search-list-steps');
+        const listStripEl = document.getElementById('search-list-strip');
+        const listNoteEl = document.getElementById('search-list-note');
+        const gapNoteEl = document.getElementById('search-gap-note');
+        const statusEl = document.getElementById('search-status');
+
+        const initialData = makeSearchDataset(7);
+        const state = {
+          size: 7,
+          sortedKeys: initialData.sorted,
+          tree: initialData.tree,
+          x: 35,
+          valid: true,
+          path: searchPath(initialData.tree, 35),
+          treeStep: 0,
+          treeComps: 0,
+          treeDone: false,
+          traceLines: [],
+          listStep: 0,
+          listDone: false,
+          listFound: false,
+          listReason: 'Not started yet.',
+          animGen: 0,
+          lastTokenPt: null
+        };
+
+        function setStatus(msg, isWrong) {
+          statusEl.textContent = msg;
+          statusEl.classList.toggle('is-wrong', !!isWrong);
+        }
+
+        function updateTaskText() {
+          if (!state.valid) {
+            taskTextEl.textContent = 'Enter a whole number from 0 to 99, then press Step.';
+          } else {
+            taskTextEl.textContent = 'Press Step to follow the search for ' + state.x + ' down the tree.';
+          }
+        }
+
+        function updateTreeStats() {
+          const h = treeHeight(state.tree);
+          const maxC = h + 1;
+          heightEl.textContent = h < 0 ? '—' : String(h);
+          maxCompsEl.textContent = h < 0 ? '0' : String(maxC);
+          maxWordEl.textContent = maxC === 1 ? 'comparison' : 'comparisons';
+        }
+
+        function updateChips() {
+          chipEls.forEach(function (chip) {
+            const val = Number(chip.getAttribute('data-search-chip'));
+            chip.setAttribute('aria-pressed', state.valid && state.x === val ? 'true' : 'false');
+          });
+          sizeEls.forEach(function (btn) {
+            const sz = Number(btn.getAttribute('data-search-size'));
+            btn.setAttribute('aria-pressed', state.size === sz ? 'true' : 'false');
+          });
+        }
+
+        function resetWalk(val, valid) {
+          state.animGen++;
+          state.valid = valid;
+          state.x = valid ? val : null;
+          state.path = valid ? searchPath(state.tree, val) : { steps: [], found: false, terminal: null };
+          state.treeStep = 0;
+          state.treeComps = 0;
+          state.treeDone = false;
+          state.traceLines = [];
+          state.listStep = 0;
+          state.listDone = false;
+          state.listFound = false;
+          state.listReason = valid ? 'Not started yet.' : 'Enter a whole number from 0 to 99.';
+          state.lastTokenPt = null;
+          updateTaskText();
+          updateTreeStats();
+          updateChips();
+          renderAll(false);
+          if (!valid) {
+            setStatus('Enter a whole number from 0 to 99.\nOr pick one of the example values above.', false);
+          } else {
+            const rootLabel = state.tree ? String(state.tree.key) : 'the root';
+            traceEmptyEl.textContent = 'Press Step to compare ' + val + ' with the root (' + rootLabel + ').';
+            setStatus('Ready to search for ' + val + '.\nPress Step to compare ' + val + ' with the root (' + rootLabel + ').', false);
+          }
+        }
+
+        function renderTrace() {
+          traceEl.innerHTML = '';
+          if (!state.traceLines.length) {
+            traceEmptyEl.hidden = false;
+            return;
+          }
+          traceEmptyEl.hidden = true;
+          for (let i = 0; i < state.traceLines.length; i++) {
+            const li = document.createElement('li');
+            li.textContent = state.traceLines[i];
+            if (i === state.traceLines.length - 1) li.className = 'is-latest';
+            traceEl.appendChild(li);
+          }
+        }
+
+        function renderListStrip() {
+          const started = state.treeStep > 0 || state.listStep > 0;
+          listBlockEl.hidden = !started;
+          if (!started) return;
+
+          listStripEl.innerHTML = '';
+          for (let i = 0; i < state.sortedKeys.length; i++) {
+            const box = document.createElement('span');
+            box.className = 'list-cell';
+            box.textContent = String(state.sortedKeys[i]);
+            if (i < state.listStep - 1) {
+              box.classList.add('is-checked');
+            } else if (i === state.listStep - 1) {
+              if (state.listDone && !state.listFound && state.x < state.sortedKeys[i]) {
+                box.classList.add('is-stop-miss');
+              } else {
+                box.classList.add('is-current');
+              }
+            }
+            listStripEl.appendChild(box);
+          }
+          listStepsEl.textContent = String(state.listStep);
+          listNoteEl.textContent = state.listReason;
+          if (state.valid && state.treeDone && state.listDone) {
+            if (state.size === 7) {
+              if (!state.path.found) {
+                gapNoteEl.textContent = 'With only 7 keys the gap is small. Try 5 or 70 and notice which wins; with 1,000 keys the tree needs about 10 comparisons and the list up to 1,000.';
+              } else {
+                gapNoteEl.textContent = 'With only 7 keys the gap is small; with 1,000 keys the tree needs about 10 comparisons and the list up to 1,000.';
+              }
+            } else {
+              const maxTree = treeHeight(state.tree) + 1;
+              gapNoteEl.textContent = 'With ' + state.size + ' keys the tree takes at most ' + maxTree + ' comparisons while the list takes up to ' + state.size + '; with 1,000 keys the tree needs about 10 and the list up to 1,000.';
+            }
+            gapNoteEl.hidden = false;
+          } else {
+            gapNoteEl.textContent = '';
+            gapNoteEl.hidden = true;
+          }
+        }
+
+        function buildTreeRenderOpts() {
+          const pathNodes = new Set();
+          const pathEdges = new Set();
+          const steps = state.path.steps;
+          const count = state.treeStep;
+
+          for (let i = 0; i < count; i++) {
+            pathNodes.add(steps[i].node.key);
+            if (i > 0) {
+              pathEdges.add(steps[i - 1].node.key + '->' + steps[i].node.key);
+            }
+          }
+
+          let currentKey = null;
+          let endSlot = null;
+
+          if (count > 0) {
+            if (state.treeDone && !state.path.found && state.path.terminal && state.path.terminal.parent) {
+              endSlot = {
+                parentKey: state.path.terminal.parent.key,
+                side: state.path.terminal.side
+              };
+            } else {
+              currentKey = steps[count - 1].node.key;
+            }
+          }
+
+          return {
+            pathNodes: pathNodes,
+            pathEdges: pathEdges,
+            currentKey: currentKey,
+            endSlot: endSlot
+          };
+        }
+
+        function renderAll(animateTreeHop) {
+          compsEl.textContent = String(state.treeComps);
+          const willDisableStep = !state.valid || (state.treeDone && state.listDone);
+          if (willDisableStep && document.activeElement === stepBtn) {
+            resetBtn.focus();
+          }
+          stepBtn.disabled = willDisableStep;
+          renderTrace();
+          renderListStrip();
+
+          const opts = buildTreeRenderOpts();
+          const layout = renderTree(svg, state.tree, opts);
+
+          if (!state.valid || state.treeStep === 0 || !layout.tokenLayer) {
+            const rootItem = state.tree ? layout.byKey.get(state.tree.key) : null;
+            if (rootItem) {
+              scrollStageToViewX(svg, layout.viewW, rootItem.x, false);
+            }
+            return;
+          }
+
+          const steps = state.path.steps;
+          const lastStep = steps[state.treeStep - 1];
+          let targetPt = layout.byKey.get(lastStep.node.key);
+          let tokenLabel = state.x + ' ' + lastStep.cmp + ' ' + lastStep.node.key + (lastStep.cmp === '=' ? ': found' : (lastStep.cmp === '<' ? '? go left' : '? go right'));
+
+          if (state.treeDone && !state.path.found && opts.endSlot) {
+            const slotObj = layout.slotById.get(opts.endSlot.parentKey + ':' + opts.endSlot.side);
+            if (slotObj) {
+              targetPt = { x: slotObj.x, y: slotObj.y };
+              tokenLabel = 'empty: not in tree';
+            }
+          }
+
+          const myGen = state.animGen;
+          if (animateTreeHop && !isReducedMotion()) {
+            let fromPt = state.lastTokenPt;
+            if (!fromPt) {
+              const rootPt = layout.byKey.get(steps[0].node.key);
+              fromPt = { x: rootPt.x, y: rootPt.y - 34 };
+            }
+            state.lastTokenPt = { x: targetPt.x, y: targetPt.y };
+            tweenPoint(layout.tokenLayer, layout.viewW, fromPt, targetPt, state.x, tokenLabel, 320, function () {
+              return state.animGen === myGen;
+            });
+          } else {
+            state.lastTokenPt = { x: targetPt.x, y: targetPt.y };
+            drawToken(layout.tokenLayer, layout.viewW, targetPt.x, targetPt.y, state.x, tokenLabel);
+          }
+          scrollStageToViewX(svg, layout.viewW, targetPt.x, false);
+        }
+
+        function handleStep() {
+          if (!state.valid || (state.treeDone && state.listDone)) return;
+          state.animGen++;
+
+          let advancedTree = false;
+          let treeLine = '';
+          if (!state.treeDone) {
+            advancedTree = true;
+            const st = state.path.steps[state.treeStep];
+            state.treeStep++;
+            state.treeComps++;
+            if (st.cmp === '=') {
+              treeLine = state.x + ' = ' + st.node.key + ': found';
+              state.traceLines.push(treeLine);
+              state.treeDone = true;
+            } else {
+              const dir = st.cmp === '<' ? 'left' : 'right';
+              treeLine = state.x + ' ' + st.cmp + ' ' + st.node.key + '? go ' + dir;
+              state.traceLines.push(treeLine);
+              if (state.treeStep === state.path.steps.length && !state.path.found) {
+                const t = state.path.terminal;
+                state.traceLines.push(t.side + ' of ' + t.parent.key + ' is empty: ' + state.x + ' is not in the tree');
+                state.treeDone = true;
+              }
+            }
+          }
+
+          let advancedList = false;
+          if (!state.listDone) {
+            advancedList = true;
+            const val = state.sortedKeys[state.listStep];
+            state.listStep++;
+            if (state.x === val) {
+              state.listDone = true;
+              state.listFound = true;
+              state.listReason = state.x + ' = ' + val + ': found at step ' + state.listStep + '.';
+            } else if (state.x < val) {
+              state.listDone = true;
+              state.listFound = false;
+              state.listReason = state.x + ' < ' + val + ': passed it, not in list.';
+            } else if (state.listStep === state.sortedKeys.length) {
+              state.listDone = true;
+              state.listFound = false;
+              state.listReason = state.x + ' > ' + val + ': reached the end, not in list.';
+            } else {
+              state.listReason = state.x + ' > ' + val + ': keep scanning.';
+            }
+          }
+
+          renderAll(advancedTree);
+
+          const compWord = state.treeComps === 1 ? 'comparison' : 'comparisons';
+          const stepWord = state.listStep === 1 ? 'step' : 'steps';
+          if (state.treeDone && state.listDone) {
+            const summary = state.path.found
+              ? 'Found ' + state.x + ': tree took ' + state.treeComps + ' ' + compWord + '; list took ' + state.listStep + ' ' + stepWord + '.'
+              : state.x + ' is not in the tree: tree took ' + state.treeComps + ' ' + compWord + '; list took ' + state.listStep + ' ' + stepWord + '.';
+            setStatus(summary + '\nTry 5 or 70 to see a search that fails, or press Go to Insert ->.', false);
+          } else if (state.treeDone && !state.listDone) {
+            setStatus('Tree finished in ' + state.treeComps + ' ' + compWord + '; the list is still scanning (step ' + state.listStep + ').\nPress Step to finish the list scan.', false);
+          } else if (!state.treeDone && state.listDone) {
+            setStatus('List stopped at step ' + state.listStep + '; tree continues (' + treeLine + ').\nPress Step to continue walking the tree.', false);
+          } else if (advancedTree && advancedList) {
+            setStatus('Tree: ' + treeLine + ' | List checked ' + state.sortedKeys[state.listStep - 1] + '.\nPress Step to compare the next level.', false);
+          }
+        }
+
+        ownToggleBtn.addEventListener('click', function () {
+          const open = ownDrawerEl.hidden;
+          ownDrawerEl.hidden = !open;
+          ownToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+          if (open) inputEl.focus();
+        });
+
+        function handleInputEdit() {
+          const val = parseWholeNumber(inputEl.value);
+          resetWalk(val, val !== null);
+        }
+
+        inputEl.addEventListener('input', handleInputEdit);
+        inputEl.addEventListener('change', handleInputEdit);
+
+        chipEls.forEach(function (chip) {
+          chip.addEventListener('click', function () {
+            const val = Number(chip.getAttribute('data-search-chip'));
+            inputEl.value = String(val);
+            resetWalk(val, true);
+          });
+        });
+
+        sizeEls.forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            const sz = Number(btn.getAttribute('data-search-size'));
+            if (sz === state.size) return;
+            const data = makeSearchDataset(sz);
+            state.size = sz;
+            state.sortedKeys = data.sorted;
+            state.tree = data.tree;
+            const val = parseWholeNumber(inputEl.value);
+            if (val === null) {
+              inputEl.value = '35';
+              resetWalk(35, true);
+            } else {
+              resetWalk(val, true);
+            }
+          });
+        });
+
+        stepBtn.addEventListener('click', handleStep);
+
+        resetBtn.addEventListener('click', function () {
+          const val = parseWholeNumber(inputEl.value);
+          if (val === null) {
+            inputEl.value = '35';
+            resetWalk(35, true);
+          } else {
+            resetWalk(val, true);
+          }
+        });
+
+        resetWalk(35, true);
+      })();
+
+      /* =======================================================
+       * TAB 2: INSERT (BUILT-IN QUEUE + PREDICT-FIRST)
+       * ======================================================= */
+      (function initInsertTab() {
+        const baseTree = buildTree(BASE_KEYS);
+        const baseHeight = treeHeight(baseTree);
+        const taskTextEl = document.getElementById('insert-task-text');
+        const nextValBtn = document.getElementById('insert-next-val-btn');
+        const ownToggleBtn = document.getElementById('insert-own-toggle');
+        const ownDrawerEl = document.getElementById('insert-own-drawer');
+        const inputEl = document.getElementById('insert-input');
+        const targetBadgeEl = document.getElementById('insert-target-badge');
+        const targetPromptEl = document.getElementById('insert-target-prompt');
+        const resetBtn = document.getElementById('insert-reset-btn');
+        const nodesCountEl = document.getElementById('insert-nodes-count');
+        const slotsCountEl = document.getElementById('insert-slots-count');
+        const heightWrapEl = document.getElementById('insert-height-wrap');
+        const heightEl = document.getElementById('insert-height');
+        const tallyEl = document.getElementById('insert-tally');
+        const stageBoxEl = document.getElementById('insert-stage-box');
+        const svg = document.getElementById('insert-svg');
+        const statusEl = document.getElementById('insert-status');
+        const bridgeEl = document.getElementById('insert-bridge');
+
+        const state = {
+          root: buildTree(BASE_KEYS),
+          queueIdx: 0,
+          activeValue: INSERT_QUEUE[0],
+          mode: 'ready',
+          duplicateValue: null,
+          justInsertedKey: null,
+          wrongSlot: null,
+          shakeSlotId: null,
+          rightCount: 0,
+          wrongCount: 0,
+          busy: false,
+          animGen: 0
+        };
+
+        function setStatus(msg, isWrong) {
+          statusEl.textContent = msg;
+          statusEl.classList.toggle('is-wrong', !!isWrong);
+        }
+
+        function nextQueuedValue() {
+          for (let i = state.queueIdx; i < INSERT_QUEUE.length; i++) {
+            if (!treeHasKey(state.root, INSERT_QUEUE[i])) {
+              state.queueIdx = i;
+              return INSERT_QUEUE[i];
+            }
+          }
+          state.queueIdx = INSERT_QUEUE.length;
+          return null;
+        }
+
+        function updateTargetUI() {
+          if (state.mode === 'treeFull') {
+            targetBadgeEl.textContent = '—';
+            targetPromptEl.textContent = 'Tree is full (15 nodes). Press Go to Insert order -> or Reset.';
+            taskTextEl.textContent = 'Press Go to Insert order -> to see how insert order changes the tree, or press Reset.';
+          } else if (state.mode === 'queueDone') {
+            targetBadgeEl.textContent = '—';
+            targetPromptEl.textContent = 'All queued values inserted. Press Go to Insert order -> or Reset.';
+            taskTextEl.textContent = 'Press Go to Insert order -> to see how insert order changes the tree, or press Reset.';
+          } else if (state.mode === 'needsInput') {
+            targetBadgeEl.textContent = '?';
+            targetPromptEl.textContent = 'Type a whole number from 0 to 99, then click the empty circle where it belongs.';
+            taskTextEl.textContent = 'Type a whole number from 0 to 99, then click the empty circle where it belongs.';
+          } else if (state.mode === 'duplicate') {
+            targetBadgeEl.textContent = String(state.duplicateValue);
+            const dupMsg = state.duplicateValue + ' is already in the tree. Type a different number, or press Reset to return to the example values.';
+            targetPromptEl.textContent = dupMsg;
+            taskTextEl.textContent = dupMsg;
+          } else if (state.mode === 'waitingNext') {
+            targetBadgeEl.textContent = String(state.justInsertedKey);
+            targetPromptEl.textContent = state.justInsertedKey + ' is placed. Press Next value -> for the next number.';
+            taskTextEl.textContent = 'Press Next value -> for the next number.';
+          } else {
+            targetBadgeEl.textContent = String(state.activeValue);
+            targetPromptEl.textContent = 'Where does ' + state.activeValue + ' go? Click the empty circle where it belongs.';
+            taskTextEl.textContent = 'Click the empty circle where ' + state.activeValue + ' belongs.';
+          }
+        }
+
+        function updateReadouts() {
+          const n = countNodes(state.root);
+          const h = treeHeight(state.root);
+          nodesCountEl.textContent = String(n);
+          slotsCountEl.textContent = String(n + 1);
+          heightEl.textContent = String(h);
+          heightWrapEl.classList.toggle('is-chain', isChainTree(state.root));
+          tallyEl.textContent = 'Predictions: ' + state.rightCount + ' right / ' + state.wrongCount + ' wrong';
+          bridgeEl.hidden = h === baseHeight;
+          const isFull = n >= MAX_INSERT_NODES;
+          inputEl.readOnly = state.busy || isFull;
+          stageBoxEl.setAttribute('aria-busy', state.busy ? 'true' : 'false');
+
+          const moreInQueue = nextQueuedValue() !== null && !isFull;
+          nextValBtn.hidden = !(state.mode === 'waitingNext' && moreInQueue && !state.busy);
+          updateTargetUI();
+        }
+
+        function renderCurrent() {
+          const n = countNodes(state.root);
+          const isFull = n >= MAX_INSERT_NODES;
+          updateReadouts();
+          const layout = renderTree(svg, state.root, {
+            showAllSlots: true,
+            interactiveSlots: !state.busy && !isFull && state.mode === 'ready' && state.activeValue !== null,
+            currentKey: state.justInsertedKey,
+            wrongSlot: state.wrongSlot,
+            shakeSlotId: state.shakeSlotId,
+            chainHighlight: isChainTree(state.root),
+            onSlotSelect: handleSlotClick
+          });
+          if (state.justInsertedKey !== null) {
+            const item = layout.byKey.get(state.justInsertedKey);
+            if (item) scrollStageToViewX(svg, layout.viewW, item.x, false);
+          }
+          return layout;
+        }
+
+        function formatComparisons(steps, x) {
+          const parts = [];
+          for (let i = 0; i < steps.length; i++) {
+            parts.push(x + ' ' + steps[i].cmp + ' ' + steps[i].node.key);
+          }
+          return parts.join(', ');
+        }
+
+        function formatWrongComparisons(steps, x) {
+          const parts = [];
+          for (let i = 0; i < steps.length; i++) {
+            const dir = steps[i].cmp === '<' ? 'left' : 'right';
+            parts.push(x + ' ' + steps[i].cmp + ' ' + steps[i].node.key + ' sends it ' + dir);
+          }
+          return parts.join(', ');
+        }
+
+        async function handleSlotClick(slot, fromKeyboard) {
+          const wasKeyboard = !!fromKeyboard;
+          if (state.busy || state.mode !== 'ready') return;
+          const n = countNodes(state.root);
+          if (n >= MAX_INSERT_NODES) {
+            state.mode = 'treeFull';
+            renderCurrent();
+            setStatus('Tree is full for this page.\nPress Go to Insert order -> or Reset.', false);
+            return;
+          }
+
+          const val = state.activeValue;
+          if (val === null) {
+            state.mode = 'needsInput';
+            renderCurrent();
+            setStatus('Type a whole number from 0 to 99.\nThen click the empty circle where it belongs.', false);
+            if (wasKeyboard) inputEl.focus();
+            return;
+          }
+
+          if (treeHasKey(state.root, val)) {
+            state.mode = 'duplicate';
+            state.duplicateValue = val;
+            state.activeValue = null;
+            renderCurrent();
+            setStatus(val + ' is already in the tree.\nType a different number, or press Reset to return to the example values.', false);
+            if (wasKeyboard) inputEl.focus();
+            return;
+          }
+
+          const path = searchPath(state.root, val);
+          const target = path.terminal;
+          const isCorrect = target && slot.parentKey === target.parent.key && slot.side === target.side;
+          const prevHeight = treeHeight(state.root);
+          const myGen = ++state.animGen;
+          const isAlive = function () { return state.animGen === myGen; };
+
+          state.busy = true;
+          state.justInsertedKey = null;
+          if (wasKeyboard) {
+            inputEl.focus();
+          }
+
+          if (isCorrect) {
+            state.rightCount++;
+            state.wrongSlot = null;
+            state.shakeSlotId = null;
+            const compWord = path.steps.length === 1 ? 'comparison' : 'comparisons';
+            setStatus('Following comparisons for ' + val + '...', false);
+            const layout = renderCurrent();
+
+            const ok = await animatePathDown(layout, val, path, 340, isAlive, function (vx) {
+              scrollStageToViewX(svg, layout.viewW, vx, false);
+            });
+            if (!ok) return;
+            await pauseMs(220, isAlive);
+            if (!isAlive()) return;
+
+            state.root = insertTree(state.root, val);
+            state.justInsertedKey = val;
+            state.busy = false;
+            if (INSERT_QUEUE[state.queueIdx] === val) state.queueIdx++;
+            const isNowFull = countNodes(state.root) >= MAX_INSERT_NODES;
+            const moreAvailable = nextQueuedValue() !== null && !isNowFull;
+            state.mode = isNowFull ? 'treeFull' : (moreAvailable ? 'waitingNext' : 'queueDone');
+            renderCurrent();
+            if (wasKeyboard) {
+              if (moreAvailable) nextValBtn.focus();
+              else document.getElementById('insert-next-tab-btn').focus();
+            }
+
+            const newHeight = treeHeight(state.root);
+            const heightNote = newHeight > prevHeight ? ' The tree just got taller: height is now ' + newHeight + '.' : '';
+            const nextAction = moreAvailable
+              ? 'Press Next value -> for the next number.'
+              : 'Press Go to Insert order -> to see how insert order changes the tree.';
+            setStatus('Right. ' + formatComparisons(path.steps, val) + ', so it lands ' + target.side + ' of ' + target.parent.key + ' after ' + path.steps.length + ' ' + compWord + '.' + heightNote + '\n' + nextAction, false);
+          } else {
+            state.wrongCount++;
+            state.wrongSlot = { parentKey: slot.parentKey, side: slot.side };
+            state.shakeSlotId = slot.id;
+            const wrongSummary = 'Not that slot. ' + formatWrongComparisons(path.steps, val) + ' — it lands ' + target.side + ' of ' + target.parent.key + '.';
+            setStatus(wrongSummary + '\nWatching the path to the right slot...', true);
+            const layout = renderCurrent();
+
+            const ok = await animatePathDown(layout, val, path, 360, isAlive, function (vx) {
+              scrollStageToViewX(svg, layout.viewW, vx, false);
+            });
+            if (!ok) return;
+            await pauseMs(260, isAlive);
+            if (!isAlive()) return;
+
+            state.root = insertTree(state.root, val);
+            state.justInsertedKey = val;
+            state.wrongSlot = null;
+            state.shakeSlotId = null;
+            state.busy = false;
+            if (INSERT_QUEUE[state.queueIdx] === val) state.queueIdx++;
+            const isNowFull = countNodes(state.root) >= MAX_INSERT_NODES;
+            const moreAvailable = nextQueuedValue() !== null && !isNowFull;
+            state.mode = isNowFull ? 'treeFull' : (moreAvailable ? 'waitingNext' : 'queueDone');
+            renderCurrent();
+            if (wasKeyboard) {
+              if (moreAvailable) nextValBtn.focus();
+              else document.getElementById('insert-next-tab-btn').focus();
+            }
+
+            const nextAction = moreAvailable
+              ? 'Press Next value -> for the next number.'
+              : 'Press Go to Insert order -> to see how insert order changes the tree.';
+            setStatus(wrongSummary + '\n' + nextAction, true);
+          }
+        }
+
+        nextValBtn.addEventListener('click', function () {
+          if (state.busy) return;
+          const nextVal = nextQueuedValue();
+          if (nextVal === null || countNodes(state.root) >= MAX_INSERT_NODES) return;
+          state.mode = 'ready';
+          state.justInsertedKey = null;
+          state.duplicateValue = null;
+          state.activeValue = nextVal;
+          inputEl.value = String(nextVal);
+          renderCurrent();
+          setStatus(nextVal + ' is ready.\nChoose an empty circle.', false);
+        });
+
+        ownToggleBtn.addEventListener('click', function () {
+          const open = ownDrawerEl.hidden;
+          ownDrawerEl.hidden = !open;
+          ownToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+          if (open) inputEl.focus();
+        });
+
+        inputEl.addEventListener('input', function () {
+          if (state.busy) return;
+          if (countNodes(state.root) >= MAX_INSERT_NODES) return;
+          state.justInsertedKey = null;
+          state.wrongSlot = null;
+          state.shakeSlotId = null;
+          const raw = inputEl.value.trim();
+          if (raw === '') {
+            state.mode = 'needsInput';
+            state.activeValue = null;
+            state.duplicateValue = null;
+            renderCurrent();
+            setStatus('No number entered yet.\nType a whole number from 0 to 99.', false);
+            return;
+          }
+          const val = parseWholeNumber(raw);
+          if (val === null) {
+            state.mode = 'needsInput';
+            state.activeValue = null;
+            state.duplicateValue = null;
+            renderCurrent();
+            setStatus('Outside 0–99.\nType a whole number from 0 to 99.', false);
+            return;
+          }
+          if (treeHasKey(state.root, val)) {
+            state.mode = 'duplicate';
+            state.activeValue = null;
+            state.duplicateValue = val;
+            renderCurrent();
+            setStatus(val + ' is already in the tree.\nType a different number, or press Reset to return to the example values.', false);
+            return;
+          }
+          state.mode = 'ready';
+          state.duplicateValue = null;
+          state.activeValue = val;
+          renderCurrent();
+          setStatus(val + ' is ready.\nChoose an empty circle.', false);
+        });
+
+        resetBtn.addEventListener('click', function () {
+          state.animGen++;
+          state.busy = false;
+          state.root = buildTree(BASE_KEYS);
+          state.queueIdx = 0;
+          state.activeValue = INSERT_QUEUE[0];
+          state.mode = 'ready';
+          state.duplicateValue = null;
+          state.justInsertedKey = null;
+          state.wrongSlot = null;
+          state.shakeSlotId = null;
+          state.rightCount = 0;
+          state.wrongCount = 0;
+          inputEl.value = String(INSERT_QUEUE[0]);
+          renderCurrent();
+          setStatus('8 empty slots are open.', false);
+        });
+
+        renderCurrent();
+      })();
+
+      /* =======================================================
+       * TAB 3: INSERT ORDER (TWO-WAY CONTRAST)
+       * ======================================================= */
+      (function initOrderTab() {
+        const pickABtn = document.getElementById('order-pick-a');
+        const pickBBtn = document.getElementById('order-pick-b');
+        const buildBtn = document.getElementById('order-build-btn');
+        const resetBtn = document.getElementById('order-reset-btn');
+        const leftTitleEl = document.getElementById('order-left-title');
+        const rightTitleEl = document.getElementById('order-right-title');
+        const rightSubEl = document.getElementById('order-right-sub');
+        const leftHeightEl = document.getElementById('order-left-height');
+        const rightHeightWrapEl = document.getElementById('order-right-height-wrap');
+        const rightHeightEl = document.getElementById('order-right-height');
+        const leftSvg = document.getElementById('order-left-svg');
+        const rightSvg = document.getElementById('order-right-svg');
+        const statusEl = document.getElementById('order-status');
+        const moreDetailsEl = document.getElementById('order-more-details');
+        const extraBtns = Array.prototype.slice.call(document.querySelectorAll('[data-order-extra]'));
+        const avlNoteEl = document.getElementById('order-avl-note');
+
+        const state = {
+          choice: null,
+          leftRoot: null,
+          rightRoot: null,
+          leftCurrent: null,
+          rightCurrent: null,
+          rightTitle: 'Tree B: sorted (' + ORDER_RIGHT.label + ')',
+          rightKeys: ORDER_RIGHT.keys,
+          extraIdx: null,
+          busy: false,
+          finished: false,
+          animGen: 0
+        };
+
+        function setStatus(msg, isWrong) {
+          statusEl.textContent = msg;
+          statusEl.classList.toggle('is-wrong', !!isWrong);
+        }
+
+        function renderChoiceButtons() {
+          pickABtn.setAttribute('aria-pressed', state.choice === 'a' ? 'true' : 'false');
+          pickBBtn.setAttribute('aria-pressed', state.choice === 'b' ? 'true' : 'false');
+          pickABtn.disabled = state.busy || state.finished;
+          pickBBtn.disabled = state.busy || state.finished;
+          pickBBtn.classList.toggle('is-wrong', state.finished && state.choice === 'b');
+
+          extraBtns.forEach(function (btn) {
+            const idx = Number(btn.getAttribute('data-order-extra'));
+            btn.setAttribute('aria-pressed', state.extraIdx === idx ? 'true' : 'false');
+            btn.disabled = state.busy;
+          });
+        }
+
+        function renderSide(svg, root, currentKey, heightEl, heightWrapEl) {
+          const h = treeHeight(root);
+          heightEl.textContent = root ? String(h) : '—';
+          if (heightWrapEl) heightWrapEl.classList.toggle('is-chain', isChainTree(root));
+          const layout = renderTree(svg, root, {
+            currentKey: currentKey,
+            chainHighlight: isChainTree(root),
+            emptyLabel: 'Press Build both trees'
+          });
+          if (currentKey !== null) {
+            const item = layout.byKey.get(currentKey);
+            if (item) scrollStageToViewX(svg, layout.viewW, item.x, false);
+          }
+          return layout;
+        }
+
+        function renderAll() {
+          leftTitleEl.textContent = 'Tree A: middle first (' + ORDER_LEFT.label + ')';
+          rightTitleEl.textContent = state.rightTitle;
+          rightSubEl.hidden = state.extraIdx === null;
+          rightSvg.setAttribute('aria-label', state.rightTitle);
+          renderChoiceButtons();
+          if (state.finished && (document.activeElement === buildBtn || document.activeElement === pickABtn || document.activeElement === pickBBtn)) {
+            resetBtn.focus();
+          }
+          buildBtn.disabled = state.finished;
+          if (state.busy) {
+            buildBtn.setAttribute('aria-disabled', 'true');
+          } else {
+            buildBtn.removeAttribute('aria-disabled');
+          }
+          renderSide(leftSvg, state.leftRoot, state.leftCurrent, leftHeightEl, null);
+          renderSide(rightSvg, state.rightRoot, state.rightCurrent, rightHeightEl, rightHeightWrapEl);
+        }
+
+        async function playSequence(keys, getRoot, setRoot, setCurrent, svg, heightEl, heightWrapEl, isAlive) {
+          setRoot(null);
+          setCurrent(null);
+          renderSide(svg, null, null, heightEl, heightWrapEl);
+
+          for (let i = 0; i < keys.length; i++) {
+            const val = keys[i];
+            const currRoot = getRoot();
+            if (currRoot) {
+              const path = searchPath(currRoot, val);
+              const endSlot = path.terminal ? { parentKey: path.terminal.parent.key, side: path.terminal.side } : null;
+              const layout = renderTree(svg, currRoot, {
+                endSlot: endSlot,
+                chainHighlight: isChainTree(currRoot)
+              });
+              const ok = await animatePathDown(layout, val, path, 95, isAlive, function (vx) {
+                scrollStageToViewX(svg, layout.viewW, vx, false);
+              });
+              if (!ok) return false;
+            }
+            const updated = insertTree(getRoot(), val);
+            setRoot(updated);
+            setCurrent(val);
+            renderSide(svg, updated, val, heightEl, heightWrapEl);
+            if (i < keys.length - 1) {
+              const paused = await pauseMs(50, isAlive);
+              if (!paused) return false;
+            }
+          }
+          return true;
+        }
+
+        async function handleBuildBoth() {
+          if (state.busy || state.finished) return;
+          const myGen = ++state.animGen;
+          const isAlive = function () { return state.animGen === myGen; };
+
+          state.busy = true;
+          state.extraIdx = null;
+          state.rightTitle = 'Tree B: sorted (' + ORDER_RIGHT.label + ')';
+          state.rightKeys = ORDER_RIGHT.keys;
+          renderAll();
+          setStatus('Building Tree A and Tree B side by side...', false);
+
+          const results = await Promise.all([
+            playSequence(
+              ORDER_LEFT.keys,
+              function () { return state.leftRoot; },
+              function (r) { state.leftRoot = r; },
+              function (k) { state.leftCurrent = k; },
+              leftSvg, leftHeightEl, null, isAlive
+            ),
+            playSequence(
+              ORDER_RIGHT.keys,
+              function () { return state.rightRoot; },
+              function (r) { state.rightRoot = r; },
+              function (k) { state.rightCurrent = k; },
+              rightSvg, rightHeightEl, rightHeightWrapEl, isAlive
+            )
+          ]);
+
+          if (!results[0] || !results[1] || !isAlive()) return;
+          state.busy = false;
+          state.finished = true;
+          moreDetailsEl.hidden = false;
+          avlNoteEl.hidden = false;
+          renderAll();
+
+          if (state.choice === 'a') {
+            setStatus('Correct: Tree A is shorter (height 2 vs 6). The middle-first order stays packed, while sorted input builds a chain.\nOpen More examples below to test other orders, or press Reset.', false);
+          } else if (state.choice === 'b') {
+            setStatus('Not quite: Tree A is shorter (height 2 vs 6). Sorted input builds a chain where each key goes right, while middle-first stays packed.\nOpen More examples below to test other orders, or press Reset.', true);
+          } else {
+            setStatus('Tree A has height 2 (3 comparisons worst case); Tree B has height 6 (7 comparisons). Middle-first stays packed, while sorted input builds a chain.\nOpen More examples below to test other orders, or press Reset.', false);
+          }
+        }
+
+        async function runExtraOnRight(idx) {
+          if (state.busy) return;
+          const preset = EXTRA_ORDERS[idx];
+          const myGen = ++state.animGen;
+          const isAlive = function () { return state.animGen === myGen; };
+
+          state.busy = true;
+          state.extraIdx = idx;
+          state.rightTitle = 'Tree B: ' + preset.label;
+          state.rightKeys = preset.keys;
+          renderAll();
+          setStatus('Building ' + preset.label + ' in Tree B...', false);
+
+          const ok = await playSequence(
+            preset.keys,
+            function () { return state.rightRoot; },
+            function (r) { state.rightRoot = r; },
+            function (k) { state.rightCurrent = k; },
+            rightSvg, rightHeightEl, rightHeightWrapEl, isAlive
+          );
+          if (!ok || !isAlive()) return;
+
+          state.busy = false;
+          renderAll();
+          setStatus(preset.note + '\nTry the other example or press Reset.', false);
+        }
+
+        function resetOrderTab() {
+          state.animGen++;
+          state.busy = false;
+          state.finished = false;
+          state.choice = null;
+          state.leftRoot = null;
+          state.rightRoot = null;
+          state.leftCurrent = null;
+          state.rightCurrent = null;
+          state.extraIdx = null;
+          state.rightTitle = 'Tree B: sorted (' + ORDER_RIGHT.label + ')';
+          state.rightKeys = ORDER_RIGHT.keys;
+          moreDetailsEl.open = false;
+          moreDetailsEl.hidden = true;
+          avlNoteEl.hidden = true;
+          renderAll();
+          setStatus('Pick Tree A or Tree B, then press Build both trees.', false);
+        }
+
+        pickABtn.addEventListener('click', function () {
+          if (state.busy || state.finished) return;
+          state.choice = 'a';
+          renderChoiceButtons();
+          setStatus('Picked Tree A (' + ORDER_LEFT.label + ').\nNow press Build both trees.', false);
+        });
+
+        pickBBtn.addEventListener('click', function () {
+          if (state.busy || state.finished) return;
+          state.choice = 'b';
+          renderChoiceButtons();
+          setStatus('Picked Tree B (' + ORDER_RIGHT.label + ').\nNow press Build both trees.', false);
+        });
+
+        extraBtns.forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            const idx = Number(btn.getAttribute('data-order-extra'));
+            runExtraOnRight(idx);
+          });
+        });
+
+        buildBtn.addEventListener('click', handleBuildBoth);
+        resetBtn.addEventListener('click', resetOrderTab);
+
+        resetOrderTab();
+      })();
+    })();
+  </script>
+</body>
+</html>
