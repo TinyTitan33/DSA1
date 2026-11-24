@@ -1,0 +1,3935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Balance and AVL</title>
+<style>
+  :root {
+    --paper: #FAF8F4;
+    --surface: #FFFFFF;
+    --surface-warm: #F3EFE7;
+    --ink: #181715;
+    --ink-2: #57534C;
+    --ink-muted: #767067;
+    --rule: #D6D0C4;
+    --rule-strong: #9E978B;
+    --vermilion: #C83018;
+    --vermilion-dark: #A52511;
+    --vermilion-tint: #FDF0ED;
+    --radius: 8px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+
+  html {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    padding: 20px 16px 40px;
+  }
+
+  .app {
+    max-width: 980px;
+    margin: 0 auto;
+  }
+
+  /* Header & Tabs */
+  .app-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 16px;
+  }
+
+  .app-title {
+    margin: 0;
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+
+  .app-subtitle {
+    margin: 2px 0 0;
+    font-size: 0.94rem;
+    color: var(--ink-2);
+  }
+
+  .tablist {
+    display: inline-flex;
+    gap: 6px;
+    background: var(--surface-warm);
+    padding: 4px;
+    border-radius: var(--radius);
+    border: 1px solid var(--rule);
+  }
+
+  .tab-btn {
+    appearance: none;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--ink-2);
+    font-family: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    min-height: 44px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .tab-btn:hover {
+    color: var(--ink);
+    background: rgba(255, 255, 255, 0.55);
+  }
+
+  .tab-btn[aria-selected="true"] {
+    background: var(--surface);
+    color: var(--ink);
+    border-color: var(--rule-strong);
+    box-shadow: 0 1px 2px rgba(24, 23, 21, 0.08);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  .tab-panel[hidden] {
+    display: none;
+  }
+
+  /* Task Banner & Concept Note */
+  .task-box {
+    background: var(--surface-warm);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--vermilion);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 10px;
+  }
+
+  .task-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--vermilion);
+    margin-bottom: 2px;
+  }
+
+  .task-text {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .concept-note {
+    margin: 0 0 16px;
+    font-size: 0.92rem;
+    color: var(--ink-2);
+  }
+
+  .concept-note.has-vocab {
+    margin-bottom: 6px;
+  }
+
+  .vocab-note {
+    margin: 0 0 16px;
+    font-size: 0.9rem;
+    color: var(--ink-2);
+  }
+
+  /* Tab 1 Predict-First Block */
+  .predict-box {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+  }
+
+  .predict-q {
+    margin: 0 0 8px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .predict-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .pred-btn {
+    min-height: 44px;
+    padding: 8px 12px;
+    font-size: 0.88rem;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .pred-btn[aria-pressed="true"] {
+    background: var(--surface);
+    border: 2px solid var(--ink);
+    color: var(--ink);
+  }
+
+  .pred-btn[aria-pressed="true"]:disabled {
+    opacity: 1;
+  }
+
+  .pred-btn.is-correct {
+    border: 2px solid var(--ink);
+    background: var(--surface);
+    color: var(--ink);
+    opacity: 1;
+  }
+
+  .pred-btn.is-wrong-pick {
+    border: 2px solid var(--vermilion);
+    background: var(--vermilion-tint);
+    color: var(--vermilion-dark);
+    opacity: 1;
+  }
+
+  .pred-badge {
+    font-size: 0.74rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    margin-left: 4px;
+    white-space: nowrap;
+  }
+
+  /* Controls & Buttons */
+  .controls-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .btn {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 8px 16px;
+    font-family: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    border-radius: var(--radius);
+    cursor: pointer;
+    border: 1px solid var(--rule-strong);
+    background: var(--surface);
+    color: var(--ink);
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.08s ease;
+  }
+
+  .btn:hover:not(:disabled) {
+    background: var(--surface-warm);
+    border-color: var(--ink);
+  }
+
+  .btn:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  .btn:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--ink);
+    color: var(--surface);
+    border-color: var(--ink);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: #2E2C28;
+    border-color: #2E2C28;
+  }
+
+  .btn-toggle[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--surface);
+    border-color: var(--ink);
+  }
+
+  .btn-toggle[aria-pressed="true"]:hover:not(:disabled) {
+    background: #2E2C28;
+  }
+
+  .btn-subtle {
+    border-color: var(--rule);
+    color: var(--ink-2);
+    background: transparent;
+  }
+
+  .btn-subtle:hover:not(:disabled) {
+    color: var(--ink);
+    background: var(--surface-warm);
+    border-color: var(--rule-strong);
+  }
+
+  /* Segmented 2-way preset control */
+  .segmented {
+    display: inline-flex;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .seg-btn {
+    appearance: none;
+    border: 0;
+    border-right: 1px solid var(--rule);
+    background: transparent;
+    color: var(--ink-2);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    min-height: 44px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .seg-btn:last-child {
+    border-right: 0;
+  }
+
+  .seg-btn:hover {
+    background: var(--surface-warm);
+    color: var(--ink);
+  }
+
+  .seg-btn[aria-pressed="true"] {
+    background: var(--surface-warm);
+    color: var(--ink);
+    box-shadow: inset 0 -2px 0 var(--ink);
+  }
+
+  /* Status Line */
+  .status-line {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: 0.92rem;
+    color: var(--ink);
+    margin-bottom: 14px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .status-line.is-alert {
+    border-color: var(--vermilion);
+    background: var(--vermilion-tint);
+  }
+
+  .status-action {
+    font-weight: 600;
+  }
+
+  /* Tab 1 Sequence Strip */
+  .seq-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 14px;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+  }
+
+  .seq-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ink-2);
+    margin-right: 4px;
+  }
+
+  .seq-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 26px;
+    padding: 0 6px;
+    border-radius: 5px;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+    color: var(--ink-2);
+  }
+
+  .seq-item.is-done {
+    background: var(--surface-warm);
+    color: var(--ink-muted);
+    border-color: var(--rule);
+  }
+
+  .seq-item.is-just {
+    background: var(--vermilion);
+    color: var(--surface);
+    border-color: var(--vermilion);
+  }
+
+  .seq-item.is-next {
+    background: var(--surface);
+    color: var(--vermilion);
+    border: 2px solid var(--vermilion);
+  }
+
+  /* Tab 1 Height & Search Experiment (revealed after 15 inserts) */
+  .search-panel {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+
+  .search-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px 14px;
+    margin-bottom: 8px;
+  }
+
+  .search-title {
+    margin: 0;
+    font-size: 0.96rem;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .search-expl {
+    margin: 0 0 10px;
+    font-size: 0.88rem;
+    color: var(--ink-2);
+  }
+
+  .complexity-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .complexity-box {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.84rem;
+    color: var(--ink-2);
+  }
+
+  .complexity-box strong {
+    color: var(--ink);
+    font-family: var(--font-mono);
+  }
+
+  .search-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+  }
+
+  .search-label {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .search-input {
+    width: 78px;
+    min-height: 44px;
+    padding: 6px 10px;
+    font-family: var(--font-mono);
+    font-size: 0.92rem;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--ink);
+  }
+
+  .search-quick-btn {
+    min-height: 44px;
+    padding: 6px 11px;
+    font-size: 0.84rem;
+  }
+
+  .search-results {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .search-stat {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 7px 10px;
+    background: var(--surface-warm);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    font-size: 0.84rem;
+    color: var(--ink);
+  }
+
+  .search-path-note {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink-2);
+  }
+
+  .search-summary {
+    margin: 8px 0 0;
+    font-size: 0.86rem;
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* Tree Cards */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .tree-card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .tree-card-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface-warm);
+  }
+
+  .tree-card-title {
+    margin: 0;
+    font-size: 0.96rem;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .tree-card-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .readout-pill {
+    font-family: var(--font-mono);
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--rule-strong);
+    color: var(--ink);
+  }
+
+  .rot-tag {
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--vermilion-tint);
+    border: 1px solid var(--vermilion);
+    color: var(--vermilion);
+  }
+
+  .rot-tag[hidden] {
+    display: none;
+  }
+
+  .svg-wrap {
+    width: 100%;
+    padding: 6px;
+    background: var(--surface);
+  }
+
+  .tree-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    user-select: none;
+  }
+
+  /* Tab 2 Rotation Picker (progressive disclosure when broken) */
+  .rotation-picker {
+    background: var(--vermilion-tint);
+    border: 1px solid var(--vermilion);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+
+  .rotation-picker[hidden] {
+    display: none;
+  }
+
+  .picker-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 12px;
+    margin-bottom: 10px;
+  }
+
+  .picker-title {
+    font-size: 0.94rem;
+    font-weight: 700;
+    color: var(--vermilion-dark);
+  }
+
+  .worked-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .worked-tag {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: var(--vermilion-dark);
+  }
+
+  .picker-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-choice {
+    background: var(--surface);
+    border: 1.5px solid var(--ink);
+    color: var(--ink);
+    min-width: 102px;
+  }
+
+  .btn-choice:hover:not(:disabled) {
+    background: var(--ink);
+    color: var(--surface);
+  }
+
+  .btn-choice.is-wrong {
+    border-color: var(--rule);
+    color: var(--ink-muted);
+    background: var(--surface-warm);
+    text-decoration: line-through;
+  }
+
+  /* Tab 2 Balance Factor Visual Guide & Live Inspector */
+  .bf-guide {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 11px 14px;
+    margin-bottom: 12px;
+  }
+
+  .bf-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 14px;
+    margin-bottom: 8px;
+  }
+
+  .bf-formula {
+    font-family: var(--font-mono);
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--ink);
+    background: var(--surface-warm);
+    border: 1px solid var(--rule-strong);
+    border-radius: 6px;
+    padding: 4px 10px;
+  }
+
+  .bf-ok-note {
+    font-size: 0.84rem;
+    color: var(--ink-2);
+  }
+
+  .bf-signs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    font-size: 0.8rem;
+    color: var(--ink-2);
+    margin-bottom: 10px;
+  }
+
+  .bf-sign-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .bf-sign-item.is-bad code {
+    border-color: var(--vermilion);
+    color: var(--vermilion-dark);
+    background: var(--vermilion-tint);
+  }
+
+  .bf-sign-item code {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 0.78rem;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--rule-strong);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  .bf-inspector {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    padding-top: 9px;
+    border-top: 1px solid var(--rule);
+    font-size: 0.85rem;
+  }
+
+  .bf-calc-boxes {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+  }
+
+  .bf-sub-pill {
+    padding: 3px 8px;
+    border-radius: 5px;
+    border: 1px solid var(--rule-strong);
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  .bf-sub-pill.is-left {
+    background: #ECE7DC;
+    border-style: dashed;
+    border-color: var(--ink);
+  }
+
+  .bf-sub-pill.is-right {
+    background: var(--vermilion-tint);
+    border-style: dashed;
+    border-color: var(--vermilion-dark);
+    color: var(--vermilion-dark);
+  }
+
+  .bf-result-pill {
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-weight: 700;
+    border: 1px solid var(--ink);
+    background: var(--surface);
+    color: var(--ink);
+  }
+
+  .bf-result-pill.is-unbalanced {
+    border-color: var(--vermilion);
+    background: var(--vermilion);
+    color: var(--surface);
+  }
+
+  .rot-stage-pill {
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--vermilion-tint);
+    border: 1px solid var(--vermilion);
+    color: var(--vermilion-dark);
+  }
+
+  /* Tab 2 Sandbox Canvas */
+  .sandbox-card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .sandbox-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--surface-warm);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .legend-inline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.82rem;
+    color: var(--ink-2);
+  }
+
+  .legend-chip {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--rule-strong);
+    border-radius: 5px;
+    padding: 1px 6px;
+    margin-right: 4px;
+  }
+
+  /* Collapsible Extras */
+  .extras-stack {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  details.card-details {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+  }
+
+  details.card-details > summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+    border-radius: var(--radius);
+  }
+
+  details.card-details > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  details.card-details > summary:hover {
+    background: var(--surface-warm);
+  }
+
+  details.card-details > summary::after {
+    content: "+";
+    font-family: var(--font-mono);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--ink-2);
+  }
+
+  details.card-details[open] > summary::after {
+    content: "−";
+  }
+
+  details.card-details[open] > summary {
+    border-bottom: 1px solid var(--rule);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .details-body {
+    padding: 14px;
+  }
+
+  .custom-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .custom-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .num-input {
+    width: 100px;
+    min-height: 44px;
+    padding: 8px 10px;
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--ink);
+  }
+
+  .custom-hint {
+    margin: 8px 0 0;
+    font-size: 0.86rem;
+    color: var(--ink-2);
+    min-height: 1.3em;
+  }
+
+  .custom-hint.is-hint {
+    color: var(--vermilion-dark);
+    font-weight: 600;
+  }
+
+  /* Rules Grid */
+  .rules-intro {
+    margin: 0 0 12px;
+    font-size: 0.88rem;
+    color: var(--ink-2);
+  }
+
+  .rules-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .rule-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--paper);
+  }
+
+  .rule-card.is-highlighted {
+    border: 2px solid var(--vermilion);
+    background: var(--vermilion-tint);
+  }
+
+  .rule-card.is-highlighted .rule-name {
+    color: var(--vermilion-dark);
+  }
+
+  .rule-mini-svg {
+    flex: 0 0 auto;
+    width: 72px;
+    height: 64px;
+  }
+
+  .rule-name {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 2px;
+  }
+
+  .rule-desc {
+    margin: 0;
+    font-size: 0.84rem;
+    color: var(--ink-2);
+  }
+
+  /* Footer Linear Nav */
+  .panel-footer {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .next-note {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--ink-2);
+  }
+
+  /* SVG Styling */
+  .edge {
+    stroke: var(--rule-strong);
+    stroke-width: 1.75;
+    stroke-linecap: round;
+  }
+
+  .edge.is-active {
+    stroke: var(--vermilion);
+    stroke-width: 3;
+  }
+
+  .edge.is-search-edge {
+    stroke: var(--vermilion);
+    stroke-width: 2.8;
+  }
+
+  .edge.is-left-edge {
+    stroke: var(--ink);
+    stroke-width: 2.3;
+    stroke-dasharray: 4 3;
+  }
+
+  .edge.is-right-edge {
+    stroke: var(--vermilion-dark);
+    stroke-width: 2.3;
+    stroke-dasharray: 4 3;
+  }
+
+  .edge.is-unaffected {
+    opacity: 0.38;
+  }
+
+  .node-circle {
+    fill: var(--surface);
+    stroke: var(--ink);
+    stroke-width: 1.8;
+  }
+
+  .node-text {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+
+  #t2-svg .node-group {
+    cursor: pointer;
+  }
+
+  #t2-svg .node-group:hover .node-circle {
+    stroke-width: 2.5;
+  }
+
+  .inspect-ring {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 2;
+    pointer-events: none;
+  }
+
+  .new-ring {
+    fill: none;
+    stroke: var(--vermilion);
+    stroke-width: 1.8;
+    pointer-events: none;
+  }
+
+  .node-group.is-new .node-circle {
+    fill: var(--vermilion);
+    stroke: var(--vermilion);
+    stroke-width: 2;
+  }
+
+  .node-group.is-new .node-text {
+    fill: var(--surface);
+  }
+
+  .node-group.is-search-step .node-circle {
+    fill: var(--vermilion-tint);
+    stroke: var(--vermilion);
+    stroke-width: 2.3;
+  }
+
+  .node-group.is-search-miss .node-circle {
+    fill: var(--vermilion-tint);
+    stroke: var(--vermilion);
+    stroke-width: 2.4;
+    stroke-dasharray: 3 2;
+  }
+
+  .node-group.is-search-step .node-text,
+  .node-group.is-search-miss .node-text {
+    fill: var(--ink);
+  }
+
+  .node-group.is-search-found .node-circle,
+  .node-group.is-search-step.is-search-found .node-circle {
+    fill: var(--vermilion);
+    stroke: var(--vermilion);
+    stroke-width: 2;
+    stroke-dasharray: none;
+  }
+
+  .node-group.is-search-found .node-text,
+  .node-group.is-search-step.is-search-found .node-text {
+    fill: var(--surface);
+  }
+
+  .node-group.is-rotated .node-circle,
+  .node-group.is-rot-child .node-circle {
+    fill: var(--vermilion-tint);
+    stroke: var(--vermilion);
+    stroke-width: 2.3;
+  }
+
+  .node-group.is-rot-transfer .node-circle {
+    fill: var(--paper);
+    stroke: var(--vermilion);
+    stroke-width: 2.2;
+    stroke-dasharray: 4 2;
+  }
+
+  .node-group.is-unaffected .node-circle,
+  .node-group.is-unaffected .badge-rect,
+  .node-group.is-unaffected .height-pill {
+    opacity: 0.45;
+  }
+
+  .node-group.is-unaffected .node-text,
+  .node-group.is-unaffected .badge-text,
+  .node-group.is-unaffected .height-label {
+    opacity: 0.78;
+  }
+
+  .node-group.is-left-sub .node-circle {
+    fill: #ECE7DC;
+    stroke: var(--ink);
+    stroke-dasharray: 3 2;
+  }
+
+  .node-group.is-right-sub .node-circle {
+    fill: var(--vermilion-tint);
+    stroke: var(--vermilion-dark);
+    stroke-dasharray: 3 2;
+  }
+
+  .node-group.is-rotated .node-text,
+  .node-group.is-rot-child .node-text,
+  .node-group.is-rot-transfer .node-text,
+  .node-group.is-left-sub .node-text,
+  .node-group.is-right-sub .node-text,
+  .node-group.is-visiting .node-text,
+  .node-group.is-broken .node-text {
+    fill: var(--ink);
+  }
+
+  .node-group.is-new.is-left-sub .node-circle,
+  .node-group.is-new.is-right-sub .node-circle,
+  .node-group.is-new.is-rot-child .node-circle,
+  .node-group.is-new.is-rot-transfer .node-circle,
+  .node-group.is-new.is-rotated .node-circle,
+  .node-group.is-new.is-visiting .node-circle,
+  .node-group.is-new.is-broken .node-circle {
+    stroke: var(--vermilion);
+    stroke-width: 3;
+    stroke-dasharray: none;
+  }
+
+  .node-group.is-new.is-left-sub .node-text,
+  .node-group.is-new.is-right-sub .node-text,
+  .node-group.is-new.is-rot-child .node-text,
+  .node-group.is-new.is-rot-transfer .node-text,
+  .node-group.is-new.is-rotated .node-text,
+  .node-group.is-new.is-visiting .node-text,
+  .node-group.is-new.is-broken .node-text {
+    fill: var(--ink);
+  }
+
+  .rot-arrow-path {
+    fill: none;
+    stroke: var(--vermilion);
+    stroke-width: 2.2;
+    stroke-linecap: round;
+  }
+
+  .rot-arrow-path.is-transfer {
+    stroke-dasharray: 5 3;
+  }
+
+  .rot-arrow-label {
+    fill: var(--vermilion-dark);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 700;
+    dominant-baseline: central;
+    paint-order: stroke;
+    stroke: var(--surface);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+  }
+
+  .null-ghost-line {
+    stroke: var(--rule-strong);
+    stroke-width: 1.4;
+    stroke-dasharray: 3 3;
+  }
+
+  .null-ghost-pill {
+    fill: var(--paper);
+    stroke: var(--rule-strong);
+    stroke-width: 1;
+    stroke-dasharray: 2 2;
+  }
+
+  .null-ghost-text {
+    fill: var(--ink-2);
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 600;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+
+  .node-group.is-visiting .node-circle {
+    fill: var(--vermilion-tint);
+    stroke: var(--vermilion);
+    stroke-width: 2.5;
+  }
+
+  .node-group.is-broken .node-circle {
+    fill: var(--vermilion-tint);
+    stroke: var(--vermilion);
+    stroke-width: 2.6;
+  }
+
+  .badge-rect {
+    fill: var(--surface);
+    stroke: var(--ink);
+    stroke-width: 1.3;
+  }
+
+  .badge-text {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+
+  .node-group.is-visiting .badge-rect {
+    stroke: var(--vermilion);
+    fill: var(--vermilion-tint);
+  }
+
+  .node-group.is-visiting .badge-text {
+    fill: var(--vermilion-dark);
+  }
+
+  .node-group.is-broken .badge-rect {
+    fill: var(--vermilion);
+    stroke: var(--vermilion);
+  }
+
+  .node-group.is-broken .badge-text {
+    fill: var(--surface);
+  }
+
+  .height-pill {
+    fill: var(--surface-warm);
+    stroke: var(--rule);
+    stroke-width: 1;
+  }
+
+  .height-label {
+    fill: var(--ink-2);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+
+  .pulse-ring {
+    fill: none;
+    stroke: var(--vermilion);
+    stroke-width: 2.2;
+    opacity: 0;
+    pointer-events: none;
+    transform-origin: 0 0;
+  }
+
+  .node-group.is-broken .pulse-ring {
+    animation: pulseRing 1.35s ease-out infinite;
+  }
+
+  @keyframes pulseRing {
+    0% {
+      transform: scale(1);
+      opacity: 0.85;
+    }
+    100% {
+      transform: scale(1.48);
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn, .tab-btn, .seg-btn {
+      transition: none;
+    }
+    .node-group.is-broken .pulse-ring {
+      animation: none;
+      opacity: 0.7;
+      transform: scale(1.24);
+    }
+  }
+
+  @media (max-width: 680px) {
+    body {
+      padding: 14px 12px 32px;
+    }
+    .compare-grid,
+    .rules-grid,
+    .complexity-row,
+    .search-results {
+      grid-template-columns: 1fr;
+    }
+    .tablist {
+      width: 100%;
+    }
+    .tab-btn {
+      flex: 1 1 0;
+      padding: 8px 10px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <div>
+      <h1 class="app-title">Balance and AVL</h1>
+      <p class="app-subtitle">Keeping binary search trees short so lookup stays fast.</p>
+    </div>
+    <div class="tablist" role="tablist" aria-label="Lesson sections">
+      <button type="button" class="tab-btn" role="tab" id="tab-why" aria-selected="true" aria-controls="panel-why" tabindex="0">1. Why balance</button>
+      <button type="button" class="tab-btn" role="tab" id="tab-sandbox" aria-selected="false" aria-controls="panel-sandbox" tabindex="-1">2. AVL sandbox</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- TAB 1: WHY BALANCE -->
+    <section id="panel-why" class="tab-panel" role="tabpanel" aria-labelledby="tab-why">
+      <div class="task-box">
+        <span class="task-label">Your task</span>
+        <p class="task-text" id="t1-task">Pick a prediction, then press Step.</p>
+        <div class="predict-box" id="t1-predict-box">
+          <p class="predict-q" id="t1-predict-q">After all 15 numbers go in, how will the plain BST compare to the AVL tree?</p>
+          <div class="predict-options" role="group" aria-labelledby="t1-predict-q">
+            <button type="button" class="btn pred-btn" data-pred="same" aria-pressed="false"><span class="pred-label">Same height</span><span class="pred-badge" hidden></span></button>
+            <button type="button" class="btn pred-btn" data-pred="small" aria-pressed="false"><span class="pred-label">Plain BST is 1-3 levels taller</span><span class="pred-badge" hidden></span></button>
+            <button type="button" class="btn pred-btn" data-pred="large" aria-pressed="false"><span class="pred-label">Plain BST is 4 or more levels taller</span><span class="pred-badge" hidden></span></button>
+          </div>
+        </div>
+      </div>
+      <p class="concept-note has-vocab">Both trees receive the exact same numbers in the exact same order. Only the AVL tree adjusts itself to stay short.</p>
+      <p class="vocab-note"><strong>Words used here:</strong> Height = number of steps on the longest path from the root down to a leaf, so one node has height 0 and two nodes have height 1. A rotation is a small rearrangement that keeps the search order but makes the tree shorter.</p>
+
+      <div class="controls-bar">
+        <button type="button" class="btn btn-primary" id="t1-step" disabled>Step: insert 3</button>
+        <div class="segmented" role="group" aria-label="Input order preset">
+          <button type="button" class="seg-btn" id="t1-preset-sorted" aria-pressed="true">Sorted (1–15)</button>
+          <button type="button" class="seg-btn" id="t1-preset-shuffled" aria-pressed="false">Shuffled (1–15)</button>
+        </div>
+        <button type="button" class="btn" id="t1-reset">Reset</button>
+      </div>
+
+      <div class="status-line" id="t1-status" role="status" aria-live="polite" aria-atomic="true">
+        <span>Numbers 1 and 2 are loaded in both trees (height 1 each). <span class="status-action">Press Step: insert 3 to compare them.</span></span>
+      </div>
+
+      <div class="seq-strip" id="t1-seq" aria-label="Input sequence"></div>
+
+      <section class="search-panel" id="t1-search-section" aria-label="Tree height and search experiment" hidden>
+        <div class="search-head">
+          <h2 class="search-title">Why height matters: search comparisons</h2>
+        </div>
+        <p class="search-expl" id="t1-search-expl">Searching follows one path from the root down toward the target, making one comparison per visited node. A tree of height 3 can have a root-to-leaf path of up to 4 nodes (4 comparisons), while a height-14 chain has 15 nodes (up to 15 comparisons).</p>
+        <div class="complexity-row">
+          <div class="complexity-box"><strong>Balanced BST / AVL: O(log n)</strong> &#8212; height 3 holds 15 items with at most 4 comparisons.</div>
+          <div class="complexity-box"><strong>Worst-case unbalanced BST: O(n)</strong> &#8212; sorted chain has height 14 and up to 15 comparisons.</div>
+        </div>
+        <form class="search-controls" id="t1-search-form" novalidate>
+          <label class="search-label" for="t1-search-input">Search target:</label>
+          <input type="number" id="t1-search-input" class="search-input" min="1" max="99" step="1" value="15">
+          <button type="submit" class="btn btn-primary" id="t1-search-btn">Search</button>
+          <button type="button" class="btn search-quick-btn" id="t1-quick-deep">Deepest (15)</button>
+          <button type="button" class="btn search-quick-btn" id="t1-quick-mid">Mid (8)</button>
+          <button type="button" class="btn search-quick-btn" id="t1-quick-miss">Missing (99)</button>
+        </form>
+        <div class="search-results" id="t1-search-results" hidden>
+          <div class="search-stat">
+            <span>Plain BST comparisons: <strong id="t1-search-plain-count">0</strong></span>
+            <span class="search-path-note" id="t1-search-plain-path"></span>
+          </div>
+          <div class="search-stat">
+            <span>AVL tree comparisons: <strong id="t1-search-avl-count">0</strong></span>
+            <span class="search-path-note" id="t1-search-avl-path"></span>
+          </div>
+        </div>
+        <p class="search-summary" id="t1-search-summary" role="status" aria-live="polite" hidden></p>
+      </section>
+
+      <div class="compare-grid">
+        <article class="tree-card">
+          <div class="tree-card-header">
+            <h2 class="tree-card-title">Plain BST</h2>
+            <div class="tree-card-meta">
+              <span class="readout-pill" id="t1-plain-height">Height: 1</span>
+            </div>
+          </div>
+          <div class="svg-wrap">
+            <svg class="tree-svg" id="t1-plain-svg" viewBox="0 0 400 436" aria-label="Plain binary search tree"></svg>
+          </div>
+        </article>
+
+        <article class="tree-card">
+          <div class="tree-card-header">
+            <h2 class="tree-card-title">AVL tree</h2>
+            <div class="tree-card-meta">
+              <span class="rot-tag" id="t1-avl-rot" hidden></span>
+              <span class="readout-pill" id="t1-avl-height">Height: 1</span>
+            </div>
+          </div>
+          <div class="svg-wrap">
+            <svg class="tree-svg" id="t1-avl-svg" viewBox="0 0 400 436" aria-label="AVL balanced binary search tree"></svg>
+          </div>
+        </article>
+      </div>
+
+      <footer class="panel-footer">
+        <p class="next-note">Next: see how balance badges travel up after an insert and fix broken nodes with rotations.</p>
+        <button type="button" class="btn btn-primary" id="t1-next-tab">Next: AVL sandbox &#8594;</button>
+      </footer>
+    </section>
+
+    <!-- TAB 2: AVL SANDBOX -->
+    <section id="panel-sandbox" class="tab-panel" role="tabpanel" aria-labelledby="tab-sandbox" hidden>
+      <div class="task-box">
+        <span class="task-label">Your task</span>
+        <p class="task-text" id="t2-task">Press Insert 25 to add 25 and watch the balance update travel up.</p>
+      </div>
+      <p class="concept-note">Balance = height(right) &#8722; height(left): &#8722; means left is taller, 0 is even, + means right is taller. A node showing &#8722;&#8722; or ++ is out of balance (balance of 2 or more) and must be fixed with a rotation.</p>
+
+      <div class="controls-bar">
+        <button type="button" class="btn btn-primary" id="t2-insert">Insert 25</button>
+        <button type="button" class="btn btn-toggle" id="t2-heights-toggle" aria-pressed="false">Show heights</button>
+        <button type="button" class="btn" id="t2-reset">Reset</button>
+      </div>
+
+      <div class="rotation-picker" id="t2-picker" hidden>
+        <div class="picker-header" id="t2-picker-header">
+          <span class="picker-title" id="t2-picker-title">Rotation:</span>
+          <button type="button" class="btn btn-subtle" id="t2-skip">Show answer</button>
+        </div>
+        <div class="worked-actions" id="t2-worked-actions" hidden>
+          <span class="worked-tag">Worked example</span>
+          <button type="button" class="btn btn-primary" id="t2-worked-btn">Rotate left at 50</button>
+        </div>
+        <div class="picker-buttons" id="t2-choice-buttons">
+          <button type="button" class="btn btn-choice" data-rot="right">Right</button>
+          <button type="button" class="btn btn-choice" data-rot="left">Left</button>
+          <button type="button" class="btn btn-choice" data-rot="left-right">Left-Right</button>
+          <button type="button" class="btn btn-choice" data-rot="right-left">Right-Left</button>
+        </div>
+      </div>
+
+      <div class="status-line" id="t2-status" role="status" aria-live="polite" aria-atomic="true">
+        <span>Starter tree is balanced (badges show &#8722;, 0, and +). <span class="status-action">Press Insert 25 to start.</span></span>
+      </div>
+
+      <section class="bf-guide" id="t2-bf-guide" aria-label="Balance factor explanation and node inspector">
+        <div class="bf-top">
+          <span class="bf-formula">BF = height(right subtree) &#8722; height(left subtree)</span>
+          <span class="bf-ok-note">Balanced when BF is <strong>&#8722;1, 0, or +1</strong> (measures right minus left height).</span>
+        </div>
+        <div class="bf-signs">
+          <span class="bf-sign-item"><code>0</code> same height</span>
+          <span class="bf-sign-item"><code>&#8722;1</code> left 1 taller</span>
+          <span class="bf-sign-item"><code>+1</code> right 1 taller</span>
+          <span class="bf-sign-item is-bad"><code>&#8722;2</code> too left-heavy</span>
+          <span class="bf-sign-item is-bad"><code>+2</code> too right-heavy</span>
+        </div>
+        <div class="bf-inspector" id="t2-bf-inspector">
+          <span id="t2-inspect-title"><strong>Node 20</strong> (click any node to calculate BF):</span>
+          <div class="bf-calc-boxes">
+            <span class="bf-sub-pill is-right" id="t2-inspect-right">Right h = &#8722;1</span>
+            <span>&#8722;</span>
+            <span class="bf-sub-pill is-left" id="t2-inspect-left">Left h = 0</span>
+            <span>=</span>
+            <span class="bf-result-pill" id="t2-inspect-res">BF = &#8722;1</span>
+          </div>
+          <span class="bf-ok-note" id="t2-inspect-note">Left subtree is one level taller (balanced).</span>
+        </div>
+      </section>
+
+      <article class="sandbox-card">
+        <div class="sandbox-bar">
+          <div class="legend-inline">
+            <span><span class="legend-chip">&#8722;</span>left taller</span>
+            <span><span class="legend-chip">0</span>even</span>
+            <span><span class="legend-chip">+</span>right taller</span>
+            <span>Click any node to inspect</span>
+          </div>
+          <div class="tree-card-meta">
+            <span class="rot-stage-pill" id="t2-rot-stage" hidden></span>
+            <span class="readout-pill" id="t2-tree-height" hidden>Tree height: 2 (leaf = 0, empty = &#8722;1)</span>
+          </div>
+        </div>
+        <div class="svg-wrap">
+          <svg class="tree-svg" id="t2-svg" viewBox="0 0 680 220" aria-label="Interactive AVL tree">
+            <defs>
+              <marker id="t2-arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 9 5 L 0 9 z" fill="#C83018"/>
+              </marker>
+            </defs>
+          </svg>
+        </div>
+      </article>
+
+      <div class="extras-stack">
+        <details class="card-details" id="t2-custom-details">
+          <summary>Try your own number</summary>
+          <div class="details-body">
+            <form class="custom-form" id="t2-custom-form" novalidate>
+              <label class="custom-label" for="t2-custom-input">Number (1&#8211;99):</label>
+              <input type="number" id="t2-custom-input" class="num-input" min="1" max="99" step="1" placeholder="e.g. 42">
+              <button type="submit" class="btn">Insert number</button>
+            </form>
+            <p class="custom-hint" id="t2-custom-hint" role="status" aria-live="polite"></p>
+          </div>
+        </details>
+
+        <details class="card-details" id="t2-rules-details">
+          <summary>Rotation rules (4 cases)</summary>
+          <div class="details-body">
+            <p class="rules-intro">Sign convention: &#8722; means left is taller, + means right is taller. Look at the broken node (&#8722;&#8722; or ++) and its taller child.</p>
+            <div class="rules-grid">
+              <div class="rule-card" data-rule="right">
+                <svg class="rule-mini-svg" viewBox="0 0 72 64" aria-hidden="true">
+                  <line x1="50" y1="14" x2="32" y2="32" class="edge"/>
+                  <line x1="32" y1="32" x2="14" y2="50" class="edge"/>
+                  <circle cx="50" cy="14" r="9" fill="#FDF0ED" stroke="#C83018" stroke-width="1.8"/>
+                  <text x="50" y="14" font-family="monospace" font-size="8.5" font-weight="700" fill="#C83018" text-anchor="middle" dominant-baseline="central">&#8722;&#8722;</text>
+                  <circle cx="32" cy="32" r="9" fill="#FFFFFF" stroke="#181715" stroke-width="1.5"/>
+                  <text x="32" y="32" font-family="monospace" font-size="9.5" font-weight="700" fill="#181715" text-anchor="middle" dominant-baseline="central">&#8722;</text>
+                  <circle cx="14" cy="50" r="8" fill="#FFFFFF" stroke="#181715" stroke-width="1.5"/>
+                </svg>
+                <div>
+                  <h3 class="rule-name">Right (single)</h3>
+                  <p class="rule-desc">&#8722;&#8722; and left child &#8722;, so single rotation (right).</p>
+                </div>
+              </div>
+
+              <div class="rule-card" data-rule="left">
+                <svg class="rule-mini-svg" viewBox="0 0 72 64" aria-hidden="true">
+                  <line x1="22" y1="14" x2="40" y2="32" class="edge"/>
+                  <line x1="40" y1="32" x2="58" y2="50" class="edge"/>
+                  <circle cx="22" cy="14" r="9" fill="#FDF0ED" stroke="#C83018" stroke-width="1.8"/>
+                  <text x="22" y="14" font-family="monospace" font-size="8.5" font-weight="700" fill="#C83018" text-anchor="middle" dominant-baseline="central">++</text>
+                  <circle cx="40" cy="32" r="9" fill="#FFFFFF" stroke="#181715" stroke-width="1.5"/>
+                  <text x="40" y="32" font-family="monospace" font-size="9.5" font-weight="700" fill="#181715" text-anchor="middle" dominant-baseline="central">+</text>
+                  <circle cx="58" cy="50" r="8" fill="#FFFFFF" stroke="#181715" stroke-width="1.5"/>
+                </svg>
+                <div>
+                  <h3 class="rule-name">Left (single)</h3>
+                  <p class="rule-desc">++ and right child +, so single rotation (left).</p>
+                </div>
+              </div>
+
+              <div class="rule-card" data-rule="left-right">
+                <svg class="rule-mini-svg" viewBox="0 0 72 64" aria-hidden="true">
+                  <line x1="48" y1="14" x2="22" y2="32" class="edge"/>
+                  <line x1="22" y1="32" x2="42" y2="50" class="edge"/>
+                  <circle cx="48" cy="14" r="9" fill="#FDF0ED" stroke="#C83018" stroke-width="1.8"/>
+                  <text x="48" y="14" font-family="monospace" font-size="8.5" font-weight="700" fill="#C83018" text-anchor="middle" dominant-baseline="central">&#8722;&#8722;</text>
+                  <circle cx="22" cy="32" r="9" fill="#FFFFFF" stroke="#181715" stroke-width="1.5"/>
+                  <text x="22" y="32" font-family="monospace" font-size="9.5" font-weight="700" fill="#181715" text-anchor="middle" dominant-baseline="central">+</text>
+                  <circle cx="42" cy="50" r="8" fill="#FFFFFF" stroke="#181715" stroke-width="1.5"/>
+                </svg>
+                <div>
+                  <h3 class="rule-name">Left-Right (double)</h3>
+                  <p class="rule-desc">&#8722;&#8722; and left child +, so double rotation (left-right).</p>
+                </div>
+              </div>
+
+              <div class="rule-card" data-rule="right-left">
+                <svg class="rule-mini-svg" viewBox="0 0 72 64" aria-hidden="true">
+                  <line x1="24" y1="14" x2="50" y2="32" class="edge"/>
+                  <line x1="50" y1="32" x2="30" y2="50" class="edge"/>
+                  <circle cx="24" cy="14" r="9" fill="#FDF0ED" stroke="#C83018" stroke-width="1.8"/>
+                  <text x="24" y="14" font-family="monospace" font-size="8.5" font-weight="700" fill="#C83018" text-anchor="middle" dominant-baseline="central">++</text>
+                  <circle cx="50" cy="32" r="9" fill="#FFFFFF" stroke="#181715" stroke-width="1.5"/>
+                  <text x="50" y="32" font-family="monospace" font-size="9.5" font-weight="700" fill="#181715" text-anchor="middle" dominant-baseline="central">&#8722;</text>
+                  <circle cx="30" cy="50" r="8" fill="#FFFFFF" stroke="#181715" stroke-width="1.5"/>
+                </svg>
+                <div>
+                  <h3 class="rule-name">Right-Left (double)</h3>
+                  <p class="rule-desc">++ and right child &#8722;, so double rotation (right-left).</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <footer class="panel-footer">
+        <p class="next-note">Want to revisit why short height matters? Jump back to the side-by-side comparison.</p>
+        <button type="button" class="btn" id="t2-back-tab">&#8592; Back to Why balance</button>
+      </footer>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var MINUS = "\u2212";
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  var reducedMotionQuery = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+
+  function prefersReducedMotion() {
+    return Boolean(reducedMotionQuery && reducedMotionQuery.matches);
+  }
+
+  function formatBf(bf) {
+    if (bf <= -2) return MINUS + MINUS;
+    if (bf === -1) return MINUS;
+    if (bf === 0) return "0";
+    if (bf === 1) return "+";
+    return "++";
+  }
+
+  function formatRotationName(rot) {
+    if (rot === "right") return "Right";
+    if (rot === "left") return "Left";
+    if (rot === "left-right") return "Left-Right";
+    if (rot === "right-left") return "Right-Left";
+    return rot;
+  }
+
+  /* ======================== PURE BST / AVL ENGINE ======================== */
+
+  function makeNode(key) {
+    return { key: key, left: null, right: null, height: 0, bf: 0 };
+  }
+
+  function cloneTree(node) {
+    if (!node) return null;
+    return {
+      key: node.key,
+      left: cloneTree(node.left),
+      right: cloneTree(node.right),
+      height: node.height,
+      bf: node.bf
+    };
+  }
+
+  function nodeHeight(node) {
+    return node ? node.height : -1;
+  }
+
+  function recomputeMetrics(node) {
+    if (!node) return -1;
+    var lh = recomputeMetrics(node.left);
+    var rh = recomputeMetrics(node.right);
+    node.height = 1 + Math.max(lh, rh);
+    node.bf = rh - lh;
+    return node.height;
+  }
+
+  function rotateRight(z) {
+    var y = z.left;
+    var t3 = y.right;
+    y.right = z;
+    z.left = t3;
+    recomputeMetrics(y);
+    return y;
+  }
+
+  function rotateLeft(z) {
+    var y = z.right;
+    var t2 = y.left;
+    y.left = z;
+    z.right = t2;
+    recomputeMetrics(y);
+    return y;
+  }
+
+  function replaceNode(root, targetKey, newSubtree) {
+    if (!root) return null;
+    if (root.key === targetKey) return newSubtree;
+    if (targetKey < root.key) {
+      root.left = replaceNode(root.left, targetKey, newSubtree);
+    } else {
+      root.right = replaceNode(root.right, targetKey, newSubtree);
+    }
+    recomputeMetrics(root);
+    return root;
+  }
+
+  function findNode(root, key) {
+    var cur = root;
+    while (cur) {
+      if (key === cur.key) return cur;
+      cur = key < cur.key ? cur.left : cur.right;
+    }
+    return null;
+  }
+
+  function insertPlain(root, key) {
+    var path = [];
+    function rec(node) {
+      if (!node) {
+        var created = makeNode(key);
+        path.push(created);
+        return created;
+      }
+      path.push(node);
+      if (key < node.key) {
+        node.left = rec(node.left);
+      } else if (key > node.key) {
+        node.right = rec(node.right);
+      }
+      return node;
+    }
+    var newRoot = rec(root);
+    recomputeMetrics(newRoot);
+    return { root: newRoot, path: path };
+  }
+
+  function insertAvlAuto(root, key) {
+    var rotInfo = null;
+    var rotatedKeys = [];
+
+    function rec(node) {
+      if (!node) return makeNode(key);
+      if (key < node.key) {
+        node.left = rec(node.left);
+      } else if (key > node.key) {
+        node.right = rec(node.right);
+      } else {
+        return node;
+      }
+
+      var lh = nodeHeight(node.left);
+      var rh = nodeHeight(node.right);
+      node.height = 1 + Math.max(lh, rh);
+      node.bf = rh - lh;
+
+      if (node.bf < -1) {
+        if (node.left.bf <= 0) {
+          rotInfo = { type: "Right", pivot: node.key };
+          rotatedKeys = [node.key, node.left.key];
+          return rotateRight(node);
+        } else {
+          rotInfo = { type: "Left-Right", pivot: node.key };
+          rotatedKeys = [node.key, node.left.key, node.left.right.key];
+          node.left = rotateLeft(node.left);
+          return rotateRight(node);
+        }
+      }
+      if (node.bf > 1) {
+        if (node.right.bf >= 0) {
+          rotInfo = { type: "Left", pivot: node.key };
+          rotatedKeys = [node.key, node.right.key];
+          return rotateLeft(node);
+        } else {
+          rotInfo = { type: "Right-Left", pivot: node.key };
+          rotatedKeys = [node.key, node.right.key, node.right.left.key];
+          node.right = rotateRight(node.right);
+          return rotateLeft(node);
+        }
+      }
+      return node;
+    }
+
+    var newRoot = rec(root);
+    recomputeMetrics(newRoot);
+    return { root: newRoot, rotation: rotInfo, rotatedKeys: rotatedKeys };
+  }
+
+  /* ======================== LAYOUT & ANIMATED SVG RENDERER ======================== */
+
+  function computeLayout(root, opts) {
+    var nodes = [];
+    var edges = [];
+    var maxDepth = 0;
+
+    function inOrder(node, depth) {
+      if (!node) return;
+      if (depth > maxDepth) maxDepth = depth;
+      inOrder(node.left, depth + 1);
+      nodes.push({ node: node, key: node.key, depth: depth, rank: nodes.length });
+      inOrder(node.right, depth + 1);
+    }
+
+    inOrder(root, 0);
+    var n = nodes.length;
+    var usableW = opts.width - opts.padX * 2;
+    var dx = n > 1 ? Math.min(opts.maxDx, usableW / (n - 1)) : 0;
+    var startX = opts.width / 2 - ((n - 1) * dx) / 2;
+    var dy = opts.dy;
+    if (opts.maxSpanY && maxDepth > 0 && maxDepth * dy > opts.maxSpanY) {
+      dy = Math.floor(opts.maxSpanY / maxDepth);
+    }
+
+    var byKey = {};
+    for (var i = 0; i < nodes.length; i++) {
+      var item = nodes[i];
+      item.x = n === 1 ? opts.width / 2 : startX + item.rank * dx;
+      item.y = opts.y0 + item.depth * dy;
+      byKey[item.key] = item;
+    }
+
+    function collectEdges(node) {
+      if (!node) return;
+      if (node.left) {
+        edges.push({ id: node.key + "-" + node.left.key, from: byKey[node.key], to: byKey[node.left.key] });
+        collectEdges(node.left);
+      }
+      if (node.right) {
+        edges.push({ id: node.key + "-" + node.right.key, from: byKey[node.key], to: byKey[node.right.key] });
+        collectEdges(node.right);
+      }
+    }
+
+    collectEdges(root);
+    return { nodes: nodes, edges: edges, byKey: byKey, maxDepth: maxDepth };
+  }
+
+  function createSvgRenderer(svgEl, opts) {
+    var edgeLayer = document.createElementNS(SVG_NS, "g");
+    var ghostLayer = document.createElementNS(SVG_NS, "g");
+    var nodeLayer = document.createElementNS(SVG_NS, "g");
+    var overlayLayer = document.createElementNS(SVG_NS, "g");
+    svgEl.appendChild(edgeLayer);
+    svgEl.appendChild(ghostLayer);
+    svgEl.appendChild(nodeLayer);
+    svgEl.appendChild(overlayLayer);
+
+    var nodeElems = {};
+    var edgeElems = {};
+    var currentPos = {};
+    var rafId = 0;
+
+    function cancelAnimation() {
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = 0;
+      }
+    }
+
+    function applyPos(key, pos) {
+      var g = nodeElems[key];
+      if (g) {
+        g.setAttribute("transform", "translate(" + pos.x.toFixed(2) + "," + pos.y.toFixed(2) + ")");
+      }
+    }
+
+    function applyEdgePos(id, p1, p2) {
+      var line = edgeElems[id];
+      if (line) {
+        line.setAttribute("x1", p1.x.toFixed(2));
+        line.setAttribute("y1", p1.y.toFixed(2));
+        line.setAttribute("x2", p2.x.toFixed(2));
+        line.setAttribute("y2", p2.y.toFixed(2));
+      }
+    }
+
+    function buildNodeElement(item) {
+      var g = document.createElementNS(SVG_NS, "g");
+      g.setAttribute("class", "node-group");
+      g.setAttribute("data-key", String(item.key));
+
+      if (opts.onNodeClick) {
+        g.setAttribute("tabindex", "0");
+        g.setAttribute("role", "button");
+        g.addEventListener("click", function () { opts.onNodeClick(item.key); });
+        g.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            opts.onNodeClick(item.key);
+          }
+        });
+      }
+
+      if (opts.showBadges) {
+        var pulse = document.createElementNS(SVG_NS, "circle");
+        pulse.setAttribute("class", "pulse-ring");
+        pulse.setAttribute("r", String(opts.r + 1));
+        g.appendChild(pulse);
+
+        var iring = document.createElementNS(SVG_NS, "circle");
+        iring.setAttribute("class", "inspect-ring");
+        iring.setAttribute("r", String(opts.r + 5));
+        iring.setAttribute("hidden", "");
+        g.appendChild(iring);
+      }
+
+      var nring = document.createElementNS(SVG_NS, "circle");
+      nring.setAttribute("class", "new-ring");
+      nring.setAttribute("r", String(opts.r + 3.5));
+      nring.setAttribute("hidden", "");
+      g.appendChild(nring);
+
+      var circle = document.createElementNS(SVG_NS, "circle");
+      circle.setAttribute("class", "node-circle");
+      circle.setAttribute("r", String(opts.r));
+      g.appendChild(circle);
+
+      var text = document.createElementNS(SVG_NS, "text");
+      text.setAttribute("class", "node-text");
+      text.setAttribute("font-size", String(opts.fontSize));
+      text.textContent = String(item.key);
+      g.appendChild(text);
+
+      if (opts.showBadges) {
+        var badgeW = 24;
+        var badgeH = 18;
+        var bx = opts.r - 3;
+        var by = -opts.r - 4;
+
+        var brect = document.createElementNS(SVG_NS, "rect");
+        brect.setAttribute("class", "badge-rect");
+        brect.setAttribute("x", String(bx - badgeW / 2));
+        brect.setAttribute("y", String(by - badgeH / 2));
+        brect.setAttribute("width", String(badgeW));
+        brect.setAttribute("height", String(badgeH));
+        brect.setAttribute("rx", "5");
+        g.appendChild(brect);
+
+        var btext = document.createElementNS(SVG_NS, "text");
+        btext.setAttribute("class", "badge-text");
+        btext.setAttribute("x", String(bx));
+        btext.setAttribute("y", String(by));
+        g.appendChild(btext);
+
+        var hgroup = document.createElementNS(SVG_NS, "g");
+        hgroup.setAttribute("class", "height-group");
+        var hpill = document.createElementNS(SVG_NS, "rect");
+        hpill.setAttribute("class", "height-pill");
+        hpill.setAttribute("x", "-17");
+        hpill.setAttribute("y", String(opts.r + 4));
+        hpill.setAttribute("width", "34");
+        hpill.setAttribute("height", "16");
+        hpill.setAttribute("rx", "4");
+        hgroup.appendChild(hpill);
+
+        var htext = document.createElementNS(SVG_NS, "text");
+        htext.setAttribute("class", "height-label");
+        htext.setAttribute("x", "0");
+        htext.setAttribute("y", String(opts.r + 12));
+        hgroup.appendChild(htext);
+
+        g.appendChild(hgroup);
+      }
+
+      return g;
+    }
+
+    function renderOverlay(visualState, layout) {
+      ghostLayer.textContent = "";
+      overlayLayer.textContent = "";
+
+      if (visualState.nullGhosts && visualState.nullGhosts.length) {
+        visualState.nullGhosts.forEach(function (ng) {
+          var parentItem = layout.byKey[ng.parentKey];
+          if (!parentItem) return;
+          var gx = Math.max(50, Math.min(opts.width - 50, parentItem.x + (ng.side === "left" ? -56 : 56)));
+          var gy = parentItem.y + 46;
+
+          var gline = document.createElementNS(SVG_NS, "line");
+          gline.setAttribute("class", "null-ghost-line");
+          gline.setAttribute("x1", parentItem.x.toFixed(1));
+          gline.setAttribute("y1", parentItem.y.toFixed(1));
+          gline.setAttribute("x2", gx.toFixed(1));
+          gline.setAttribute("y2", gy.toFixed(1));
+          ghostLayer.appendChild(gline);
+
+          var gpill = document.createElementNS(SVG_NS, "rect");
+          gpill.setAttribute("class", "null-ghost-pill");
+          gpill.setAttribute("x", (gx - 35).toFixed(1));
+          gpill.setAttribute("y", (gy - 9).toFixed(1));
+          gpill.setAttribute("width", "70");
+          gpill.setAttribute("height", "18");
+          gpill.setAttribute("rx", "5");
+          ghostLayer.appendChild(gpill);
+
+          var gtxt = document.createElementNS(SVG_NS, "text");
+          gtxt.setAttribute("class", "null-ghost-text");
+          gtxt.setAttribute("x", gx.toFixed(1));
+          gtxt.setAttribute("y", gy.toFixed(1));
+          gtxt.textContent = (ng.side === "left" ? "L" : "R") + ": empty (" + MINUS + "1)";
+          ghostLayer.appendChild(gtxt);
+        });
+      }
+
+      if (visualState.rotArrows && visualState.rotArrows.length) {
+        visualState.rotArrows.forEach(function (ar) {
+          if (ar.bridge) {
+            var bsx = ar.from.x;
+            var bsy = ar.from.y;
+            var bex = ar.to.x;
+            var bey = ar.to.y;
+            var bcx = (bsx + bex) / 2;
+            var bcy = Math.min(bsy, bey) - 22;
+
+            var bpath = document.createElementNS(SVG_NS, "path");
+            bpath.setAttribute("class", "rot-arrow-path is-transfer");
+            bpath.setAttribute("d", "M " + bsx.toFixed(1) + " " + bsy.toFixed(1) + " Q " + bcx.toFixed(1) + " " + bcy.toFixed(1) + " " + bex.toFixed(1) + " " + bey.toFixed(1));
+            bpath.setAttribute("marker-end", "url(#t2-arrowhead)");
+            overlayLayer.appendChild(bpath);
+
+            if (ar.label) {
+              var blbl = document.createElementNS(SVG_NS, "text");
+              blbl.setAttribute("class", "rot-arrow-label");
+              blbl.setAttribute("x", bcx.toFixed(1));
+              blbl.setAttribute("y", (bcy - 2).toFixed(1));
+              blbl.setAttribute("text-anchor", "middle");
+              blbl.textContent = ar.label;
+              overlayLayer.appendChild(blbl);
+            }
+            return;
+          }
+
+          var sideSign = ar.side === "right" ? 1 : -1;
+          var xOffset = ar.side === "right" ? (opts.r + 22) : -(opts.r + 12);
+          var laneX = Math.max(42, Math.min(opts.width - 42, ar.from.x + xOffset));
+          var goingUp = ar.to.y < ar.from.y;
+          var sy = goingUp ? (ar.from.y + 10) : (ar.from.y - 10);
+          var ey = goingUp ? (ar.to.y - 8) : (ar.to.y + 8);
+          var cx = laneX + sideSign * 8;
+          var cy = (sy + ey) / 2;
+
+          var path = document.createElementNS(SVG_NS, "path");
+          path.setAttribute("class", ar.isTransfer ? "rot-arrow-path is-transfer" : "rot-arrow-path");
+          path.setAttribute("d", "M " + laneX.toFixed(1) + " " + sy.toFixed(1) + " Q " + cx.toFixed(1) + " " + cy.toFixed(1) + " " + laneX.toFixed(1) + " " + ey.toFixed(1));
+          path.setAttribute("marker-end", "url(#t2-arrowhead)");
+          overlayLayer.appendChild(path);
+
+          if (ar.label) {
+            var lx = laneX + sideSign * 11;
+            var ly = ar.labelYOffset !== undefined ? (sy + ar.labelYOffset) : cy;
+            var lbl = document.createElementNS(SVG_NS, "text");
+            lbl.setAttribute("class", "rot-arrow-label");
+            lbl.setAttribute("x", lx.toFixed(1));
+            lbl.setAttribute("y", ly.toFixed(1));
+            lbl.setAttribute("text-anchor", sideSign > 0 ? "start" : "end");
+            lbl.textContent = ar.label;
+            overlayLayer.appendChild(lbl);
+          }
+        });
+      }
+    }
+
+    function render(root, visualState, immediate) {
+      cancelAnimation();
+      visualState = visualState || {};
+      var layout = computeLayout(root, opts);
+      var targetKeys = {};
+      var targetEdges = {};
+
+      var i;
+      for (i = 0; i < layout.nodes.length; i++) {
+        var item = layout.nodes[i];
+        targetKeys[item.key] = true;
+        var g = nodeElems[item.key];
+        if (!g) {
+          g = buildNodeElement(item);
+          nodeLayer.appendChild(g);
+          nodeElems[item.key] = g;
+          var startX = item.x;
+          var startY = item.y;
+          if (visualState.parentHintKey && currentPos[visualState.parentHintKey]) {
+            startX = currentPos[visualState.parentHintKey].x;
+            startY = currentPos[visualState.parentHintKey].y;
+          }
+          currentPos[item.key] = { x: startX, y: startY };
+          applyPos(item.key, currentPos[item.key]);
+        }
+
+        // Update classes
+        var cls = "node-group";
+        if (visualState.newKey === item.key) cls += " is-new";
+        if (visualState.rotatedKeys && visualState.rotatedKeys.indexOf(item.key) !== -1) cls += " is-rotated";
+        if (visualState.rotChildKeys && visualState.rotChildKeys.indexOf(item.key) !== -1) cls += " is-rot-child";
+        if (visualState.rotTransferKeys && visualState.rotTransferKeys.indexOf(item.key) !== -1) cls += " is-rot-transfer";
+        if (visualState.unaffectedKeys && visualState.unaffectedKeys.indexOf(item.key) !== -1) cls += " is-unaffected";
+        if (visualState.visitingKey === item.key) cls += " is-visiting";
+        if (visualState.brokenKey === item.key) cls += " is-broken";
+        if (visualState.leftSubKeys && visualState.leftSubKeys.indexOf(item.key) !== -1) cls += " is-left-sub";
+        if (visualState.rightSubKeys && visualState.rightSubKeys.indexOf(item.key) !== -1) cls += " is-right-sub";
+        if (visualState.searchStepKeys && visualState.searchStepKeys.indexOf(item.key) !== -1) cls += " is-search-step";
+        if (visualState.searchFoundKey === item.key) cls += " is-search-found";
+        if (visualState.searchMissKey === item.key) cls += " is-search-miss";
+        g.setAttribute("class", cls);
+
+        var nringEl = g.querySelector(".new-ring");
+        if (nringEl) {
+          if (visualState.newKey === item.key) {
+            nringEl.removeAttribute("hidden");
+          } else {
+            nringEl.setAttribute("hidden", "");
+          }
+        }
+
+        if (opts.showBadges) {
+          var dispBf = visualState.overrideBf && (item.key in visualState.overrideBf)
+            ? visualState.overrideBf[item.key]
+            : item.node.bf;
+          var dispH = visualState.overrideH && (item.key in visualState.overrideH)
+            ? visualState.overrideH[item.key]
+            : item.node.height;
+
+          var bfStr = formatBf(dispBf);
+          var badgeW = bfStr.length >= 2 ? 29 : 22;
+          var bx = opts.r - 3;
+          var brect = g.querySelector(".badge-rect");
+          var btext = g.querySelector(".badge-text");
+          brect.setAttribute("x", String(bx - badgeW / 2));
+          brect.setAttribute("width", String(badgeW));
+          btext.textContent = bfStr;
+
+          var iringEl = g.querySelector(".inspect-ring");
+          if (iringEl) {
+            if (visualState.inspectedKey === item.key) {
+              iringEl.removeAttribute("hidden");
+            } else {
+              iringEl.setAttribute("hidden", "");
+            }
+          }
+
+          if (opts.onNodeClick) {
+            g.setAttribute("aria-label", "Inspect node " + item.key + ", balance " + bfStr);
+          }
+
+          var hgroup = g.querySelector(".height-group");
+          var htext = g.querySelector(".height-label");
+          if (visualState.showHeights) {
+            hgroup.removeAttribute("hidden");
+            htext.textContent = "h=" + dispH;
+          } else {
+            hgroup.setAttribute("hidden", "");
+          }
+        }
+      }
+
+      // Remove stale nodes
+      Object.keys(nodeElems).forEach(function (k) {
+        if (!targetKeys[k]) {
+          nodeLayer.removeChild(nodeElems[k]);
+          delete nodeElems[k];
+          delete currentPos[k];
+        }
+      });
+
+      // Sync edges
+      for (i = 0; i < layout.edges.length; i++) {
+        var edge = layout.edges[i];
+        targetEdges[edge.id] = edge;
+        var line = edgeElems[edge.id];
+        if (!line) {
+          line = document.createElementNS(SVG_NS, "line");
+          line.setAttribute("class", "edge");
+          edgeLayer.appendChild(line);
+          edgeElems[edge.id] = line;
+        }
+        var eCls = "edge";
+        if (visualState.activeEdgeId === edge.id) eCls += " is-active";
+        if (visualState.searchEdgeIds && visualState.searchEdgeIds.indexOf(edge.id) !== -1) eCls += " is-search-edge";
+        if (visualState.leftEdgeIds && visualState.leftEdgeIds.indexOf(edge.id) !== -1) eCls += " is-left-edge";
+        if (visualState.rightEdgeIds && visualState.rightEdgeIds.indexOf(edge.id) !== -1) eCls += " is-right-edge";
+        if (visualState.unaffectedEdgeIds && visualState.unaffectedEdgeIds.indexOf(edge.id) !== -1) eCls += " is-unaffected";
+        line.setAttribute("class", eCls);
+      }
+
+      Object.keys(edgeElems).forEach(function (id) {
+        if (!targetEdges[id]) {
+          edgeLayer.removeChild(edgeElems[id]);
+          delete edgeElems[id];
+        }
+      });
+
+      renderOverlay(visualState, layout);
+
+      if (opts.dynamicHeight) {
+        var maxY = 0;
+        for (i = 0; i < layout.nodes.length; i++) {
+          if (layout.nodes[i].y > maxY) maxY = layout.nodes[i].y;
+        }
+        var viewH = Math.max(opts.minHeight || 220, maxY + 62);
+        if (visualState.minViewHeight && visualState.minViewHeight > viewH) {
+          viewH = visualState.minViewHeight;
+        }
+        svgEl.setAttribute("viewBox", "0 0 " + opts.width + " " + viewH);
+      }
+
+      var duration = (immediate || prefersReducedMotion()) ? 0 : (opts.duration || 320);
+      if (duration <= 0) {
+        for (i = 0; i < layout.nodes.length; i++) {
+          var it = layout.nodes[i];
+          currentPos[it.key] = { x: it.x, y: it.y };
+          applyPos(it.key, currentPos[it.key]);
+        }
+        for (i = 0; i < layout.edges.length; i++) {
+          var ed = layout.edges[i];
+          applyEdgePos(ed.id, currentPos[ed.from.key], currentPos[ed.to.key]);
+        }
+        return;
+      }
+
+      var fromPos = {};
+      var toPos = {};
+      for (i = 0; i < layout.nodes.length; i++) {
+        var nodeItem = layout.nodes[i];
+        fromPos[nodeItem.key] = {
+          x: currentPos[nodeItem.key] ? currentPos[nodeItem.key].x : nodeItem.x,
+          y: currentPos[nodeItem.key] ? currentPos[nodeItem.key].y : nodeItem.y
+        };
+        toPos[nodeItem.key] = { x: nodeItem.x, y: nodeItem.y };
+      }
+
+      var startTime = null;
+      function frame(ts) {
+        if (!startTime) startTime = ts;
+        var raw = Math.min(1, (ts - startTime) / duration);
+        var ease = 1 - Math.pow(1 - raw, 3);
+        var j;
+        for (j = 0; j < layout.nodes.length; j++) {
+          var k = layout.nodes[j].key;
+          var x = fromPos[k].x + (toPos[k].x - fromPos[k].x) * ease;
+          var y = fromPos[k].y + (toPos[k].y - fromPos[k].y) * ease;
+          currentPos[k] = { x: x, y: y };
+          applyPos(k, currentPos[k]);
+        }
+        for (j = 0; j < layout.edges.length; j++) {
+          var e = layout.edges[j];
+          applyEdgePos(e.id, currentPos[e.from.key], currentPos[e.to.key]);
+        }
+        if (raw < 1) {
+          rafId = requestAnimationFrame(frame);
+        } else {
+          rafId = 0;
+        }
+      }
+      rafId = requestAnimationFrame(frame);
+    }
+
+    return {
+      render: render,
+      cancel: cancelAnimation,
+      getLayout: function (root) { return computeLayout(root, opts); }
+    };
+  }
+
+  /* ======================== TAB NAVIGATION ======================== */
+
+  var tabWhyBtn = document.getElementById("tab-why");
+  var tabSandboxBtn = document.getElementById("tab-sandbox");
+  var panelWhy = document.getElementById("panel-why");
+  var panelSandbox = document.getElementById("panel-sandbox");
+
+  function switchTab(name) {
+    var isWhy = name === "why";
+    tabWhyBtn.setAttribute("aria-selected", String(isWhy));
+    tabWhyBtn.tabIndex = isWhy ? 0 : -1;
+    tabSandboxBtn.setAttribute("aria-selected", String(!isWhy));
+    tabSandboxBtn.tabIndex = isWhy ? -1 : 0;
+
+    panelWhy.hidden = !isWhy;
+    panelSandbox.hidden = isWhy;
+  }
+
+  tabWhyBtn.addEventListener("click", function () { switchTab("why"); });
+  tabSandboxBtn.addEventListener("click", function () { switchTab("sandbox"); });
+
+  [tabWhyBtn, tabSandboxBtn].forEach(function (btn) {
+    btn.addEventListener("keydown", function (e) {
+      var target = null;
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        target = btn === tabWhyBtn ? "sandbox" : "why";
+      } else if (e.key === "Home") {
+        target = "why";
+      } else if (e.key === "End") {
+        target = "sandbox";
+      }
+      if (target) {
+        e.preventDefault();
+        switchTab(target);
+        (target === "why" ? tabWhyBtn : tabSandboxBtn).focus();
+      }
+    });
+  });
+
+  document.getElementById("t1-next-tab").addEventListener("click", function () {
+    switchTab("sandbox");
+    tabSandboxBtn.focus();
+  });
+
+  document.getElementById("t2-back-tab").addEventListener("click", function () {
+    switchTab("why");
+    tabWhyBtn.focus();
+  });
+
+  /* ======================== TAB 1: WHY BALANCE ======================== */
+
+  var T1_PRESETS = {
+    sorted: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    shuffled: [4, 12, 2, 9, 14, 7, 1, 11, 6, 15, 3, 8, 13, 5, 10]
+  };
+
+  var T1_PRED_LABELS = {
+    same: "Same height",
+    small: "Plain BST is 1-3 levels taller",
+    large: "Plain BST is 4 or more levels taller"
+  };
+
+  var t1State = {
+    preset: "sorted",
+    index: 2,
+    prediction: null,
+    plainRoot: null,
+    avlRoot: null,
+    lastKey: null,
+    lastRot: null,
+    lastRotKeys: [],
+    searchTimer: 0,
+    searchGen: 0,
+    searchPlainVisited: [],
+    searchPlainEdges: [],
+    searchPlainFound: null,
+    searchPlainMiss: null,
+    searchAvlVisited: [],
+    searchAvlEdges: [],
+    searchAvlFound: null,
+    searchAvlMiss: null
+  };
+
+  var t1TaskEl = document.getElementById("t1-task");
+  var t1PredBtns = Array.prototype.slice.call(document.querySelectorAll(".pred-btn"));
+  var t1StepBtn = document.getElementById("t1-step");
+  var t1SortedBtn = document.getElementById("t1-preset-sorted");
+  var t1ShuffledBtn = document.getElementById("t1-preset-shuffled");
+  var t1ResetBtn = document.getElementById("t1-reset");
+  var t1StatusEl = document.getElementById("t1-status");
+  var t1SeqEl = document.getElementById("t1-seq");
+  var t1PlainHeightEl = document.getElementById("t1-plain-height");
+  var t1AvlHeightEl = document.getElementById("t1-avl-height");
+  var t1AvlRotEl = document.getElementById("t1-avl-rot");
+  var t1SearchSection = document.getElementById("t1-search-section");
+  var t1SearchExplEl = document.getElementById("t1-search-expl");
+  var t1SearchForm = document.getElementById("t1-search-form");
+  var t1SearchInput = document.getElementById("t1-search-input");
+  var t1QuickDeepBtn = document.getElementById("t1-quick-deep");
+  var t1QuickMidBtn = document.getElementById("t1-quick-mid");
+  var t1QuickMissBtn = document.getElementById("t1-quick-miss");
+  var t1SearchResultsEl = document.getElementById("t1-search-results");
+  var t1SearchPlainCountEl = document.getElementById("t1-search-plain-count");
+  var t1SearchPlainPathEl = document.getElementById("t1-search-plain-path");
+  var t1SearchAvlCountEl = document.getElementById("t1-search-avl-count");
+  var t1SearchAvlPathEl = document.getElementById("t1-search-avl-path");
+  var t1SearchSummaryEl = document.getElementById("t1-search-summary");
+
+  var t1PlainSvg = createSvgRenderer(document.getElementById("t1-plain-svg"), {
+    width: 400,
+    padX: 22,
+    maxDx: 48,
+    y0: 24,
+    dy: 27,
+    r: 12,
+    fontSize: 10.5,
+    showBadges: false,
+    duration: 280
+  });
+
+  var t1AvlSvg = createSvgRenderer(document.getElementById("t1-avl-svg"), {
+    width: 400,
+    padX: 22,
+    maxDx: 48,
+    y0: 24,
+    dy: 27,
+    r: 12,
+    fontSize: 10.5,
+    showBadges: false,
+    duration: 280
+  });
+
+  function setStatus(el, mainText, actionText, isAlert) {
+    el.textContent = "";
+    var wrap = document.createElement("span");
+    wrap.appendChild(document.createTextNode(actionText ? (mainText + " ") : mainText));
+    if (actionText) {
+      var strong = document.createElement("span");
+      strong.className = "status-action";
+      strong.textContent = actionText;
+      wrap.appendChild(strong);
+    }
+    el.appendChild(wrap);
+    if (isAlert) {
+      el.classList.add("is-alert");
+    } else {
+      el.classList.remove("is-alert");
+    }
+  }
+
+  function renderT1Sequence() {
+    var seq = T1_PRESETS[t1State.preset];
+    t1SeqEl.textContent = "";
+    var label = document.createElement("span");
+    label.className = "seq-label";
+    label.textContent = "Order:";
+    t1SeqEl.appendChild(label);
+
+    for (var i = 0; i < seq.length; i++) {
+      var pill = document.createElement("span");
+      pill.className = "seq-item";
+      pill.textContent = String(seq[i]);
+      if (i === t1State.index - 1 && t1State.lastKey === seq[i]) {
+        pill.classList.add("is-just");
+      } else if (i < t1State.index) {
+        pill.classList.add("is-done");
+      } else if (i === t1State.index) {
+        pill.classList.add("is-next");
+      }
+      t1SeqEl.appendChild(pill);
+    }
+  }
+
+  function classifyHeightDiff(plainH, avlH) {
+    var diff = plainH - avlH;
+    if (diff <= 0) return "same";
+    if (diff <= 3) return "small";
+    return "large";
+  }
+
+  function updateT1PredictionUI(done, plainH, avlH) {
+    var locked = t1State.index > 2 || done;
+    var actualKey = done ? classifyHeightDiff(plainH, avlH) : null;
+
+    t1PredBtns.forEach(function (btn) {
+      var key = btn.getAttribute("data-pred");
+      var badge = btn.querySelector(".pred-badge");
+      var isPicked = t1State.prediction === key;
+
+      btn.setAttribute("aria-pressed", String(isPicked));
+      btn.disabled = locked;
+      btn.classList.remove("is-correct", "is-wrong-pick");
+
+      if (done) {
+        if (key === actualKey) {
+          btn.classList.add("is-correct");
+          badge.hidden = false;
+          badge.textContent = isPicked ? "Right (your pick)" : "Right";
+        } else if (isPicked) {
+          btn.classList.add("is-wrong-pick");
+          badge.hidden = false;
+          badge.textContent = "Your pick";
+        } else {
+          badge.hidden = true;
+          badge.textContent = "";
+        }
+      } else {
+        badge.hidden = true;
+        badge.textContent = "";
+      }
+    });
+  }
+
+  function deepestNodeKey(root) {
+    var bestKey = null;
+    var bestDepth = -1;
+    function dfs(node, d) {
+      if (!node) return;
+      if (d > bestDepth) {
+        bestDepth = d;
+        bestKey = node.key;
+      }
+      dfs(node.left, d + 1);
+      dfs(node.right, d + 1);
+    }
+    dfs(root, 0);
+    return bestKey;
+  }
+
+  function traceBstSearch(root, target) {
+    var steps = [];
+    var cur = root;
+    var parent = null;
+    while (cur) {
+      var edgeId = parent ? (parent.key + "-" + cur.key) : null;
+      if (target === cur.key) {
+        steps.push({ key: cur.key, edgeId: edgeId, found: true });
+        break;
+      }
+      steps.push({ key: cur.key, edgeId: edgeId, found: false });
+      parent = cur;
+      cur = target < cur.key ? cur.left : cur.right;
+    }
+    return steps;
+  }
+
+  function clearT1SearchState(hideAll) {
+    if (t1State.searchTimer) {
+      clearTimeout(t1State.searchTimer);
+      t1State.searchTimer = 0;
+    }
+    t1State.searchGen += 1;
+    t1State.searchPlainVisited = [];
+    t1State.searchPlainEdges = [];
+    t1State.searchPlainFound = null;
+    t1State.searchPlainMiss = null;
+    t1State.searchAvlVisited = [];
+    t1State.searchAvlEdges = [];
+    t1State.searchAvlFound = null;
+    t1State.searchAvlMiss = null;
+    if (hideAll) {
+      t1SearchResultsEl.hidden = true;
+      t1SearchSummaryEl.hidden = true;
+      t1SearchSummaryEl.textContent = "";
+    }
+  }
+
+  function renderT1Trees(immediate) {
+    var hasSearch = Boolean(
+      t1State.searchPlainVisited.length || t1State.searchPlainFound || t1State.searchPlainMiss ||
+      t1State.searchAvlVisited.length || t1State.searchAvlFound || t1State.searchAvlMiss
+    );
+    t1PlainSvg.render(t1State.plainRoot, {
+      newKey: hasSearch ? null : t1State.lastKey,
+      searchStepKeys: t1State.searchPlainVisited,
+      searchEdgeIds: t1State.searchPlainEdges,
+      searchFoundKey: t1State.searchPlainFound,
+      searchMissKey: t1State.searchPlainMiss
+    }, immediate);
+
+    t1AvlSvg.render(t1State.avlRoot, {
+      newKey: hasSearch ? null : t1State.lastKey,
+      rotatedKeys: hasSearch ? [] : t1State.lastRotKeys,
+      searchStepKeys: t1State.searchAvlVisited,
+      searchEdgeIds: t1State.searchAvlEdges,
+      searchFoundKey: t1State.searchAvlFound,
+      searchMissKey: t1State.searchAvlMiss
+    }, immediate);
+  }
+
+  function runT1Search(target) {
+    var seq = T1_PRESETS[t1State.preset];
+    if (t1State.index < seq.length) return;
+    clearT1SearchState(false);
+
+    var myGen = t1State.searchGen;
+    var plainSteps = traceBstSearch(t1State.plainRoot, target);
+    var avlSteps = traceBstSearch(t1State.avlRoot, target);
+    var maxLen = Math.max(plainSteps.length, avlSteps.length);
+    var plainH = nodeHeight(t1State.plainRoot);
+    var avlH = nodeHeight(t1State.avlRoot);
+
+    t1SearchResultsEl.hidden = false;
+    t1SearchSummaryEl.hidden = false;
+    t1SearchSummaryEl.textContent = "Searching for " + target + " in both trees...";
+
+    function applyUpTo(idx) {
+      var pSlice = plainSteps.slice(0, Math.min(idx + 1, plainSteps.length));
+      var aSlice = avlSteps.slice(0, Math.min(idx + 1, avlSteps.length));
+
+      t1State.searchPlainVisited = pSlice.map(function (s) { return s.key; });
+      t1State.searchPlainEdges = pSlice.filter(function (s) { return Boolean(s.edgeId); }).map(function (s) { return s.edgeId; });
+      t1State.searchAvlVisited = aSlice.map(function (s) { return s.key; });
+      t1State.searchAvlEdges = aSlice.filter(function (s) { return Boolean(s.edgeId); }).map(function (s) { return s.edgeId; });
+
+      var pLast = pSlice[pSlice.length - 1];
+      var aLast = aSlice[aSlice.length - 1];
+      var pDone = idx >= plainSteps.length - 1;
+      var aDone = idx >= avlSteps.length - 1;
+
+      t1State.searchPlainFound = (pDone && pLast && pLast.found) ? pLast.key : null;
+      t1State.searchPlainMiss = (pDone && pLast && !pLast.found) ? pLast.key : null;
+      t1State.searchAvlFound = (aDone && aLast && aLast.found) ? aLast.key : null;
+      t1State.searchAvlMiss = (aDone && aLast && !aLast.found) ? aLast.key : null;
+
+      t1SearchPlainCountEl.textContent = String(pSlice.length);
+      t1SearchPlainPathEl.textContent = pSlice.map(function (s) { return s.key; }).join(" \u2192 ");
+      t1SearchAvlCountEl.textContent = String(aSlice.length);
+      t1SearchAvlPathEl.textContent = aSlice.map(function (s) { return s.key; }).join(" \u2192 ");
+
+      renderT1Trees(true);
+    }
+
+    function finishSearchSummary() {
+      var pCount = plainSteps.length;
+      var aCount = avlSteps.length;
+      var found = plainSteps.length > 0 && plainSteps[plainSteps.length - 1].found;
+      var deep = deepestNodeKey(t1State.plainRoot);
+
+      if (!found) {
+        t1SearchSummaryEl.textContent = "Target " + target + " is not in either tree. Plain BST checked " + pCount + " node(s) along its branch, while AVL checked only " + aCount + " node(s) before reaching an empty link.";
+      } else if (pCount > aCount) {
+        t1SearchSummaryEl.textContent = "Found " + target + ": Plain BST needed " + pCount + " comparisons vs " + aCount + " in AVL, because search checks one node per level along a height-" + plainH + " path versus a height-" + avlH + " path.";
+      } else if (pCount === aCount) {
+        t1SearchSummaryEl.textContent = "Found " + target + " in " + pCount + " comparison(s) in both trees. Try Deepest (" + deep + ") or Missing (99) to see the worst-case gap.";
+      } else {
+        t1SearchSummaryEl.textContent = "Found " + target + " in " + pCount + " comparison(s) in Plain BST and " + aCount + " in AVL (" + target + " sits near the Plain root here; try Deepest (" + deep + ") for worst-case depth).";
+      }
+    }
+
+    if (prefersReducedMotion()) {
+      applyUpTo(maxLen - 1);
+      finishSearchSummary();
+      return;
+    }
+
+    var step = 0;
+    function tick() {
+      if (myGen !== t1State.searchGen) return;
+      applyUpTo(step);
+      if (step < maxLen - 1) {
+        step += 1;
+        t1State.searchTimer = setTimeout(tick, 220);
+      } else {
+        t1State.searchTimer = 0;
+        finishSearchSummary();
+      }
+    }
+    tick();
+  }
+
+  function buildT1PredictionSentence(plainH, avlH, seqLen) {
+    var actualKey = classifyHeightDiff(plainH, avlH);
+    var rightLabel = T1_PRED_LABELS[actualKey];
+    if (t1State.prediction === actualKey) {
+      return "Your prediction was right: " + rightLabel + " (Plain " + plainH + ", AVL " + avlH + ").";
+    }
+    var neutralNote = actualKey === "large"
+      ? (plainH === seqLen - 1 ? "Sorted input makes the plain tree a chain." : "One-sided inserts make the plain tree much taller.")
+      : (actualKey === "small"
+        ? "Mixed input balances some branches, keeping the plain tree closer in height."
+        : "Both trees finished at the same height.");
+    return "Right answer: " + rightLabel + " (Plain " + plainH + ", AVL " + avlH + "). " + neutralNote;
+  }
+
+  function updateT1UI(immediate) {
+    var seq = T1_PRESETS[t1State.preset];
+    var done = t1State.index >= seq.length;
+    var nextVal = done ? null : seq[t1State.index];
+    var plainH = nodeHeight(t1State.plainRoot);
+    var avlH = nodeHeight(t1State.avlRoot);
+
+    t1SortedBtn.setAttribute("aria-pressed", String(t1State.preset === "sorted"));
+    t1ShuffledBtn.setAttribute("aria-pressed", String(t1State.preset === "shuffled"));
+
+    t1PlainHeightEl.textContent = "Height: " + plainH;
+    t1AvlHeightEl.textContent = "Height: " + avlH;
+
+    if (t1State.lastRot) {
+      t1AvlRotEl.textContent = t1State.lastRot.type + " rotation";
+      t1AvlRotEl.hidden = false;
+    } else {
+      t1AvlRotEl.hidden = true;
+    }
+
+    updateT1PredictionUI(done, plainH, avlH);
+
+    if (done) {
+      t1StepBtn.disabled = true;
+      t1StepBtn.textContent = "All 15 inserted";
+      var predSentence = buildT1PredictionSentence(plainH, avlH, seq.length);
+      var heightSummary = t1State.preset === "sorted"
+        ? "Sorted input finished (Plain height " + plainH + " vs AVL height " + avlH + ")."
+        : "Shuffled input finished (Plain height " + plainH + " vs AVL height " + avlH + ").";
+      var nextStepSentence = t1State.preset === "sorted"
+        ? "Switch to Shuffled (1\u201315) or click Next: AVL sandbox."
+        : "Click Next: AVL sandbox to practice rotations.";
+      t1TaskEl.textContent = heightSummary + " " + predSentence + " " + nextStepSentence;
+
+      t1SearchSection.hidden = false;
+      var deepKey = deepestNodeKey(t1State.plainRoot);
+      t1QuickDeepBtn.textContent = "Deepest (" + deepKey + ")";
+      t1QuickDeepBtn.setAttribute("data-val", String(deepKey));
+      if (t1SearchResultsEl.hidden) {
+        t1SearchInput.value = String(deepKey);
+      }
+      if (t1State.preset === "sorted") {
+        t1SearchExplEl.textContent = "Searching follows one path from the root down toward the target, making one comparison at each visited node. With height 3, a root-to-leaf path in the AVL tree visits at most 4 nodes (4 comparisons); with height 14, the sorted Plain BST chain visits up to 15 nodes (15 comparisons).";
+      } else {
+        t1SearchExplEl.textContent = "Searching follows one path from the root down toward the target (up to height + 1 comparisons: " + (plainH + 1) + " here in Plain BST vs " + (avlH + 1) + " in AVL). Shuffling the insertion order can help avoid a highly skewed tree, but it does not guarantee balance. An ordinary BST can still become unbalanced, whereas an AVL tree uses rotations to maintain its balance after insertions.";
+      }
+    } else if (t1State.index === 2 && !t1State.prediction) {
+      t1StepBtn.disabled = true;
+      t1StepBtn.textContent = "Step: insert " + nextVal;
+      t1TaskEl.textContent = "Pick a prediction, then press Step.";
+      t1SearchSection.hidden = true;
+    } else {
+      t1StepBtn.disabled = false;
+      t1StepBtn.textContent = "Step: insert " + nextVal;
+      t1TaskEl.textContent = "Press Step: insert " + nextVal + " to feed the next number into both trees.";
+      t1SearchSection.hidden = true;
+    }
+
+    renderT1Sequence();
+    renderT1Trees(immediate);
+  }
+
+  function initT1Preset(preset) {
+    clearT1SearchState(true);
+    t1State.preset = preset;
+    t1State.prediction = null;
+    t1State.plainRoot = null;
+    t1State.avlRoot = null;
+    var seq = T1_PRESETS[preset];
+    t1State.plainRoot = insertPlain(t1State.plainRoot, seq[0]).root;
+    t1State.plainRoot = insertPlain(t1State.plainRoot, seq[1]).root;
+    t1State.avlRoot = insertAvlAuto(t1State.avlRoot, seq[0]).root;
+    t1State.avlRoot = insertAvlAuto(t1State.avlRoot, seq[1]).root;
+    t1State.index = 2;
+    t1State.lastKey = null;
+    t1State.lastRot = null;
+    t1State.lastRotKeys = [];
+
+    var startDesc = preset === "sorted"
+      ? "Numbers " + seq[0] + " and " + seq[1] + " are loaded in both trees (height 1 each)."
+      : "First two shuffled numbers (" + seq[0] + " and " + seq[1] + ") are loaded in both trees (height 1 each).";
+    setStatus(t1StatusEl, startDesc, "Pick a prediction above to unlock Step.", false);
+    updateT1UI(true);
+  }
+
+  function stepT1() {
+    if (!t1State.prediction) return;
+    var seq = T1_PRESETS[t1State.preset];
+    if (t1State.index >= seq.length) return;
+    var val = seq[t1State.index];
+
+    var plainRes = insertPlain(t1State.plainRoot, val);
+    t1State.plainRoot = plainRes.root;
+
+    var avlRes = insertAvlAuto(t1State.avlRoot, val);
+    t1State.avlRoot = avlRes.root;
+
+    t1State.index += 1;
+    t1State.lastKey = val;
+    t1State.lastRot = avlRes.rotation;
+    t1State.lastRotKeys = avlRes.rotatedKeys;
+
+    var plainH = nodeHeight(t1State.plainRoot);
+    var avlH = nodeHeight(t1State.avlRoot);
+    var done = t1State.index >= seq.length;
+
+    var whatHappened = "Inserted " + val + ". ";
+    if (avlRes.rotation) {
+      whatHappened += "Plain is height " + plainH + "; AVL applied a " + avlRes.rotation.type.toLowerCase() + " rotation at " + avlRes.rotation.pivot + " to stay at height " + avlH + ".";
+    } else {
+      whatHappened += "Plain is height " + plainH + " and AVL is height " + avlH + ".";
+    }
+
+    var whatNext;
+    if (done) {
+      var predSentence2 = buildT1PredictionSentence(plainH, avlH, seq.length);
+      if (t1State.preset === "sorted") {
+        whatHappened = "All 15 sorted numbers inserted: Plain formed a single chain of height " + plainH + ", while AVL stayed at height " + avlH + ". " + predSentence2;
+        whatNext = "Run a search below, switch to Shuffled (1\u201315), or click Next: AVL sandbox.";
+      } else {
+        whatHappened = "All 15 shuffled numbers inserted (Plain height " + plainH + ", AVL height " + avlH + "). Shuffling the insertion order can help avoid a highly skewed tree, but it does not guarantee balance; an AVL tree uses rotations to maintain its balance after insertions. " + predSentence2;
+        whatNext = "Run a search below or click Next: AVL sandbox to practice rotations.";
+      }
+    } else {
+      whatNext = "Press Step: insert " + seq[t1State.index] + " to continue.";
+    }
+
+    setStatus(t1StatusEl, whatHappened, whatNext, false);
+    updateT1UI(false);
+  }
+
+  t1SearchForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var raw = t1SearchInput.value.trim();
+    if (!raw || !/^-?\d+$/.test(raw)) {
+      t1SearchResultsEl.hidden = true;
+      t1SearchSummaryEl.hidden = false;
+      t1SearchSummaryEl.textContent = "Enter a whole number from 1 to 99 to run the search comparison (for example, 15).";
+      t1SearchInput.focus();
+      return;
+    }
+    var val = parseInt(raw, 10);
+    if (val < 1 || val > 99) {
+      t1SearchResultsEl.hidden = true;
+      t1SearchSummaryEl.hidden = false;
+      t1SearchSummaryEl.textContent = "Choose a number between 1 and 99.";
+      t1SearchInput.focus();
+      return;
+    }
+    runT1Search(val);
+  });
+
+  t1QuickDeepBtn.addEventListener("click", function () {
+    var val = parseInt(t1QuickDeepBtn.getAttribute("data-val") || "15", 10);
+    t1SearchInput.value = String(val);
+    runT1Search(val);
+  });
+
+  t1QuickMidBtn.addEventListener("click", function () {
+    t1SearchInput.value = "8";
+    runT1Search(8);
+  });
+
+  t1QuickMissBtn.addEventListener("click", function () {
+    t1SearchInput.value = "99";
+    runT1Search(99);
+  });
+
+  t1PredBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      if (t1State.index > 2) return;
+      t1State.prediction = btn.getAttribute("data-pred");
+      var nextVal = T1_PRESETS[t1State.preset][t1State.index];
+      setStatus(
+        t1StatusEl,
+        "Prediction set: " + T1_PRED_LABELS[t1State.prediction] + ".",
+        "Press Step: insert " + nextVal + " to feed the next number into both trees.",
+        false
+      );
+      updateT1UI(true);
+    });
+  });
+
+  t1StepBtn.addEventListener("click", stepT1);
+  t1ResetBtn.addEventListener("click", function () { initT1Preset(t1State.preset); });
+  t1SortedBtn.addEventListener("click", function () {
+    if (t1State.preset !== "sorted") initT1Preset("sorted");
+  });
+  t1ShuffledBtn.addEventListener("click", function () {
+    if (t1State.preset !== "shuffled") initT1Preset("shuffled");
+  });
+
+  /* ======================== TAB 2: AVL SANDBOX ======================== */
+
+  var T2_STARTER = [30, 20, 50, 10, 60];
+  var T2_CURATED = [25, 70, 5, 8, 2, 80, 75];
+  var T2_MAX_NODES = 15;
+
+  var t2State = {
+    root: null,
+    queueIndex: 0,
+    nodeCount: 0,
+    showHeights: false,
+    workedExampleDone: false,
+    inspectedKey: 20,
+    mode: "idle", // "idle" | "walking" | "broken" | "rotating"
+    newKey: null,
+    visitingKey: null,
+    activeEdgeId: null,
+    rotatedKeys: [],
+    rotVisual: null,
+    rotStageText: "",
+    broken: null, // { key, childKey, bf, childBf, sideLabel, correctRot, ruleName, actionLabel, ruleText, isWorkedExample }
+    overrideBf: null,
+    overrideH: null,
+    walkSteps: [],
+    walkStepIdx: 0,
+    walkLastKey: null,
+    walkTimer: 0,
+    rotTimer: 0,
+    rotGen: 0
+  };
+
+  var t2TaskEl = document.getElementById("t2-task");
+  var t2InsertBtn = document.getElementById("t2-insert");
+  var t2HeightsBtn = document.getElementById("t2-heights-toggle");
+  var t2ResetBtn = document.getElementById("t2-reset");
+  var t2PickerEl = document.getElementById("t2-picker");
+  var t2PickerHeaderEl = document.getElementById("t2-picker-header");
+  var t2PickerTitleEl = document.getElementById("t2-picker-title");
+  var t2SkipBtn = document.getElementById("t2-skip");
+  var t2WorkedWrapEl = document.getElementById("t2-worked-actions");
+  var t2WorkedBtn = document.getElementById("t2-worked-btn");
+  var t2ChoiceWrapEl = document.getElementById("t2-choice-buttons");
+  var t2ChoiceBtns = Array.prototype.slice.call(document.querySelectorAll(".btn-choice"));
+  var t2RulesDetails = document.getElementById("t2-rules-details");
+  var t2RuleCards = Array.prototype.slice.call(document.querySelectorAll(".rule-card[data-rule]"));
+  var t2StatusEl = document.getElementById("t2-status");
+  var t2TreeHeightEl = document.getElementById("t2-tree-height");
+  var t2RotStageEl = document.getElementById("t2-rot-stage");
+  var t2InspectTitleEl = document.getElementById("t2-inspect-title");
+  var t2InspectRightEl = document.getElementById("t2-inspect-right");
+  var t2InspectLeftEl = document.getElementById("t2-inspect-left");
+  var t2InspectResEl = document.getElementById("t2-inspect-res");
+  var t2InspectNoteEl = document.getElementById("t2-inspect-note");
+  var t2CustomForm = document.getElementById("t2-custom-form");
+  var t2CustomInput = document.getElementById("t2-custom-input");
+  var t2CustomHint = document.getElementById("t2-custom-hint");
+
+  var t2Svg = createSvgRenderer(document.getElementById("t2-svg"), {
+    width: 680,
+    padX: 44,
+    maxDx: 64,
+    y0: 40,
+    dy: 60,
+    maxSpanY: 310,
+    r: 20,
+    fontSize: 13,
+    showBadges: true,
+    duration: 360,
+    dynamicHeight: true,
+    minHeight: 220,
+    onNodeClick: function (key) {
+      if (t2State.mode === "rotating") return;
+      t2State.inspectedKey = key;
+      renderT2Tree(true);
+    }
+  });
+
+  function clearT2Timers() {
+    if (t2State.walkTimer) {
+      clearTimeout(t2State.walkTimer);
+      t2State.walkTimer = 0;
+    }
+    if (t2State.rotTimer) {
+      clearTimeout(t2State.rotTimer);
+      t2State.rotTimer = 0;
+    }
+    t2State.rotGen += 1;
+  }
+
+  function nextSuggestedNumber() {
+    if (t2State.queueIndex < T2_CURATED.length) {
+      var candidate = T2_CURATED[t2State.queueIndex];
+      if (!findNode(t2State.root, candidate)) return candidate;
+    }
+    var fallback = [40, 15, 65, 90, 35, 55, 85, 12, 28, 72, 95, 1];
+    for (var i = 0; i < fallback.length; i++) {
+      if (!findNode(t2State.root, fallback[i])) return fallback[i];
+    }
+    for (var n = 1; n <= 99; n++) {
+      if (!findNode(t2State.root, n)) return n;
+    }
+    return null;
+  }
+
+  function resetChoiceButtons() {
+    t2ChoiceBtns.forEach(function (btn) {
+      btn.classList.remove("is-wrong");
+      btn.disabled = false;
+    });
+  }
+
+  function clearRuleCardHighlight() {
+    t2RuleCards.forEach(function (card) {
+      card.classList.remove("is-highlighted");
+    });
+  }
+
+  function highlightRuleCard(rot) {
+    clearRuleCardHighlight();
+    t2RuleCards.forEach(function (card) {
+      if (card.getAttribute("data-rule") === rot) {
+        card.classList.add("is-highlighted");
+      }
+    });
+  }
+
+  function buildRotationRule(node, isWorkedExample) {
+    var bfStr = formatBf(node.bf);
+    if (node.bf <= -2) {
+      var leftChild = node.left;
+      var lBfStr = formatBf(leftChild.bf);
+      if (leftChild.bf <= 0) {
+        return {
+          key: node.key,
+          childKey: leftChild.key,
+          bf: bfStr,
+          childBf: lBfStr,
+          sideLabel: "left",
+          correctRot: "right",
+          ruleName: "Right (single)",
+          actionLabel: "Rotate right at " + node.key,
+          ruleText: bfStr + " and left child " + lBfStr + ", so single rotation (right)",
+          isWorkedExample: Boolean(isWorkedExample)
+        };
+      }
+      return {
+        key: node.key,
+        childKey: leftChild.key,
+        bf: bfStr,
+        childBf: lBfStr,
+        sideLabel: "left",
+        correctRot: "left-right",
+        ruleName: "Left-Right (double)",
+        actionLabel: "Rotate left-right at " + node.key,
+        ruleText: bfStr + " and left child " + lBfStr + ", so double rotation (left-right)",
+        isWorkedExample: Boolean(isWorkedExample)
+      };
+    } else {
+      var rightChild = node.right;
+      var rBfStr = formatBf(rightChild.bf);
+      if (rightChild.bf >= 0) {
+        return {
+          key: node.key,
+          childKey: rightChild.key,
+          bf: bfStr,
+          childBf: rBfStr,
+          sideLabel: "right",
+          correctRot: "left",
+          ruleName: "Left (single)",
+          actionLabel: "Rotate left at " + node.key,
+          ruleText: bfStr + " and right child " + rBfStr + ", so single rotation (left)",
+          isWorkedExample: Boolean(isWorkedExample)
+        };
+      }
+      return {
+        key: node.key,
+        childKey: rightChild.key,
+        bf: bfStr,
+        childBf: rBfStr,
+        sideLabel: "right",
+        correctRot: "right-left",
+        ruleName: "Right-Left (double)",
+        actionLabel: "Rotate right-left at " + node.key,
+        ruleText: bfStr + " and right child " + rBfStr + ", so double rotation (right-left)",
+        isWorkedExample: Boolean(isWorkedExample)
+      };
+    }
+  }
+
+  function fmtSignedNum(v) {
+    if (v < 0) return MINUS + String(Math.abs(v));
+    if (v > 0) return "+" + String(v);
+    return "0";
+  }
+
+  function fmtPlainHeight(h) {
+    return h < 0 ? MINUS + String(Math.abs(h)) : String(h);
+  }
+
+  function collectSubtree(node, parentKey) {
+    var keys = [];
+    var edgeIds = [];
+    function walk(cur, pKey) {
+      if (!cur) return;
+      keys.push(cur.key);
+      if (pKey !== null && pKey !== undefined) {
+        edgeIds.push(pKey + "-" + cur.key);
+      }
+      walk(cur.left, cur.key);
+      walk(cur.right, cur.key);
+    }
+    walk(node, parentKey);
+    return { keys: keys, edgeIds: edgeIds };
+  }
+
+  function getDisplayedHeight(node) {
+    if (!node) return -1;
+    if (t2State.overrideH && (node.key in t2State.overrideH)) {
+      return t2State.overrideH[node.key];
+    }
+    return node.height;
+  }
+
+  function updateT2InspectorUI() {
+    var inspNode = findNode(t2State.root, t2State.inspectedKey) || t2State.root;
+    if (!inspNode) return null;
+    t2State.inspectedKey = inspNode.key;
+
+    var lh = getDisplayedHeight(inspNode.left);
+    var rh = getDisplayedHeight(inspNode.right);
+    var bf = rh - lh;
+
+    t2InspectTitleEl.textContent = "";
+    var strong = document.createElement("strong");
+    strong.textContent = "Node " + inspNode.key;
+    t2InspectTitleEl.appendChild(strong);
+    t2InspectTitleEl.appendChild(document.createTextNode(" (click any node to inspect):"));
+
+    t2InspectRightEl.textContent = "Right h = " + fmtPlainHeight(rh);
+    t2InspectLeftEl.textContent = "Left h = " + fmtPlainHeight(lh);
+    t2InspectResEl.textContent = "BF = " + fmtSignedNum(bf);
+
+    if (Math.abs(bf) >= 2) {
+      t2InspectResEl.classList.add("is-unbalanced");
+    } else {
+      t2InspectResEl.classList.remove("is-unbalanced");
+    }
+
+    var meaning;
+    if (bf === 0) meaning = "Both subtrees have the same height (balanced).";
+    else if (bf === -1) meaning = "Left subtree is one level taller (balanced).";
+    else if (bf === 1) meaning = "Right subtree is one level taller (balanced).";
+    else if (bf <= -2) meaning = "Too left-heavy: needs a rotation.";
+    else meaning = "Too right-heavy: needs a rotation.";
+    t2InspectNoteEl.textContent = meaning;
+
+    return inspNode;
+  }
+
+  function renderT2Tree(immediate) {
+    var treeH = nodeHeight(t2State.root);
+    t2TreeHeightEl.textContent = "Tree height: " + treeH + " (leaf = 0, empty = " + MINUS + "1)";
+    t2TreeHeightEl.hidden = !t2State.showHeights;
+
+    if (t2State.mode === "rotating" && t2State.rotVisual) {
+      t2RotStageEl.textContent = t2State.rotVisual.stageLabel;
+      t2RotStageEl.hidden = false;
+      t2Svg.render(t2State.root, {
+        brokenKey: t2State.rotVisual.brokenKey || null,
+        rotatedKeys: t2State.rotVisual.rotatedKeys || [],
+        rotChildKeys: t2State.rotVisual.rotChildKeys || [],
+        rotTransferKeys: t2State.rotVisual.rotTransferKeys || [],
+        unaffectedKeys: t2State.rotVisual.unaffectedKeys || [],
+        unaffectedEdgeIds: t2State.rotVisual.unaffectedEdgeIds || [],
+        rotArrows: t2State.rotVisual.rotArrows || [],
+        minViewHeight: t2State.rotVisual.minViewHeight || 0,
+        showHeights: t2State.showHeights
+      }, immediate);
+      return;
+    }
+
+    if (t2State.rotStageText) {
+      t2RotStageEl.textContent = t2State.rotStageText;
+      t2RotStageEl.hidden = false;
+    } else {
+      t2RotStageEl.hidden = true;
+    }
+
+    var inspNode = updateT2InspectorUI();
+    var leftSub = inspNode ? collectSubtree(inspNode.left, inspNode.key) : { keys: [], edgeIds: [] };
+    var rightSub = inspNode ? collectSubtree(inspNode.right, inspNode.key) : { keys: [], edgeIds: [] };
+    var nullGhosts = [];
+    if (inspNode && t2State.mode !== "walking") {
+      if (!inspNode.left) nullGhosts.push({ parentKey: inspNode.key, side: "left" });
+      if (!inspNode.right) nullGhosts.push({ parentKey: inspNode.key, side: "right" });
+    }
+
+    t2Svg.render(t2State.root, {
+      newKey: t2State.newKey,
+      visitingKey: t2State.visitingKey,
+      activeEdgeId: t2State.activeEdgeId,
+      rotatedKeys: t2State.rotatedKeys,
+      brokenKey: t2State.broken ? t2State.broken.key : null,
+      inspectedKey: inspNode ? inspNode.key : null,
+      leftSubKeys: leftSub.keys,
+      rightSubKeys: rightSub.keys,
+      leftEdgeIds: leftSub.edgeIds,
+      rightEdgeIds: rightSub.edgeIds,
+      nullGhosts: nullGhosts,
+      overrideBf: t2State.overrideBf,
+      overrideH: t2State.overrideH,
+      showHeights: t2State.showHeights,
+      parentHintKey: t2State.parentHintKey
+    }, immediate);
+  }
+
+  function updateT2Controls() {
+    t2HeightsBtn.setAttribute("aria-pressed", String(t2State.showHeights));
+
+    if (t2State.mode === "broken" && t2State.broken) {
+      t2InsertBtn.hidden = true;
+      t2PickerEl.hidden = false;
+      if (t2State.broken.isWorkedExample) {
+        t2PickerHeaderEl.hidden = true;
+        t2ChoiceWrapEl.hidden = true;
+        t2WorkedWrapEl.hidden = false;
+        t2WorkedBtn.textContent = t2State.broken.actionLabel;
+        t2TaskEl.textContent = "Press " + t2State.broken.actionLabel + " to watch the fix.";
+      } else {
+        t2PickerHeaderEl.hidden = false;
+        t2SkipBtn.hidden = false;
+        t2ChoiceWrapEl.hidden = false;
+        t2WorkedWrapEl.hidden = true;
+        t2PickerTitleEl.textContent = "Rotation for node " + t2State.broken.key + ":";
+        t2TaskEl.textContent = "Pick the rotation below that fixes node " + t2State.broken.key + ".";
+      }
+      return;
+    }
+
+    t2PickerEl.hidden = true;
+    t2PickerHeaderEl.hidden = false;
+    t2WorkedWrapEl.hidden = true;
+    t2ChoiceWrapEl.hidden = false;
+    t2SkipBtn.hidden = false;
+    t2InsertBtn.hidden = false;
+
+    if (t2State.mode === "walking") {
+      t2InsertBtn.disabled = false;
+      t2InsertBtn.textContent = "Finish update";
+      return;
+    }
+
+    if (t2State.mode === "rotating") {
+      t2InsertBtn.disabled = true;
+      t2InsertBtn.textContent = "Rotating...";
+      return;
+    }
+
+    if (t2State.nodeCount >= T2_MAX_NODES) {
+      t2InsertBtn.disabled = true;
+      t2InsertBtn.textContent = "Tree full (15 nodes)";
+      t2TaskEl.textContent = "Tree reached 15 nodes. Press Reset to start fresh from the starter tree.";
+      return;
+    }
+
+    var nextVal = nextSuggestedNumber();
+    t2InsertBtn.disabled = false;
+    t2InsertBtn.textContent = "Insert " + nextVal;
+    t2TaskEl.textContent = "Press Insert " + nextVal + " to add " + nextVal + " and watch the balance update travel up.";
+  }
+
+  function snapshotMetrics(root) {
+    var bfMap = {};
+    var hMap = {};
+    function walk(n) {
+      if (!n) return;
+      bfMap[n.key] = n.bf;
+      hMap[n.key] = n.height;
+      walk(n.left);
+      walk(n.right);
+    }
+    walk(root);
+    return { bfMap: bfMap, hMap: hMap };
+  }
+
+  function prepareInsertWalk(root, key) {
+    var snap = snapshotMetrics(root);
+    var res = insertPlain(root, key);
+    var path = res.path;
+    var parentKey = path.length >= 2 ? path[path.length - 2].key : null;
+
+    var steps = [];
+    var brokenNode = null;
+    var stoppedAtZeroKey = null;
+
+    // Walk from new leaf's parent up to root
+    for (var i = path.length - 2; i >= 0; i--) {
+      var anc = path[i];
+      var child = path[i + 1];
+      steps.push({
+        key: anc.key,
+        edgeId: anc.key + "-" + child.key,
+        newBf: anc.bf,
+        newH: anc.height
+      });
+      if (anc.bf === 0) {
+        stoppedAtZeroKey = anc.key;
+        break;
+      }
+      if (Math.abs(anc.bf) >= 2) {
+        brokenNode = anc;
+        break;
+      }
+    }
+
+    return {
+      root: res.root,
+      parentKey: parentKey,
+      snap: snap,
+      steps: steps,
+      brokenNode: brokenNode,
+      stoppedAtZeroKey: stoppedAtZeroKey
+    };
+  }
+
+  function finishWalk() {
+    clearT2Timers();
+    t2State.overrideBf = null;
+    t2State.overrideH = null;
+    t2State.activeEdgeId = null;
+
+    if (t2State.walkSteps.length > 0) {
+      var lastStep = t2State.walkSteps[t2State.walkSteps.length - 1];
+      var lastNode = findNode(t2State.root, lastStep.key);
+      if (lastNode && Math.abs(lastNode.bf) >= 2) {
+        var isFirstBreak = !t2State.workedExampleDone;
+        t2State.mode = "broken";
+        t2State.visitingKey = null;
+        t2State.inspectedKey = lastNode.key;
+        t2State.broken = buildRotationRule(lastNode, isFirstBreak);
+        resetChoiceButtons();
+        if (isFirstBreak) {
+          t2RulesDetails.open = true;
+          highlightRuleCard(t2State.broken.correctRot);
+          setStatus(
+            t2StatusEl,
+            "Node " + lastNode.key + " shows " + t2State.broken.bf + " and its " + t2State.broken.sideLabel + " child shows " + t2State.broken.childBf + ", so rule '" + t2State.broken.ruleName + "' applies.",
+            "",
+            true
+          );
+        } else {
+          setStatus(
+            t2StatusEl,
+            "Inserted " + t2State.walkLastKey + ". Balance update reached node " + lastNode.key + ", which is now " + t2State.broken.bf + ".",
+            "",
+            true
+          );
+        }
+        updateT2Controls();
+        renderT2Tree(false);
+        return;
+      }
+
+      if (lastNode && lastNode.bf === 0) {
+        t2State.mode = "idle";
+        t2State.visitingKey = lastNode.key;
+        var nextVal0 = nextSuggestedNumber();
+        var nextAction0 = t2State.nodeCount >= T2_MAX_NODES
+          ? "Tree has 15 nodes. Press Reset to start over."
+          : "Press Insert " + nextVal0 + " to continue.";
+        setStatus(
+          t2StatusEl,
+          "Inserted " + t2State.walkLastKey + ". Balance traveled up to " + lastNode.key + ", which became 0, so height above did not change and the update stopped.",
+          nextAction0,
+          false
+        );
+        updateT2Controls();
+        renderT2Tree(false);
+        return;
+      }
+    }
+
+    t2State.mode = "idle";
+    t2State.visitingKey = null;
+    var nextVal = nextSuggestedNumber();
+    var nextAction = t2State.nodeCount >= T2_MAX_NODES
+      ? "Tree has 15 nodes. Press Reset to start over."
+      : "Press Insert " + nextVal + " to continue.";
+    setStatus(
+      t2StatusEl,
+      "Inserted " + t2State.walkLastKey + ". Balance traveled up to root " + t2State.root.key + ", and every node stayed balanced.",
+      nextAction,
+      false
+    );
+    updateT2Controls();
+    renderT2Tree(false);
+  }
+
+  function advanceWalkStep() {
+    if (t2State.walkStepIdx >= t2State.walkSteps.length) {
+      finishWalk();
+      return;
+    }
+
+    var step = t2State.walkSteps[t2State.walkStepIdx];
+    t2State.overrideBf[step.key] = step.newBf;
+    t2State.overrideH[step.key] = step.newH;
+    t2State.visitingKey = step.key;
+    t2State.activeEdgeId = step.edgeId;
+    t2State.walkStepIdx += 1;
+
+    if (t2State.walkStepIdx >= t2State.walkSteps.length) {
+      finishWalk();
+      return;
+    }
+
+    var bfLabel = formatBf(step.newBf);
+    setStatus(
+      t2StatusEl,
+      "Inserted " + t2State.walkLastKey + ". Checking parent " + step.key + " (now " + bfLabel + ")...",
+      "Watch the balance update travel up.",
+      false
+    );
+
+    renderT2Tree(false);
+
+    var delay = prefersReducedMotion() ? 0 : 360;
+    if (delay === 0) {
+      advanceWalkStep();
+    } else {
+      t2State.walkTimer = setTimeout(advanceWalkStep, delay);
+    }
+  }
+
+  function insertIntoSandbox(key, fromQueue) {
+    clearT2Timers();
+    t2CustomHint.textContent = "";
+    t2CustomHint.classList.remove("is-hint");
+
+    if (t2State.mode === "walking") {
+      finishWalk();
+      if (t2State.mode === "broken") return;
+    }
+    if (t2State.mode !== "idle") return;
+    if (t2State.nodeCount >= T2_MAX_NODES) return;
+
+    if (fromQueue && t2State.queueIndex < T2_CURATED.length && T2_CURATED[t2State.queueIndex] === key) {
+      t2State.queueIndex += 1;
+    }
+
+    var prep = prepareInsertWalk(t2State.root, key);
+    t2State.root = prep.root;
+    t2State.nodeCount += 1;
+    t2State.newKey = key;
+    t2State.rotatedKeys = [];
+    t2State.rotVisual = null;
+    t2State.rotStageText = "";
+    t2State.broken = null;
+    t2State.visitingKey = null;
+    t2State.activeEdgeId = null;
+    t2State.parentHintKey = prep.parentKey;
+    t2State.overrideBf = prep.snap.bfMap;
+    t2State.overrideH = prep.snap.hMap;
+    t2State.overrideBf[key] = 0;
+    t2State.overrideH[key] = 0;
+    t2State.walkSteps = prep.steps;
+    t2State.walkStepIdx = 0;
+    t2State.walkLastKey = key;
+    t2State.mode = "walking";
+
+    updateT2Controls();
+    renderT2Tree(false);
+
+    if (prefersReducedMotion()) {
+      finishWalk();
+    } else {
+      setStatus(
+        t2StatusEl,
+        "Added leaf " + key + " (balance 0).",
+        "Update is traveling up from " + key + "...",
+        false
+      );
+      t2State.walkTimer = setTimeout(advanceWalkStep, 360);
+    }
+  }
+
+  function computeStepVisuals(root, pivotKey, dir) {
+    var pivotNode = findNode(root, pivotKey);
+    var childNode = dir === "right" ? pivotNode.left : pivotNode.right;
+    var transferNode = dir === "right" ? childNode.right : childNode.left;
+
+    var pivotSub = collectSubtree(pivotNode, null);
+    var transferSub = transferNode ? collectSubtree(transferNode, null) : { keys: [], edgeIds: [] };
+
+    var allLayoutBefore = t2Svg.getLayout(root);
+    var unaffectedKeys = [];
+    var unaffectedEdgeIds = [];
+    allLayoutBefore.nodes.forEach(function (item) {
+      if (pivotSub.keys.indexOf(item.key) === -1) {
+        unaffectedKeys.push(item.key);
+      }
+    });
+    allLayoutBefore.edges.forEach(function (edge) {
+      if (pivotSub.keys.indexOf(edge.from.key) === -1 && pivotSub.keys.indexOf(edge.to.key) === -1) {
+        unaffectedEdgeIds.push(edge.id);
+      }
+    });
+
+    var afterClone = cloneTree(root);
+    var clonePivot = findNode(afterClone, pivotKey);
+    var rotCloneSub = dir === "right" ? rotateRight(clonePivot) : rotateLeft(clonePivot);
+    afterClone = replaceNode(afterClone, pivotKey, rotCloneSub);
+    var allLayoutAfter = t2Svg.getLayout(afterClone);
+
+    var arrows = [];
+    if (allLayoutBefore.byKey[childNode.key] && allLayoutAfter.byKey[childNode.key]) {
+      arrows.push({
+        from: allLayoutBefore.byKey[childNode.key],
+        to: allLayoutAfter.byKey[childNode.key],
+        label: "up",
+        side: dir === "right" ? "left" : "right",
+        isTransfer: false
+      });
+    }
+    if (allLayoutBefore.byKey[pivotNode.key] && allLayoutAfter.byKey[pivotNode.key]) {
+      arrows.push({
+        from: allLayoutBefore.byKey[pivotNode.key],
+        to: allLayoutAfter.byKey[pivotNode.key],
+        label: "down",
+        side: dir === "right" ? "right" : "left",
+        labelYOffset: dir === "right" ? 16 : undefined,
+        isTransfer: false
+      });
+    }
+    if (transferNode && allLayoutBefore.byKey[transferNode.key] && allLayoutAfter.byKey[transferNode.key]) {
+      var tBefore = allLayoutBefore.byKey[transferNode.key];
+      var tAfter = allLayoutAfter.byKey[transferNode.key];
+      var cBefore = allLayoutBefore.byKey[childNode.key];
+      var pAfter = allLayoutAfter.byKey[pivotNode.key];
+      if (Math.abs(tAfter.y - tBefore.y) < 16 && cBefore && pAfter) {
+        arrows.push({
+          bridge: true,
+          from: { x: (cBefore.x + tBefore.x) / 2, y: (cBefore.y + tBefore.y) / 2 - 4 },
+          to: { x: (pAfter.x + tAfter.x) / 2, y: (pAfter.y + tAfter.y) / 2 - 4 },
+          label: "moves",
+          isTransfer: true
+        });
+      } else {
+        arrows.push({
+          from: tBefore,
+          to: tAfter,
+          label: "moves",
+          side: dir === "right" ? "left" : "right",
+          isTransfer: true
+        });
+      }
+    }
+
+    var beforeMaxY = 0;
+    allLayoutBefore.nodes.forEach(function (n) { if (n.y > beforeMaxY) beforeMaxY = n.y; });
+    var minViewHeight = Math.max(220, beforeMaxY + 62);
+
+    return {
+      pivotKey: pivotKey,
+      childKey: childNode.key,
+      transferKeys: transferSub.keys,
+      unaffectedKeys: unaffectedKeys,
+      unaffectedEdgeIds: unaffectedEdgeIds,
+      arrows: arrows,
+      minViewHeight: minViewHeight
+    };
+  }
+
+  function formatPostRotationText(rotChoice, zKey, childKey, innerKey, wasSkipped) {
+    var prefix = wasSkipped ? "Revealed fix: " : "";
+    if (rotChoice === "right") {
+      return prefix + "LL: Right rotation at " + zKey + " (" + childKey + " moved up, " + zKey + " moved down-right). Balance restored.";
+    }
+    if (rotChoice === "left") {
+      return prefix + "RR: Left rotation at " + zKey + " (" + childKey + " moved up, " + zKey + " moved down-left). Balance restored.";
+    }
+    if (rotChoice === "left-right") {
+      return prefix + "LR: Left rotation on the left child (" + innerKey + "), followed by a right rotation at " + zKey + ". Balance restored.";
+    }
+    return prefix + "RL: Right rotation on the right child (" + innerKey + "), followed by a left rotation at " + zKey + ". Balance restored.";
+  }
+
+  function applyBrokenRotation(rotChoice, wasSkipped) {
+    if (t2State.mode !== "broken" || !t2State.broken) return;
+    var broken = t2State.broken;
+    var wasWorkedExample = Boolean(broken.isWorkedExample);
+    var zKey = broken.key;
+    var zNode = findNode(t2State.root, zKey);
+    if (!zNode) return;
+
+    clearT2Timers();
+    var myGen = t2State.rotGen;
+    t2State.mode = "rotating";
+    t2State.broken = null;
+    t2State.newKey = null;
+    t2State.visitingKey = null;
+    t2State.activeEdgeId = null;
+    t2State.rotStageText = "";
+    updateT2Controls();
+
+    var prefix = wasSkipped ? "Revealed fix: " : "";
+    var isDouble = rotChoice === "left-right" || rotChoice === "right-left";
+
+    if (!isDouble) {
+      var vis = computeStepVisuals(t2State.root, zKey, rotChoice);
+      var caseTag = rotChoice === "right" ? "LL" : "RR";
+
+      function finishSingle() {
+        if (myGen !== t2State.rotGen) return;
+        t2State.mode = "idle";
+        t2State.rotVisual = null;
+        t2State.rotatedKeys = [zKey, vis.childKey];
+        t2State.inspectedKey = vis.childKey;
+        t2State.rotStageText = "Stage 3/3: Balanced";
+
+        var nextVal = nextSuggestedNumber();
+        var nextAct = t2State.nodeCount >= T2_MAX_NODES
+          ? "Tree reached 15 nodes. Press Reset to start fresh."
+          : "Press Insert " + nextVal + " to continue.";
+        var msg = formatPostRotationText(rotChoice, zKey, vis.childKey, null, wasSkipped && !wasWorkedExample);
+
+        if (wasWorkedExample) {
+          t2State.workedExampleDone = true;
+          setStatus(t2StatusEl, msg + " " + nextAct, "From the next broken node, you choose the rotation.", false);
+          clearRuleCardHighlight();
+        } else {
+          setStatus(t2StatusEl, msg, nextAct, false);
+        }
+        updateT2Controls();
+        renderT2Tree(true);
+      }
+
+      if (prefersReducedMotion()) {
+        var immSub = rotChoice === "right" ? rotateRight(zNode) : rotateLeft(zNode);
+        t2State.root = replaceNode(t2State.root, zKey, immSub);
+        finishSingle();
+        return;
+      }
+
+      // Stage 1: Before rotation (highlight & directional arrows)
+      t2State.rotVisual = {
+        stageLabel: "Stage 1/3: Before " + rotChoice + " rotation",
+        brokenKey: zKey,
+        rotChildKeys: [vis.childKey],
+        rotTransferKeys: vis.transferKeys,
+        unaffectedKeys: vis.unaffectedKeys,
+        unaffectedEdgeIds: vis.unaffectedEdgeIds,
+        rotArrows: vis.arrows,
+        minViewHeight: vis.minViewHeight
+      };
+      setStatus(
+        t2StatusEl,
+        prefix + caseTag + " before rotation: " + vis.childKey + " will move up and " + zKey + " will move down.",
+        "Watching step-by-step node movement...",
+        false
+      );
+      renderT2Tree(true);
+
+      t2State.rotTimer = setTimeout(function () {
+        if (myGen !== t2State.rotGen) return;
+        // Stage 2: During rotation (nodes slide smoothly)
+        var curZ = findNode(t2State.root, zKey);
+        var rotatedSubtree = rotChoice === "right" ? rotateRight(curZ) : rotateLeft(curZ);
+        t2State.root = replaceNode(t2State.root, zKey, rotatedSubtree);
+        t2State.rotVisual = {
+          stageLabel: "Stage 2/3: Rotating " + rotChoice + "...",
+          rotatedKeys: [zKey, vis.childKey],
+          rotTransferKeys: vis.transferKeys,
+          unaffectedKeys: vis.unaffectedKeys,
+          unaffectedEdgeIds: vis.unaffectedEdgeIds,
+          rotArrows: [],
+          minViewHeight: vis.minViewHeight
+        };
+        setStatus(
+          t2StatusEl,
+          prefix + caseTag + " during rotation: " + vis.childKey + " moves up into place while subtrees stay attached.",
+          "Finishing rotation...",
+          false
+        );
+        renderT2Tree(false);
+
+        t2State.rotTimer = setTimeout(finishSingle, 430);
+      }, 460);
+      return;
+    }
+
+    // Double rotation (LR or RL): separate Stage 1 -> Stage 2 -> Stage 3
+    var dir1 = rotChoice === "left-right" ? "left" : "right";
+    var dir2 = rotChoice === "left-right" ? "right" : "left";
+    var dTag = rotChoice === "left-right" ? "LR" : "RL";
+    var innerChild = rotChoice === "left-right" ? zNode.left : zNode.right;
+    var innerKey = innerChild.key;
+    var vis1 = computeStepVisuals(t2State.root, innerKey, dir1);
+    var grandKey = vis1.childKey;
+
+    function finishDouble(outerChildKey) {
+      if (myGen !== t2State.rotGen) return;
+      t2State.mode = "idle";
+      t2State.rotVisual = null;
+      t2State.rotatedKeys = [zKey, innerKey, outerChildKey];
+      t2State.inspectedKey = outerChildKey;
+      t2State.rotStageText = "Stage 3/3: Balanced";
+
+      var nextVal2 = nextSuggestedNumber();
+      var nextAct2 = t2State.nodeCount >= T2_MAX_NODES
+        ? "Tree reached 15 nodes. Press Reset to start fresh."
+        : "Press Insert " + nextVal2 + " to continue.";
+      var msg2 = formatPostRotationText(rotChoice, zKey, outerChildKey, innerKey, wasSkipped && !wasWorkedExample);
+
+      if (wasWorkedExample) {
+        t2State.workedExampleDone = true;
+        setStatus(t2StatusEl, msg2 + " " + nextAct2, "From the next broken node, you choose the rotation.", false);
+        clearRuleCardHighlight();
+      } else {
+        setStatus(t2StatusEl, msg2, nextAct2, false);
+      }
+      updateT2Controls();
+      renderT2Tree(true);
+    }
+
+    if (prefersReducedMotion()) {
+      var immInner = dir1 === "left" ? rotateLeft(innerChild) : rotateRight(innerChild);
+      t2State.root = replaceNode(t2State.root, innerKey, immInner);
+      var immZ = findNode(t2State.root, zKey);
+      var immOuter = dir2 === "right" ? rotateRight(immZ) : rotateLeft(immZ);
+      t2State.root = replaceNode(t2State.root, zKey, immOuter);
+      finishDouble(immOuter.key);
+      return;
+    }
+
+    // Step 1 Before: highlight and arrows for inner rotation
+    t2State.rotVisual = {
+      stageLabel: "Step 1/2 (" + dTag + "): Before " + dir1 + " at " + innerKey,
+      brokenKey: zKey,
+      rotChildKeys: [innerKey, grandKey],
+      rotTransferKeys: vis1.transferKeys,
+      unaffectedKeys: vis1.unaffectedKeys,
+      unaffectedEdgeIds: vis1.unaffectedEdgeIds,
+      rotArrows: vis1.arrows,
+      minViewHeight: vis1.minViewHeight
+    };
+    setStatus(
+      t2StatusEl,
+      prefix + dTag + " step 1 of 2: " + dir1 + " rotation on " + (rotChoice === "left-right" ? "left" : "right") + " child " + innerKey + " (" + grandKey + " moves up)...",
+      "Straightening the bend first...",
+      false
+    );
+    renderT2Tree(true);
+
+    t2State.rotTimer = setTimeout(function () {
+      if (myGen !== t2State.rotGen) return;
+      // Step 1 During: animate inner rotation
+      var curInner = findNode(t2State.root, innerKey);
+      var innerRot = dir1 === "left" ? rotateLeft(curInner) : rotateRight(curInner);
+      t2State.root = replaceNode(t2State.root, innerKey, innerRot);
+      t2State.rotVisual = {
+        stageLabel: "Step 1/2 (" + dTag + "): Rotating " + dir1 + " at " + innerKey,
+        brokenKey: zKey,
+        rotatedKeys: [innerKey, grandKey],
+        rotTransferKeys: vis1.transferKeys,
+        unaffectedKeys: vis1.unaffectedKeys,
+        unaffectedEdgeIds: vis1.unaffectedEdgeIds,
+        rotArrows: [],
+        minViewHeight: vis1.minViewHeight
+      };
+      renderT2Tree(false);
+
+      t2State.rotTimer = setTimeout(function () {
+        if (myGen !== t2State.rotGen) return;
+        // Step 2 Before: show arrows on straightened intermediate tree
+        var vis2 = computeStepVisuals(t2State.root, zKey, dir2);
+        var dMinH = Math.max(vis1.minViewHeight, vis2.minViewHeight);
+        t2State.rotVisual = {
+          stageLabel: "Step 2/2 (" + dTag + "): Before " + dir2 + " at " + zKey,
+          brokenKey: zKey,
+          rotChildKeys: [vis2.childKey, innerKey],
+          rotTransferKeys: vis2.transferKeys,
+          unaffectedKeys: vis2.unaffectedKeys,
+          unaffectedEdgeIds: vis2.unaffectedEdgeIds,
+          rotArrows: vis2.arrows,
+          minViewHeight: dMinH
+        };
+        setStatus(
+          t2StatusEl,
+          prefix + dTag + " step 2 of 2: now " + dir2 + " rotation at " + zKey + " (" + vis2.childKey + " moves up, " + zKey + " moves down)...",
+          "Completing second rotation...",
+          false
+        );
+        renderT2Tree(true);
+
+        t2State.rotTimer = setTimeout(function () {
+          if (myGen !== t2State.rotGen) return;
+          // Step 2 During: animate outer rotation
+          var curZ2 = findNode(t2State.root, zKey);
+          var outerRot = dir2 === "right" ? rotateRight(curZ2) : rotateLeft(curZ2);
+          t2State.root = replaceNode(t2State.root, zKey, outerRot);
+          t2State.rotVisual = {
+            stageLabel: "Step 2/2 (" + dTag + "): Rotating " + dir2 + " at " + zKey,
+            rotatedKeys: [zKey, innerKey, vis2.childKey],
+            rotTransferKeys: vis2.transferKeys,
+            unaffectedKeys: vis2.unaffectedKeys,
+            unaffectedEdgeIds: vis2.unaffectedEdgeIds,
+            rotArrows: [],
+            minViewHeight: dMinH
+          };
+          renderT2Tree(false);
+
+          t2State.rotTimer = setTimeout(function () {
+            finishDouble(vis2.childKey);
+          }, 430);
+        }, 460);
+      }, 640);
+    }, 460);
+  }
+
+  function handleChoiceClick(choice) {
+    if (t2State.mode !== "broken" || !t2State.broken) return;
+    var broken = t2State.broken;
+    if (choice === broken.correctRot) {
+      applyBrokenRotation(choice, false);
+      return;
+    }
+
+    var clickedBtn = t2PickerEl.querySelector('[data-rot="' + choice + '"]');
+    if (clickedBtn) {
+      clickedBtn.classList.add("is-wrong");
+      clickedBtn.disabled = true;
+    }
+
+    setStatus(
+      t2StatusEl,
+      "Not " + formatRotationName(choice) + ": node " + broken.key + " is " + broken.ruleText + ".",
+      "Click " + formatRotationName(broken.correctRot) + " to run it.",
+      true
+    );
+  }
+
+  function initSandbox() {
+    clearT2Timers();
+    t2State.root = null;
+    for (var i = 0; i < T2_STARTER.length; i++) {
+      t2State.root = insertAvlAuto(t2State.root, T2_STARTER[i]).root;
+    }
+    t2State.queueIndex = 0;
+    t2State.nodeCount = T2_STARTER.length;
+    t2State.workedExampleDone = false;
+    t2State.inspectedKey = 20;
+    t2State.mode = "idle";
+    t2State.newKey = null;
+    t2State.visitingKey = null;
+    t2State.activeEdgeId = null;
+    t2State.rotatedKeys = [];
+    t2State.rotVisual = null;
+    t2State.rotStageText = "";
+    t2State.broken = null;
+    t2State.overrideBf = null;
+    t2State.overrideH = null;
+    t2State.parentHintKey = null;
+    t2CustomHint.textContent = "";
+    t2CustomHint.classList.remove("is-hint");
+    resetChoiceButtons();
+    clearRuleCardHighlight();
+    t2RulesDetails.open = false;
+
+    setStatus(
+      t2StatusEl,
+      "Starter tree is balanced (badges show " + MINUS + ", 0, and +).",
+      "Press Insert " + T2_CURATED[0] + " to watch the balance update travel up.",
+      false
+    );
+    updateT2Controls();
+    renderT2Tree(true);
+  }
+
+  t2InsertBtn.addEventListener("click", function () {
+    if (t2State.mode === "walking") {
+      finishWalk();
+      return;
+    }
+    var nextVal = nextSuggestedNumber();
+    if (nextVal !== null) {
+      insertIntoSandbox(nextVal, true);
+    }
+  });
+
+  t2HeightsBtn.addEventListener("click", function () {
+    t2State.showHeights = !t2State.showHeights;
+    updateT2Controls();
+    renderT2Tree(true);
+  });
+
+  t2ResetBtn.addEventListener("click", initSandbox);
+
+  t2ChoiceBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      handleChoiceClick(btn.getAttribute("data-rot"));
+    });
+  });
+
+  t2WorkedBtn.addEventListener("click", function () {
+    if (t2State.mode === "broken" && t2State.broken && t2State.broken.isWorkedExample) {
+      applyBrokenRotation(t2State.broken.correctRot, false);
+    }
+  });
+
+  t2SkipBtn.addEventListener("click", function () {
+    if (t2State.mode === "broken" && t2State.broken) {
+      applyBrokenRotation(t2State.broken.correctRot, true);
+    }
+  });
+
+  t2CustomForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    t2CustomHint.classList.add("is-hint");
+
+    if (t2State.mode === "broken" && t2State.broken) {
+      t2CustomHint.textContent = t2State.broken.isWorkedExample
+        ? "Fix node " + t2State.broken.key + " first by pressing " + t2State.broken.actionLabel + " above."
+        : "Fix node " + t2State.broken.key + " first using one of the four rotation buttons above.";
+      return;
+    }
+    if (t2State.mode === "walking") {
+      finishWalk();
+      if (t2State.mode === "broken") {
+        t2CustomHint.textContent = t2State.broken.isWorkedExample
+          ? "Fix node " + t2State.broken.key + " first by pressing " + t2State.broken.actionLabel + " above."
+          : "Fix node " + t2State.broken.key + " first using one of the four rotation buttons above.";
+        return;
+      }
+    }
+    if (t2State.nodeCount >= T2_MAX_NODES) {
+      t2CustomHint.textContent = "The tree already has 15 nodes so it stays readable. Press Reset to start fresh.";
+      return;
+    }
+
+    var raw = t2CustomInput.value.trim();
+    if (!raw || !/^-?\d+$/.test(raw)) {
+      t2CustomHint.textContent = "Enter a whole number between 1 and 99 (for example, 42).";
+      t2CustomInput.focus();
+      return;
+    }
+
+    var val = parseInt(raw, 10);
+    if (val < 1 || val > 99) {
+      t2CustomHint.textContent = "Choose a number from 1 to 99 so the labels stay readable.";
+      t2CustomInput.focus();
+      return;
+    }
+
+    if (findNode(t2State.root, val)) {
+      var alt = val + 1 <= 99 && !findNode(t2State.root, val + 1) ? val + 1 : nextSuggestedNumber();
+      t2CustomHint.textContent = val + " is already in the tree. Try " + alt + " instead.";
+      t2CustomInput.focus();
+      return;
+    }
+
+    t2CustomHint.textContent = "";
+    t2CustomHint.classList.remove("is-hint");
+    t2CustomInput.value = "";
+    insertIntoSandbox(val, false);
+  });
+
+  /* ======================== INITIALIZE ======================== */
+
+  initT1Preset("sorted");
+  initSandbox();
+})();
+</script>
+</body>
+</html>
