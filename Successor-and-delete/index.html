@@ -1,0 +1,2970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Successor and delete in a binary search tree</title>
+<style>
+  :root {
+    --paper: #faf8f3;
+    --card: #fffdf8;
+    --ink: #1d1d1b;
+    --mid: #595853;
+    --faint: #c9c5bb;
+    --tint: #efe9dc;
+    --ver: #d63a24;
+    --c1: #2b5c8a;
+    --c2: #2f7a5b;
+    --c2-tint: #e7f1ec;
+    --arrow-grey: #8a877f;
+    --font: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    line-height: 1.42;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 16px 16px 32px;
+  }
+
+  .page-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 18px;
+    margin-bottom: 10px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 1.32rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  /* Segmented tab switch */
+  .tabs {
+    display: inline-flex;
+    background: var(--tint);
+    border: 1.5px solid var(--ink);
+    border-radius: 6px;
+    padding: 3px;
+    gap: 4px;
+  }
+
+  .tab-btn {
+    appearance: none;
+    background: transparent;
+    color: var(--mid);
+    border: 0;
+    border-radius: 4px;
+    padding: 8px 15px;
+    min-height: 44px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 140ms ease, color 140ms ease;
+  }
+
+  .tab-btn:hover {
+    color: var(--ink);
+    background: rgba(255, 253, 248, 0.55);
+  }
+
+  .tab-btn[aria-selected="true"] {
+    background: var(--card);
+    color: var(--ink);
+    box-shadow: inset 0 -3px 0 var(--ink);
+  }
+
+  .tab-btn:focus-visible,
+  .btn:focus-visible,
+  .custom-summary:focus-visible,
+  .custom-input:focus-visible {
+    outline: 3px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  /* Task box */
+  .task-box {
+    background: var(--tint);
+    border-left: 5px solid var(--ink);
+    padding: 9px 14px;
+    margin-bottom: 6px;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .task-label {
+    display: block;
+    font-size: 0.71rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--mid);
+    margin-bottom: 1px;
+  }
+
+  .task-text {
+    margin: 0;
+    font-size: 1.03rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .concept {
+    margin: 0 0 10px;
+    font-size: 0.95rem;
+    color: var(--mid);
+  }
+
+  /* Main widget card */
+  .card {
+    background: var(--card);
+    border: 1.5px solid var(--ink);
+    border-radius: 6px;
+    padding: 12px 14px 14px;
+  }
+
+  .card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px 14px;
+    margin-bottom: 6px;
+  }
+
+  .legend {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 0.88rem;
+    color: var(--mid);
+    flex: 1 1 420px;
+  }
+
+  .legend[hidden] {
+    display: none;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1.32;
+    padding: 2px 6px;
+    border-left: 3px solid transparent;
+    border-radius: 2px;
+  }
+
+  .legend-item.active {
+    color: var(--ink);
+    font-weight: 700;
+    background: var(--tint);
+    border-left-color: var(--ink);
+  }
+
+  .check-mark {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 0.78rem;
+    color: var(--mid);
+    flex: 0 0 auto;
+  }
+
+  .legend-item.seen .check-mark {
+    color: var(--ink);
+    font-weight: 700;
+  }
+
+  .swatch {
+    flex: 0 0 auto;
+    width: 24px;
+    height: 10px;
+  }
+
+  /* Responsive SVG with horizontal scroll on narrow screens so labels stay readable */
+  .svg-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 2px 0 8px;
+  }
+
+  .tree-svg {
+    display: block;
+    width: 100%;
+    min-width: 560px;
+    height: auto;
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  .svg-corner-note {
+    font-family: var(--font);
+    font-size: 13.5px;
+    font-weight: 600;
+    fill: var(--mid);
+    pointer-events: none;
+  }
+
+  /* Projection guides connecting tree nodes straight down to in-order strip */
+  .proj-guide {
+    stroke: var(--ink);
+    stroke-width: 1.2;
+    stroke-dasharray: 3 4;
+    opacity: 0.34;
+    pointer-events: none;
+  }
+
+  .proj-guide.is-ver {
+    stroke: var(--ver);
+    opacity: 0.55;
+  }
+
+  /* SVG node & strip styling */
+  .node {
+    cursor: pointer;
+    outline: none;
+  }
+
+  .node-hit {
+    fill: transparent;
+  }
+
+  .node-circle {
+    fill: var(--card);
+    stroke: var(--ink);
+    stroke-width: 1.7;
+    transition: fill 120ms ease, stroke 120ms ease, stroke-width 120ms ease;
+  }
+
+  .node:hover .node-circle {
+    fill: var(--tint);
+    stroke-width: 2.5;
+  }
+
+  .candidate-ring {
+    fill: none;
+    stroke: var(--mid);
+    stroke-width: 1.25;
+    stroke-dasharray: 3 3;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .node.is-candidate .candidate-ring {
+    opacity: 0.65;
+  }
+
+  .node.is-candidate:hover .candidate-ring,
+  .node.is-candidate:focus-visible .candidate-ring {
+    stroke: var(--ink);
+    stroke-width: 1.9;
+    opacity: 1;
+  }
+
+  .node-key {
+    fill: var(--ink);
+    font-family: var(--font);
+    font-size: 15px;
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: central;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+
+  .node-state-label {
+    font-family: var(--font);
+    font-size: 11.5px;
+    font-weight: 700;
+    text-anchor: middle;
+    fill: var(--ink);
+    paint-order: stroke fill;
+    stroke: var(--card);
+    stroke-width: 5px;
+    stroke-linejoin: round;
+    pointer-events: none;
+  }
+
+  .node-state-label.is-ver {
+    fill: var(--ver);
+  }
+
+  .node-state-label.is-c2 {
+    fill: var(--c2);
+  }
+
+  .node-state-label.is-hover-prompt {
+    fill: var(--mid);
+    font-style: italic;
+    opacity: 0;
+  }
+
+  .node.is-candidate:hover .node-state-label.is-hover-prompt,
+  .node.is-candidate:focus-visible .node-state-label.is-hover-prompt {
+    opacity: 1;
+    fill: var(--ink);
+  }
+
+  .node-climb-note {
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 700;
+    text-anchor: middle;
+    fill: var(--c2);
+    paint-order: stroke fill;
+    stroke: var(--card);
+    stroke-width: 5px;
+    stroke-linejoin: round;
+    pointer-events: none;
+  }
+
+  .focus-ring {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 2.8;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .node:focus-visible .focus-ring {
+    opacity: 1;
+  }
+
+  .pulse-ring {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 2.1;
+    opacity: 0;
+    pointer-events: none;
+    transform-origin: 0 0;
+  }
+
+  .node.is-suggested .pulse-ring {
+    animation: pulseRing 1.6s ease-in-out infinite;
+  }
+
+  @keyframes pulseRing {
+    0%, 100% {
+      opacity: 0.18;
+      transform: scale(0.98);
+    }
+    50% {
+      opacity: 0.88;
+      transform: scale(1.08);
+    }
+  }
+
+  .node.is-start .node-circle,
+  .node.is-delete-target .node-circle {
+    stroke: var(--ink);
+    stroke-width: 3.5;
+  }
+
+  /* Lit-up ancestor chain during Case 2 climb */
+  .node.is-climbed-ancestor .node-circle {
+    fill: var(--c2-tint);
+    stroke: var(--c2);
+    stroke-width: 2.6;
+  }
+
+  .node.is-answer .node-circle {
+    fill: var(--ink);
+    stroke: var(--ink);
+    stroke-width: 2;
+  }
+
+  .node.is-answer .node-key {
+    fill: var(--paper);
+    font-weight: 700;
+  }
+
+  .node.is-guess-wrong .node-circle {
+    stroke: var(--ver);
+    stroke-width: 3.2;
+  }
+
+  .ver-ring {
+    fill: none;
+    stroke: var(--ver);
+    stroke-width: 2.5;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .node.is-guess-right .ver-ring,
+  .node.is-just-updated .ver-ring {
+    opacity: 1;
+  }
+
+  /* Child edge & parent arrow */
+  .child-edge {
+    stroke: var(--ink);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+  }
+
+  .child-edge.is-c1 {
+    stroke: var(--c1);
+    stroke-width: 3.5;
+  }
+
+  .child-edge.is-c2 {
+    stroke: var(--c2);
+    stroke-width: 3.5;
+    stroke-dasharray: 6 4;
+  }
+
+  .parent-arrow {
+    stroke: var(--arrow-grey);
+    stroke-width: 1.05;
+    fill: none;
+  }
+
+  .parent-arrow.is-c2 {
+    stroke: var(--c2);
+    stroke-width: 2.7;
+    stroke-dasharray: 6 4;
+  }
+
+  .parent-arrow.is-c1 {
+    stroke: var(--c1);
+    stroke-width: 2.7;
+  }
+
+  /* In-order strip (non-interactive) */
+  #strip-layer {
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .strip-heading {
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    fill: var(--mid);
+  }
+
+  .strip-rect {
+    fill: var(--paper);
+    stroke: var(--faint);
+    stroke-width: 1.25;
+  }
+
+  .strip-text {
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 700;
+    fill: var(--ink);
+    text-anchor: middle;
+    dominant-baseline: central;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .strip-cell.is-masked .strip-text {
+    fill: var(--mid);
+    font-weight: 400;
+  }
+
+  .strip-cell.is-start .strip-rect {
+    stroke: var(--ink);
+    stroke-width: 2.3;
+  }
+
+  .strip-cell.is-answer .strip-rect {
+    fill: var(--ink);
+    stroke: var(--ink);
+    stroke-width: 1.5;
+  }
+
+  .strip-cell.is-answer .strip-text {
+    fill: var(--paper);
+  }
+
+  .strip-cell.is-just-updated .strip-rect {
+    stroke: var(--ver);
+    stroke-width: 2.3;
+  }
+
+  .strip-strike {
+    stroke: var(--ver);
+    stroke-width: 2.1;
+    opacity: 0;
+  }
+
+  .strip-cell.is-leaving .strip-strike {
+    opacity: 1;
+  }
+
+  .strip-sub-label {
+    font-family: var(--font);
+    font-size: 10.5px;
+    font-weight: 700;
+    fill: var(--ver);
+    text-anchor: middle;
+    opacity: 0;
+  }
+
+  .strip-cell.is-leaving .strip-sub-label,
+  .strip-cell.is-was-updated .strip-sub-label {
+    opacity: 1;
+  }
+
+  .strip-arc {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.8;
+  }
+
+  .strip-arc-label {
+    font-family: var(--font);
+    font-size: 11px;
+    font-style: italic;
+    font-weight: 700;
+    fill: var(--ink);
+    text-anchor: middle;
+  }
+
+  /* Buttons & action row */
+  .action-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .action-left {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px 15px;
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 0.94rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+  }
+
+  .btn.primary {
+    background: var(--ink);
+    color: var(--paper);
+    border: 1.5px solid var(--ink);
+  }
+
+  .btn.primary:hover {
+    background: #333330;
+    border-color: #333330;
+  }
+
+  .btn.secondary {
+    background: var(--paper);
+    color: var(--ink);
+    border: 1.5px solid var(--ink);
+  }
+
+  .btn.secondary:hover {
+    background: var(--tint);
+  }
+
+  .btn.subtle {
+    background: transparent;
+    color: var(--mid);
+    border: 1.5px solid var(--faint);
+  }
+
+  .btn.subtle:hover {
+    color: var(--ink);
+    border-color: var(--ink);
+    background: var(--tint);
+  }
+
+  .btn[hidden] {
+    display: none;
+  }
+
+  /* Unified single status line (live step narration + what happened + next action) */
+  .status {
+    border-top: 1px solid var(--faint);
+    padding-top: 9px;
+    font-size: 0.95rem;
+    min-height: 2.5em;
+  }
+
+  .status .what {
+    color: var(--ink);
+  }
+
+  .status .next {
+    color: var(--ink);
+    font-weight: 700;
+  }
+
+  /* Optional collapsed "Try your own tree" drawer */
+  .custom-drawer {
+    margin-top: 10px;
+    border-top: 1px dashed var(--faint);
+    padding-top: 8px;
+  }
+
+  .custom-summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 4px 10px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--mid);
+    cursor: pointer;
+    border-radius: 4px;
+    user-select: none;
+  }
+
+  .custom-summary:hover {
+    color: var(--ink);
+    background: var(--tint);
+  }
+
+  .custom-body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    padding: 8px 4px 2px;
+  }
+
+  .custom-input {
+    width: 84px;
+    min-height: 44px;
+    padding: 6px 10px;
+    border: 1.5px solid var(--ink);
+    border-radius: 5px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .custom-hint {
+    font-size: 0.85rem;
+    color: var(--mid);
+    margin-left: 4px;
+  }
+
+  /* Footer */
+  .page-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    margin-top: 12px;
+  }
+
+  .footer-note {
+    margin: 0;
+    font-size: 0.89rem;
+    color: var(--mid);
+  }
+
+  @media (max-width: 520px) {
+    .page {
+      padding: 12px 8px 24px;
+    }
+    .card {
+      padding: 10px 8px 12px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .node.is-suggested .pulse-ring {
+      animation: none;
+      opacity: 0.65;
+    }
+    .tab-btn,
+    .btn,
+    .node-circle {
+      transition: none;
+    }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="page-head">
+    <h1>Successor and delete in a binary search tree</h1>
+    <div class="tabs" role="tablist" aria-label="Lesson section">
+      <button type="button" role="tab" id="tab-succ" class="tab-btn" aria-selected="true" tabindex="0">1 Successor</button>
+      <button type="button" role="tab" id="tab-del" class="tab-btn" aria-selected="false" tabindex="-1">2 Delete</button>
+    </div>
+  </header>
+
+  <section class="task-box" aria-label="Current task">
+    <span class="task-label" id="task-label">Your task</span>
+    <p class="task-text" id="task-text"></p>
+  </section>
+
+  <p class="concept" id="concept-text"></p>
+
+  <section class="card" aria-label="Interactive tree">
+    <div class="card-head" id="card-head">
+      <div class="legend" id="succ-legend">
+        <div class="legend-item" id="leg-case1">
+          <span class="check-mark" id="check-case1">[ ]</span>
+          <svg class="swatch" viewBox="0 0 24 10" aria-hidden="true">
+            <line x1="0" y1="5" x2="24" y2="5" stroke="#2b5c8a" stroke-width="3.2" stroke-linecap="round"/>
+          </svg>
+          <span id="leg-case1-text"></span>
+        </div>
+        <div class="legend-item" id="leg-case2">
+          <span class="check-mark" id="check-case2">[ ]</span>
+          <svg class="swatch" viewBox="0 0 24 10" aria-hidden="true">
+            <line x1="0" y1="5" x2="24" y2="5" stroke="#2f7a5b" stroke-width="2.8" stroke-dasharray="6 4"/>
+          </svg>
+          <span id="leg-case2-text"></span>
+        </div>
+      </div>
+
+      <div class="legend" id="del-legend" hidden>
+        <div class="legend-item" id="del-leg-leaf">
+          <span class="check-mark" id="check-del-leaf">[ ]</span>
+          <span>Leaf (no children): remove it.</span>
+        </div>
+        <div class="legend-item" id="del-leg-inner">
+          <span class="check-mark" id="check-del-inner">[ ]</span>
+          <span>Has children: copy its predecessor or successor into it, then remove that neighbour.</span>
+        </div>
+        <div class="legend-item" id="del-leg-chain">
+          <span class="check-mark" id="check-del-chain">[ ]</span>
+          <span>Neighbour has a child too: the removal repeats on the neighbour.</span>
+        </div>
+      </div>
+
+      <button type="button" id="mirror-btn" class="btn secondary">Show predecessor instead</button>
+    </div>
+
+    <div class="svg-wrap" id="svg-wrap">
+      <svg id="tree-svg" class="tree-svg" viewBox="0 0 820 490" role="img" aria-label="Binary search tree with parent pointers and aligned in-order strip">
+        <defs>
+          <marker id="arrow-grey" viewBox="0 0 8 8" refX="6.5" refY="4" markerWidth="6.5" markerHeight="6.5" markerUnits="userSpaceOnUse" orient="auto">
+            <path d="M 0.5 1 L 7 4 L 0.5 7 Z" fill="#8a877f"/>
+          </marker>
+          <marker id="arrow-c1" viewBox="0 0 8 8" refX="6.5" refY="4" markerWidth="7.5" markerHeight="7.5" markerUnits="userSpaceOnUse" orient="auto">
+            <path d="M 0.5 1 L 7 4 L 0.5 7 Z" fill="#2b5c8a"/>
+          </marker>
+          <marker id="arrow-c2" viewBox="0 0 8 8" refX="6.5" refY="4" markerWidth="7.5" markerHeight="7.5" markerUnits="userSpaceOnUse" orient="auto">
+            <path d="M 0.5 1 L 7 4 L 0.5 7 Z" fill="#2f7a5b"/>
+          </marker>
+          <marker id="arrow-ink" viewBox="0 0 8 8" refX="6.5" refY="4" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto">
+            <path d="M 0.5 1 L 7 4 L 0.5 7 Z" fill="#1d1d1b"/>
+          </marker>
+        </defs>
+        <text class="svg-corner-note" x="18" y="20">Thin grey arrows point to parent</text>
+        <g id="guides-layer"></g>
+        <g id="edges-layer"></g>
+        <g id="arrows-layer"></g>
+        <g id="nodes-layer"></g>
+        <g id="strip-layer"></g>
+        <g id="cursor-layer"></g>
+        <g id="fly-layer"></g>
+      </svg>
+    </div>
+
+    <div class="action-row">
+      <div class="action-left" id="predict-actions">
+        <button type="button" id="alt-predict-btn" class="btn secondary" hidden></button>
+        <button type="button" id="skip-btn" class="btn subtle" hidden>Skip, show me</button>
+      </div>
+      <button type="button" id="reset-btn" class="btn secondary">Reset</button>
+    </div>
+
+    <div class="status" id="status-line" aria-live="polite" role="status">
+      <span class="what" id="status-what"></span>
+      <strong class="next" id="status-next"></strong>
+    </div>
+
+    <details class="custom-drawer" id="custom-drawer">
+      <summary class="custom-summary">Try your own tree</summary>
+      <div class="custom-body">
+        <label for="custom-key-input" class="custom-hint">Key (1–99):</label>
+        <input type="number" id="custom-key-input" class="custom-input" min="1" max="99" value="48">
+        <button type="button" id="custom-add-btn" class="btn secondary">Insert key</button>
+        <button type="button" id="custom-small-btn" class="btn secondary">Small 5-key tree</button>
+        <button type="button" id="custom-default-btn" class="btn subtle">Default 15-key tree</button>
+        <span class="custom-hint" id="custom-feedback"></span>
+      </div>
+    </details>
+  </section>
+
+  <footer class="page-foot">
+    <p class="footer-note" id="footer-note"></p>
+    <button type="button" id="footer-nav-btn" class="btn secondary"></button>
+  </footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const VIEW_W = 820;
+  const RADIUS = 20;
+  const COL_W = 52;
+  const ROW_H = 74;
+  const TOP_Y = 48;
+  const STRIP_Y = 404;
+  const STRIP_W = 46;
+  const STRIP_H = 34;
+  const STEP_MS = 350;
+  const FLY_MS = 340;
+  const FADE_MS = 280;
+  const RELAYOUT_MS = 300;
+  const MAX_CUSTOM_NODES = 16;
+  const CANCEL = Symbol("cancel");
+
+  const DEFAULT_KEYS = [50, 30, 70, 20, 40, 10, 25, 35, 45, 42, 60, 85, 65, 80, 90];
+  const SMALL_KEYS = [50, 30, 70, 20, 40];
+
+  // Current base insertion sequence used by both tabs and Reset
+  let activeKeySequence = DEFAULT_KEYS.slice();
+
+  function reducedMotion() {
+    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  /* ---------- Pure Tree Helpers ---------- */
+
+  function buildTreeFromKeys(keys) {
+    const byId = {};
+    let root = null;
+
+    for (const k of keys) {
+      const id = "n" + k;
+      if (byId[id]) continue;
+      const node = { id, key: k, left: null, right: null, parent: null, removed: false };
+      byId[id] = node;
+      if (!root) {
+        root = node;
+      } else {
+        let cur = root;
+        while (cur) {
+          if (k < cur.key) {
+            if (!cur.left) {
+              cur.left = node;
+              node.parent = cur;
+              break;
+            }
+            cur = cur.left;
+          } else {
+            if (!cur.right) {
+              cur.right = node;
+              node.parent = cur;
+              break;
+            }
+            cur = cur.right;
+          }
+        }
+      }
+    }
+    return { root, byId };
+  }
+
+  function inorder(root) {
+    const out = [];
+    function walk(n) {
+      if (!n) return;
+      walk(n.left);
+      out.push(n);
+      walk(n.right);
+    }
+    walk(root);
+    return out;
+  }
+
+  function depthOf(node) {
+    let d = 0;
+    let cur = node;
+    while (cur.parent) {
+      d++;
+      cur = cur.parent;
+    }
+    return d;
+  }
+
+  function maxDepthOf(list) {
+    let m = 0;
+    for (const n of list) {
+      const d = depthOf(n);
+      if (d > m) m = d;
+    }
+    return m;
+  }
+
+  function computeLayout(root) {
+    const list = inorder(root);
+    const n = list.length;
+    const pos = {};
+    const maxD = maxDepthOf(list);
+    const rowStep = maxD > 4 ? Math.floor(296 / maxD) : ROW_H;
+    const totalW = n * COL_W;
+    const leftX = (VIEW_W - totalW) / 2 + COL_W / 2;
+    for (let rank = 0; rank < n; rank++) {
+      const node = list[rank];
+      pos[node.id] = {
+        x: leftX + rank * COL_W,
+        y: TOP_Y + depthOf(node) * rowStep
+      };
+    }
+    return { pos, order: list };
+  }
+
+  function succ(node) {
+    if (!node) return null;
+    if (node.right) {
+      let cur = node.right;
+      while (cur.left) cur = cur.left;
+      return cur;
+    }
+    let cur = node;
+    let p = cur.parent;
+    while (p && cur === p.right) {
+      cur = p;
+      p = cur.parent;
+    }
+    return p || null;
+  }
+
+  function pred(node) {
+    if (!node) return null;
+    if (node.left) {
+      let cur = node.left;
+      while (cur.right) cur = cur.right;
+      return cur;
+    }
+    let cur = node;
+    let p = cur.parent;
+    while (p && cur === p.left) {
+      cur = p;
+      p = cur.parent;
+    }
+    return p || null;
+  }
+
+  function succPath(node) {
+    const steps = [];
+    if (node.right) {
+      steps.push({
+        from: node,
+        to: node.right,
+        dir: "down",
+        caseType: 1,
+        narration: "Case 1: right once " + node.key + " → " + node.right.key + " (keys here are bigger than " + node.key + ")..."
+      });
+      let cur = node.right;
+      while (cur.left) {
+        steps.push({
+          from: cur,
+          to: cur.left,
+          dir: "down",
+          caseType: 1,
+          narration: "Case 1: go left " + cur.key + " → " + cur.left.key + " (find the smallest of those bigger keys)..."
+        });
+        cur = cur.left;
+      }
+      return { caseType: 1, steps, answer: cur };
+    }
+    let cur = node;
+    let p = cur.parent;
+    while (p && cur === p.right) {
+      steps.push({
+        from: cur,
+        to: p,
+        dir: "up",
+        smallerAncestor: true,
+        caseType: 2,
+        narration: "Case 2: go up " + cur.key + " → " + p.key + " (arrived from right child, keep going up)..."
+      });
+      cur = p;
+      p = cur.parent;
+    }
+    if (p) {
+      steps.push({
+        from: cur,
+        to: p,
+        dir: "up",
+        smallerAncestor: false,
+        caseType: 2,
+        narration: "Case 2: go up " + cur.key + " → " + p.key + " (arrived from left child — stop! " + p.key + " is the successor)"
+      });
+      return { caseType: 2, steps, answer: p };
+    }
+    return { caseType: 2, steps, answer: null };
+  }
+
+  function predPath(node) {
+    const steps = [];
+    if (node.left) {
+      steps.push({
+        from: node,
+        to: node.left,
+        dir: "down",
+        caseType: 1,
+        narration: "Case 1: left once " + node.key + " → " + node.left.key + " (keys here are smaller than " + node.key + ")..."
+      });
+      let cur = node.left;
+      while (cur.right) {
+        steps.push({
+          from: cur,
+          to: cur.right,
+          dir: "down",
+          caseType: 1,
+          narration: "Case 1: go right " + cur.key + " → " + cur.right.key + " (find the largest of those smaller keys)..."
+        });
+        cur = cur.right;
+      }
+      return { caseType: 1, steps, answer: cur };
+    }
+    let cur = node;
+    let p = cur.parent;
+    while (p && cur === p.left) {
+      steps.push({
+        from: cur,
+        to: p,
+        dir: "up",
+        largerAncestor: true,
+        caseType: 2,
+        narration: "Case 2: go up " + cur.key + " → " + p.key + " (arrived from left child, keep going up)..."
+      });
+      cur = p;
+      p = cur.parent;
+    }
+    if (p) {
+      steps.push({
+        from: cur,
+        to: p,
+        dir: "up",
+        largerAncestor: false,
+        caseType: 2,
+        narration: "Case 2: go up " + cur.key + " → " + p.key + " (arrived from right child — stop! " + p.key + " is the predecessor)"
+      });
+      return { caseType: 2, steps, answer: p };
+    }
+    return { caseType: 2, steps, answer: null };
+  }
+
+  function findByKey(root, key) {
+    let cur = root;
+    while (cur) {
+      if (key === cur.key) return cur;
+      cur = key < cur.key ? cur.left : cur.right;
+    }
+    return null;
+  }
+
+  function isLeaf(node) {
+    return !!node && !node.left && !node.right;
+  }
+
+  function isInSubtree(node, ancestor) {
+    let cur = node;
+    while (cur) {
+      if (cur === ancestor) return true;
+      cur = cur.parent;
+    }
+    return false;
+  }
+
+  /* ---------- Dynamic Pedagogical Suggestions ---------- */
+
+  function succSuggestion(st) {
+    const list = inorder(st.root);
+    if (list.length === 0) return null;
+
+    if (st.dir === "succ") {
+      if (!st.seen.case1) {
+        const n30 = findByKey(st.root, 30);
+        if (n30 && n30.right && n30.right.left) return { node: n30, reason: "has a right child — Case 1" };
+        const deepC1 = list.find(n => n.right && n.right.left);
+        if (deepC1) return { node: deepC1, reason: "has a right child — Case 1" };
+        const anyC1 = list.find(n => !!n.right);
+        if (anyC1) return { node: anyC1, reason: "has a right child — Case 1" };
+      }
+      if (!st.seen.case2) {
+        const n45 = findByKey(st.root, 45);
+        if (n45 && !n45.right && succ(n45)) return { node: n45, reason: "no right child — Case 2" };
+        const multiUp = list.find(n => !n.right && n.parent && n === n.parent.right && succ(n));
+        if (multiUp) return { node: multiUp, reason: "no right child — Case 2" };
+        const anyC2 = list.find(n => !n.right && succ(n));
+        if (anyC2) return { node: anyC2, reason: "no right child — Case 2" };
+      }
+      if (!st.seen.none) {
+        const maxNode = list[list.length - 1];
+        return { node: maxNode, reason: "the largest key" };
+      }
+      return null;
+    } else {
+      if (!st.seen.case1) {
+        const n70 = findByKey(st.root, 70);
+        if (n70 && n70.left && n70.left.right) return { node: n70, reason: "has a left child — Case 1" };
+        const deepC1 = list.find(n => n.left && n.left.right);
+        if (deepC1) return { node: deepC1, reason: "has a left child — Case 1" };
+        const anyC1 = list.find(n => !!n.left);
+        if (anyC1) return { node: anyC1, reason: "has a left child — Case 1" };
+      }
+      if (!st.seen.case2) {
+        const n35 = findByKey(st.root, 35);
+        if (n35 && !n35.left && pred(n35)) return { node: n35, reason: "no left child — Case 2" };
+        const multiUp = list.find(n => !n.left && n.parent && n === n.parent.left && pred(n));
+        if (multiUp) return { node: multiUp, reason: "no left child — Case 2" };
+        const anyC2 = list.find(n => !n.left && pred(n));
+        if (anyC2) return { node: anyC2, reason: "no left child — Case 2" };
+      }
+      if (!st.seen.none) {
+        const minNode = list[0];
+        return { node: minNode, reason: "the smallest key" };
+      }
+      return null;
+    }
+  }
+
+  function delSuggestion(st) {
+    if (!st.root) return null;
+    const nodes = inorder(st.root);
+    if (!st.seen.leaf) {
+      const leaf = nodes.find(isLeaf);
+      if (leaf) return { node: leaf, reason: "a leaf" };
+    }
+    if (!st.seen.pred) {
+      const n30 = findByKey(st.root, 30);
+      if (n30 && n30.left) return { node: n30, reason: "has two children" };
+      const anyPred = nodes.find(n => !!n.left);
+      if (anyPred) return { node: anyPred, reason: "has a left child" };
+    }
+    if (!st.seen.succ) {
+      const n60 = findByKey(st.root, 60);
+      if (n60 && !n60.left && n60.right) return { node: n60, reason: "only a right child" };
+      const anySucc = nodes.find(n => !n.left && !!n.right);
+      if (anySucc) return { node: anySucc, reason: "only a right child" };
+    }
+    if (!st.seen.chain) {
+      const n50 = findByKey(st.root, 50);
+      if (n50 && !isLeaf(n50)) {
+        const rep = n50.left ? pred(n50) : succ(n50);
+        if (rep && !isLeaf(rep)) return { node: n50, reason: "its neighbour also has a child" };
+      }
+      const anyChain = nodes.find(n => {
+        if (isLeaf(n)) return false;
+        const rep = n.left ? pred(n) : succ(n);
+        return rep && !isLeaf(rep);
+      });
+      if (anyChain) return { node: anyChain, reason: "its neighbour also has a child" };
+    }
+    return null;
+  }
+
+  function hasAnyNonLeaf(root) {
+    return inorder(root).some(n => !isLeaf(n));
+  }
+
+  function delAllCategoriesSeen(st) {
+    const leafOk = st.seen.leaf;
+    const innerOk = (st.seen.pred || st.seen.succ) || !hasAnyNonLeaf(st.root);
+    return leafOk && innerOk;
+  }
+
+  /* ---------- Mode State ---------- */
+
+  function createSuccState(withInitialExample) {
+    const tree = buildTreeFromKeys(activeKeySequence);
+    const list = inorder(tree.root);
+    const st = {
+      root: tree.root,
+      byId: tree.byId,
+      dir: "succ",
+      phase: "pick", // pick | predict | animating | done
+      startId: null,
+      guess: null,
+      answerId: null,
+      caseType: null,
+      activeSteps: [],
+      revealedStepsCount: 0,
+      seen: { case1: false, case2: false, none: false },
+      statusWhat: "Tree with " + list.length + (list.length === 1 ? " key." : " keys."),
+      statusNext: ""
+    };
+
+    // Show a brief worked example on initial load so the rule and strip are clear before the student predicts
+    const exStart = findByKey(tree.root, 20) || list.find(n => !!n.right);
+    if (withInitialExample && exStart && exStart.right) {
+      const pathRes = succPath(exStart);
+      st.phase = "done";
+      st.startId = exStart.id;
+      st.answerId = pathRes.answer ? pathRes.answer.id : null;
+      st.caseType = 1;
+      st.activeSteps = pathRes.steps;
+      st.revealedStepsCount = pathRes.steps.length;
+      st.statusWhat = "Worked example: " + exStart.key + " has right child " + pathRes.answer.key +
+        ", so " + exStart.key + "'s successor is " + pathRes.answer.key + " (the next key in the strip).";
+    }
+
+    const sug = succSuggestion(st);
+    st.statusNext = sug && sug.node
+      ? "Next: click node " + sug.node.key + " (" + sug.reason + ")."
+      : "Next: click any node.";
+    return st;
+  }
+
+  function createDelState() {
+    const tree = buildTreeFromKeys(activeKeySequence);
+    const list = inorder(tree.root);
+    const st = {
+      root: tree.root,
+      byId: tree.byId,
+      phase: "pick", // pick | predict | animating | done | empty
+      targetId: null,
+      guess: null,
+      answer: null,
+      chosenVia: null, // "pred" | "succ" | null
+      activeCase: null, // "leaf" | "inner" | null
+      activeChain: false,
+      guessWrongId: null,
+      activeWalkEdges: [],
+      leavingStripId: null,
+      justUpdatedId: null,
+      lastChanges: {},
+      fadingNodeId: null,
+      pendingNodeId: null,
+      pendingReceiverId: null,
+      pendingVia: null,
+      pendingFeedback: "",
+      pendingRecords: [],
+      seen: { leaf: false, pred: false, succ: false, chain: false },
+      statusWhat: "Tree with " + list.length + (list.length === 1 ? " key." : " keys."),
+      statusNext: ""
+    };
+    const sug = delSuggestion(st);
+    st.statusNext = sug && sug.node
+      ? "Next: click node " + sug.node.key + " (" + sug.reason + ")."
+      : "Next: click any node to delete it.";
+    return st;
+  }
+
+  let activeTab = "succ";
+  let succState = createSuccState(true);
+  let delState = createDelState();
+  const anim = { id: 0, fast: false };
+  let livePositions = {};
+
+  /* ---------- DOM References ---------- */
+
+  const tabSuccBtn = document.getElementById("tab-succ");
+  const tabDelBtn = document.getElementById("tab-del");
+  const taskLabel = document.getElementById("task-label");
+  const taskText = document.getElementById("task-text");
+  const conceptText = document.getElementById("concept-text");
+  const succLegend = document.getElementById("succ-legend");
+  const legCase1 = document.getElementById("leg-case1");
+  const legCase2 = document.getElementById("leg-case2");
+  const checkCase1 = document.getElementById("check-case1");
+  const checkCase2 = document.getElementById("check-case2");
+  const legCase1Text = document.getElementById("leg-case1-text");
+  const legCase2Text = document.getElementById("leg-case2-text");
+  const delLegend = document.getElementById("del-legend");
+  const delLegLeaf = document.getElementById("del-leg-leaf");
+  const delLegInner = document.getElementById("del-leg-inner");
+  const delLegChain = document.getElementById("del-leg-chain");
+  const checkDelLeaf = document.getElementById("check-del-leaf");
+  const checkDelInner = document.getElementById("check-del-inner");
+  const checkDelChain = document.getElementById("check-del-chain");
+  const mirrorBtn = document.getElementById("mirror-btn");
+  const guidesLayer = document.getElementById("guides-layer");
+  const edgesLayer = document.getElementById("edges-layer");
+  const arrowsLayer = document.getElementById("arrows-layer");
+  const nodesLayer = document.getElementById("nodes-layer");
+  const stripLayer = document.getElementById("strip-layer");
+  const cursorLayer = document.getElementById("cursor-layer");
+  const flyLayer = document.getElementById("fly-layer");
+  const altPredictBtn = document.getElementById("alt-predict-btn");
+  const skipBtn = document.getElementById("skip-btn");
+  const resetBtn = document.getElementById("reset-btn");
+  const statusWhat = document.getElementById("status-what");
+  const statusNext = document.getElementById("status-next");
+  const customKeyInput = document.getElementById("custom-key-input");
+  const customAddBtn = document.getElementById("custom-add-btn");
+  const customSmallBtn = document.getElementById("custom-small-btn");
+  const customDefaultBtn = document.getElementById("custom-default-btn");
+  const customFeedback = document.getElementById("custom-feedback");
+  const footerNote = document.getElementById("footer-note");
+  const footerNavBtn = document.getElementById("footer-nav-btn");
+
+  /* ---------- Persistent SVG Elements Pool ---------- */
+
+  const svgPool = {
+    nodes: {},      // id -> { g, hit, pulse, candidate, ver, focus, circle, keyText, stateLabel, climbNote }
+    guides: {},     // id -> line
+    edges: {},      // childId -> line
+    arrows: {},     // childId -> line
+    stripCells: {}, // id -> { g, rect, text, strike, subLabel }
+    stripHeading: null,
+    stripArcGroup: null,
+    stripArcPath: null,
+    stripArcLabel: null,
+    cursorRing: null,
+    flyGroup: null,
+    flyCircle: null,
+    flyText: null
+  };
+
+  function el(tag, attrs, parent) {
+    const node = document.createElementNS(SVG_NS, tag);
+    if (attrs) {
+      for (const k in attrs) node.setAttribute(k, attrs[k]);
+    }
+    if (parent) parent.appendChild(node);
+    return node;
+  }
+
+  function ensureNodePool(id) {
+    if (svgPool.nodes[id]) return;
+
+    svgPool.guides[id] = el("line", { class: "proj-guide", style: "display:none" }, guidesLayer);
+    svgPool.edges[id] = el("line", { class: "child-edge", style: "display:none" }, edgesLayer);
+    svgPool.arrows[id] = el("line", {
+      class: "parent-arrow",
+      "marker-end": "url(#arrow-grey)",
+      style: "display:none"
+    }, arrowsLayer);
+
+    const g = el("g", {
+      class: "node",
+      tabindex: "0",
+      role: "button",
+      "data-id": id
+    }, nodesLayer);
+    // 120x120 SVG hit box ensures >= 45px physical touch target even when scaled to 100% width on a 390px phone
+    const hit = el("rect", {
+      class: "node-hit",
+      x: "-60",
+      y: "-60",
+      width: "120",
+      height: "120",
+      rx: "8"
+    }, g);
+    const pulse = el("circle", { class: "pulse-ring", r: String(RADIUS + 5.5) }, g);
+    const candidate = el("circle", { class: "candidate-ring", r: String(RADIUS + 4.5) }, g);
+    const ver = el("circle", { class: "ver-ring", r: String(RADIUS + 6) }, g);
+    const focus = el("circle", { class: "focus-ring", r: String(RADIUS + 7) }, g);
+    const circle = el("circle", { class: "node-circle", r: String(RADIUS) }, g);
+    const keyText = el("text", { class: "node-key", x: "0", y: "0" }, g);
+    const stateLabel = el("text", { class: "node-state-label", x: "0", y: String(-(RADIUS + 8)) }, g);
+    const climbNote = el("text", { class: "node-climb-note", x: "0", y: String(RADIUS + 17) }, g);
+
+    g.addEventListener("click", function () {
+      onNodeActivate(id);
+    });
+    g.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onNodeActivate(id);
+      }
+    });
+
+    svgPool.nodes[id] = { g, hit, pulse, candidate, ver, focus, circle, keyText, stateLabel, climbNote };
+
+    const cg = el("g", { class: "strip-cell", style: "display:none" }, stripLayer);
+    const rect = el("rect", {
+      class: "strip-rect",
+      x: String(-STRIP_W / 2),
+      y: String(STRIP_Y),
+      width: String(STRIP_W),
+      height: String(STRIP_H),
+      rx: "2"
+    }, cg);
+    const text = el("text", {
+      class: "strip-text",
+      x: "0",
+      y: String(STRIP_Y + STRIP_H / 2)
+    }, cg);
+    const strike = el("line", {
+      class: "strip-strike",
+      x1: "-13",
+      y1: String(STRIP_Y + STRIP_H / 2),
+      x2: "13",
+      y2: String(STRIP_Y + STRIP_H / 2)
+    }, cg);
+    const subLabel = el("text", {
+      class: "strip-sub-label",
+      x: "0",
+      y: String(STRIP_Y + STRIP_H + 14)
+    }, cg);
+    svgPool.stripCells[id] = { g: cg, rect, text, strike, subLabel };
+  }
+
+  function syncPoolForTree(byId, root) {
+    for (const id in byId) {
+      ensureNodePool(id);
+    }
+    // Keep DOM order in key order when building/changing tree
+    const ordered = inorder(root);
+    for (const n of ordered) {
+      const ui = svgPool.nodes[n.id];
+      if (ui && ui.g.parentNode === nodesLayer) {
+        nodesLayer.appendChild(ui.g);
+      }
+    }
+    if (svgPool.stripArcGroup && svgPool.stripArcGroup.parentNode === stripLayer) {
+      stripLayer.appendChild(svgPool.stripArcGroup);
+    }
+  }
+
+  function initSvgPool() {
+    svgPool.stripHeading = el("text", {
+      class: "strip-heading",
+      x: "20",
+      y: String(STRIP_Y - 10)
+    }, stripLayer);
+    svgPool.stripHeading.textContent = "In order";
+
+    svgPool.stripArcGroup = el("g", { style: "display:none" }, stripLayer);
+    svgPool.stripArcPath = el("path", {
+      class: "strip-arc",
+      "marker-end": "url(#arrow-ink)"
+    }, svgPool.stripArcGroup);
+    svgPool.stripArcLabel = el("text", {
+      class: "strip-arc-label",
+      x: "0",
+      y: String(STRIP_Y + STRIP_H + 34)
+    }, svgPool.stripArcGroup);
+
+    svgPool.cursorRing = el("circle", {
+      r: String(RADIUS + 6),
+      fill: "none",
+      "stroke-width": "3",
+      opacity: "0",
+      "pointer-events": "none"
+    }, cursorLayer);
+
+    svgPool.flyGroup = el("g", { style: "display:none", "pointer-events": "none" }, flyLayer);
+    svgPool.flyCircle = el("circle", {
+      r: String(RADIUS - 1),
+      fill: "#d63a24",
+      stroke: "#faf8f3",
+      "stroke-width": "1.5"
+    }, svgPool.flyGroup);
+    svgPool.flyText = el("text", {
+      class: "node-key",
+      style: "fill:#faf8f3;font-weight:700;",
+      x: "0",
+      y: "0"
+    }, svgPool.flyGroup);
+
+    syncPoolForTree(succState.byId, succState.root);
+  }
+
+  /* ---------- Animation Utilities ---------- */
+
+  function tween(ms, onUpdate, myId) {
+    if (ms <= 0 || anim.fast || reducedMotion()) {
+      if (anim.id !== myId) return Promise.reject(CANCEL);
+      onUpdate(1);
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      const start = performance.now();
+      function tick(now) {
+        if (anim.id !== myId) return reject(CANCEL);
+        if (anim.fast) {
+          onUpdate(1);
+          return resolve();
+        }
+        const t = Math.min(1, (now - start) / ms);
+        const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        onUpdate(eased);
+        if (t >= 1) return resolve();
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
+  function pause(ms, myId) {
+    if (ms <= 0 || anim.fast || reducedMotion()) {
+      if (anim.id !== myId) return Promise.reject(CANCEL);
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      const start = performance.now();
+      function tick(now) {
+        if (anim.id !== myId) return reject(CANCEL);
+        if (anim.fast || now - start >= ms) return resolve();
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
+  function hideCursor() {
+    svgPool.cursorRing.setAttribute("opacity", "0");
+  }
+
+  function showCursorAt(x, y, color) {
+    svgPool.cursorRing.setAttribute("cx", x.toFixed(1));
+    svgPool.cursorRing.setAttribute("cy", y.toFixed(1));
+    svgPool.cursorRing.setAttribute("stroke", color);
+    svgPool.cursorRing.setAttribute("opacity", "1");
+  }
+
+  /* ---------- Geometry Drawing ---------- */
+
+  function drawGeometry(modeState, posMap) {
+    const activeNodes = modeState.root ? inorder(modeState.root) : [];
+    const activeSet = new Set(activeNodes.map(n => n.id));
+    const isSucc = activeTab === "succ";
+
+    const edgeCaseByChild = {};
+    const arrowCaseByChild = {};
+    const climbNoteByNode = {};
+    const climbedAncestorSet = new Set();
+
+    if (isSucc) {
+      const steps = modeState.activeSteps || [];
+      const count = modeState.revealedStepsCount || 0;
+      const startNode = modeState.startId ? modeState.byId[modeState.startId] : null;
+      for (let i = 0; i < count && i < steps.length; i++) {
+        const s = steps[i];
+        if (s.dir === "down") {
+          edgeCaseByChild[s.to.id] = s.caseType;
+        } else {
+          arrowCaseByChild[s.from.id] = s.caseType;
+          if (startNode && s.smallerAncestor) {
+            climbedAncestorSet.add(s.to.id);
+            climbNoteByNode[s.to.id] = "from right";
+          } else if (startNode && s.largerAncestor) {
+            climbedAncestorSet.add(s.to.id);
+            climbNoteByNode[s.to.id] = "from left";
+          }
+        }
+      }
+    } else {
+      for (const item of modeState.activeWalkEdges) {
+        edgeCaseByChild[item.childId] = item.caseType;
+      }
+    }
+
+    const allKnownIds = Object.keys(svgPool.nodes);
+
+    // Update child edges & parent arrows
+    for (const id of allKnownIds) {
+      const edgeEl = svgPool.edges[id];
+      const arrowEl = svgPool.arrows[id];
+      if (!edgeEl || !arrowEl) continue;
+
+      const node = modeState.byId[id];
+      const show = node && !node.removed && node.parent && !node.parent.removed && activeSet.has(id) && posMap[id] && posMap[node.parent.id];
+      if (!show) {
+        edgeEl.style.display = "none";
+        arrowEl.style.display = "none";
+        continue;
+      }
+
+      const pPos = posMap[node.parent.id];
+      const cPos = posMap[id];
+      const dx = cPos.x - pPos.x;
+      const dy = cPos.y - pPos.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len;
+      const uy = dy / len;
+
+      edgeEl.style.display = "";
+      edgeEl.setAttribute("x1", (pPos.x + ux * (RADIUS + 0.5)).toFixed(1));
+      edgeEl.setAttribute("y1", (pPos.y + uy * (RADIUS + 0.5)).toFixed(1));
+      edgeEl.setAttribute("x2", (cPos.x - ux * (RADIUS + 0.5)).toFixed(1));
+      edgeEl.setAttribute("y2", (cPos.y - uy * (RADIUS + 0.5)).toFixed(1));
+      edgeEl.setAttribute("opacity", modeState.fadingNodeId === id ? "0.25" : "1");
+
+      const ec = edgeCaseByChild[id];
+      edgeEl.classList.toggle("is-c1", ec === 1);
+      edgeEl.classList.toggle("is-c2", ec === 2);
+
+      const sideSign = dx < 0 ? 1 : -1;
+      const ox = (-uy) * sideSign * 6.5;
+      const oy = (ux) * sideSign * 6.5;
+      const startTrim = RADIUS + 1.5;
+      const endTrim = RADIUS + 3.5;
+
+      arrowEl.style.display = "";
+      arrowEl.setAttribute("x1", (cPos.x + ox - ux * startTrim).toFixed(1));
+      arrowEl.setAttribute("y1", (cPos.y + oy - uy * startTrim).toFixed(1));
+      arrowEl.setAttribute("x2", (pPos.x + ox + ux * endTrim).toFixed(1));
+      arrowEl.setAttribute("y2", (pPos.y + oy + uy * endTrim).toFixed(1));
+      arrowEl.setAttribute("opacity", modeState.fadingNodeId === id ? "0.25" : "1");
+
+      const ac = arrowCaseByChild[id];
+      arrowEl.classList.toggle("is-c1", ac === 1);
+      arrowEl.classList.toggle("is-c2", ac === 2);
+      if (ac === 2) arrowEl.setAttribute("marker-end", "url(#arrow-c2)");
+      else if (ac === 1) arrowEl.setAttribute("marker-end", "url(#arrow-c1)");
+      else arrowEl.setAttribute("marker-end", "url(#arrow-grey)");
+    }
+
+    let sugObj = null;
+    if (isSucc && (modeState.phase === "pick" || modeState.phase === "done")) {
+      sugObj = succSuggestion(modeState);
+    } else if (!isSucc && (modeState.phase === "pick" || modeState.phase === "done")) {
+      sugObj = delSuggestion(modeState);
+    }
+    const suggestedId = sugObj && sugObj.node ? sugObj.node.id : null;
+
+    const showSuccPairInStrip =
+      isSucc &&
+      (modeState.phase === "done" ||
+        (modeState.phase === "animating" &&
+          modeState.revealedStepsCount >= modeState.activeSteps.length));
+
+    const startOrTargetKey = isSucc
+      ? (modeState.startId && modeState.byId[modeState.startId] ? modeState.byId[modeState.startId].key : null)
+      : (modeState.targetId && modeState.byId[modeState.targetId] ? modeState.byId[modeState.targetId].key : null);
+
+    // Update node elements & vertical projection guides
+    for (const id of allKnownIds) {
+      const ui = svgPool.nodes[id];
+      const guideEl = svgPool.guides[id];
+      const node = modeState.byId[id];
+      if (!node || node.removed || !activeSet.has(id) || !posMap[id]) {
+        ui.g.style.display = "none";
+        ui.g.setAttribute("tabindex", "-1");
+        ui.g.setAttribute("aria-hidden", "true");
+        guideEl.style.display = "none";
+        continue;
+      }
+
+      const p = posMap[id];
+      ui.g.style.display = "";
+      ui.g.setAttribute("tabindex", "0");
+      ui.g.removeAttribute("aria-hidden");
+      if (modeState.fadingNodeId !== id) {
+        ui.g.setAttribute("transform", "translate(" + p.x.toFixed(1) + "," + p.y.toFixed(1) + ")");
+        ui.g.style.opacity = "";
+      }
+      ui.keyText.textContent = String(node.key);
+
+      let isStart = false;
+      let isDeleteTarget = false;
+      let isCandidate = false;
+      let isClimbedAncestor = climbedAncestorSet.has(id);
+      let isAnswer = false;
+      let isGuessWrong = false;
+      let isGuessRight = false;
+      let isJustUpdated = false;
+      let label = "";
+      let labelVer = false;
+      let labelHoverPrompt = false;
+
+      if (isSucc) {
+        isStart = modeState.startId === id && modeState.phase !== "pick";
+        isCandidate = modeState.phase === "predict" && modeState.startId !== id;
+
+        if (showSuccPairInStrip && modeState.answerId === id) {
+          isAnswer = true;
+        }
+        if (showSuccPairInStrip && modeState.guess && modeState.guess !== "skip") {
+          if (modeState.guess === id && modeState.answerId !== id) {
+            isGuessWrong = true;
+          } else if (modeState.guess === id && modeState.answerId === id) {
+            isGuessRight = true;
+          }
+        }
+        if (isAnswer) {
+          label = modeState.dir === "succ" ? "successor" : "predecessor";
+        } else if (isGuessWrong) {
+          label = "your guess";
+          labelVer = true;
+        } else if (isStart) {
+          label = "start";
+        } else if (isCandidate) {
+          label = "guess " + node.key + "?";
+          labelHoverPrompt = true;
+        }
+      } else {
+        isDeleteTarget = modeState.targetId === id && (modeState.phase === "predict" || modeState.phase === "animating");
+        isCandidate = modeState.phase === "predict" && modeState.targetId !== id;
+        const wasKey = modeState.lastChanges && modeState.lastChanges[id];
+        isJustUpdated = modeState.justUpdatedId === id || (modeState.phase === "done" && wasKey !== undefined);
+
+        if (modeState.guessWrongId === id) {
+          isGuessWrong = true;
+          label = "your guess";
+          labelVer = true;
+        } else if (isDeleteTarget) {
+          label = "delete";
+        } else if (modeState.phase === "done" && wasKey !== undefined) {
+          label = "was " + wasKey;
+          labelVer = true;
+        } else if (isCandidate && startOrTargetKey !== null) {
+          label = "moves to " + startOrTargetKey + "?";
+          labelHoverPrompt = true;
+        }
+      }
+
+      ui.g.classList.toggle("is-suggested", suggestedId === id);
+      ui.g.classList.toggle("is-candidate", isCandidate);
+      ui.g.classList.toggle("is-start", isStart);
+      ui.g.classList.toggle("is-delete-target", isDeleteTarget);
+      ui.g.classList.toggle("is-climbed-ancestor", isClimbedAncestor);
+      ui.g.classList.toggle("is-answer", isAnswer);
+      ui.g.classList.toggle("is-guess-wrong", isGuessWrong);
+      ui.g.classList.toggle("is-guess-right", isGuessRight);
+      ui.g.classList.toggle("is-just-updated", isJustUpdated);
+
+      ui.stateLabel.textContent = label;
+      ui.stateLabel.classList.toggle("is-ver", labelVer);
+      ui.stateLabel.classList.toggle("is-hover-prompt", labelHoverPrompt);
+
+      ui.climbNote.textContent = climbNoteByNode[id] || "";
+
+      // Vertical projection drop-line connecting focal tree nodes directly to their strip cells
+      const showGuide =
+        (isSucc && showSuccPairInStrip && (id === modeState.startId || id === modeState.answerId)) ||
+        (!isSucc && (isDeleteTarget || isJustUpdated || modeState.leavingStripId === id));
+
+      if (showGuide && modeState.fadingNodeId !== id) {
+        guideEl.style.display = "";
+        guideEl.setAttribute("x1", p.x.toFixed(1));
+        guideEl.setAttribute("y1", (p.y + RADIUS + 2).toFixed(1));
+        guideEl.setAttribute("x2", p.x.toFixed(1));
+        guideEl.setAttribute("y2", (STRIP_Y - 2).toFixed(1));
+        guideEl.classList.toggle("is-ver", isJustUpdated || modeState.leavingStripId === id);
+      } else {
+        guideEl.style.display = "none";
+      }
+
+      const ariaParts = ["Node " + node.key];
+      if (label && !labelHoverPrompt) ariaParts.push(label);
+      if (climbNoteByNode[id]) ariaParts.push(climbNoteByNode[id]);
+      if (isCandidate) ariaParts.push("candidate prediction target");
+      if (suggestedId === id) ariaParts.push("suggested");
+      ui.g.setAttribute("aria-label", ariaParts.join(", "));
+    }
+
+    // Update in-order strip (always visible so vertical alignment is always clear; masked during Tab 1 predict)
+    const showStrip = activeNodes.length > 0;
+    const maskStripForPredict = isSucc && modeState.phase === "predict";
+    stripLayer.style.display = showStrip ? "" : "none";
+
+    if (showStrip && activeNodes.length > 0) {
+      const firstPos = posMap[activeNodes[0].id];
+      if (firstPos) {
+        svgPool.stripHeading.setAttribute("x", Math.max(16, firstPos.x - STRIP_W / 2).toFixed(1));
+      }
+      svgPool.stripHeading.textContent = maskStripForPredict
+        ? "In order (masked while you predict)"
+        : "In order";
+    }
+
+    for (const id of allKnownIds) {
+      const cell = svgPool.stripCells[id];
+      const node = modeState.byId[id];
+      if (!showStrip || !node || node.removed || !activeSet.has(id) || !posMap[id]) {
+        cell.g.style.display = "none";
+        continue;
+      }
+      const p = posMap[id];
+      cell.g.style.display = "";
+      if (modeState.fadingNodeId !== id) {
+        cell.g.setAttribute("transform", "translate(" + p.x.toFixed(1) + ",0)");
+        cell.g.style.opacity = "";
+      }
+      cell.text.textContent = maskStripForPredict ? "·" : String(node.key);
+      cell.g.classList.toggle("is-masked", maskStripForPredict);
+
+      const cellStart = isSucc && showSuccPairInStrip && modeState.startId === id;
+      const cellAns = isSucc && showSuccPairInStrip && modeState.answerId === id;
+      const cellLeaving = !isSucc && modeState.leavingStripId === id;
+      const wasKey = !isSucc && modeState.lastChanges ? modeState.lastChanges[id] : undefined;
+      const cellWasUpdated = !isSucc && modeState.phase === "done" && wasKey !== undefined;
+      const cellUpdated = !isSucc && (modeState.justUpdatedId === id || cellWasUpdated);
+
+      if (cellLeaving) {
+        cell.subLabel.textContent = "leaving";
+      } else if (cellWasUpdated) {
+        cell.subLabel.textContent = "was " + wasKey;
+      } else {
+        cell.subLabel.textContent = "";
+      }
+
+      cell.g.classList.toggle("is-start", cellStart);
+      cell.g.classList.toggle("is-answer", cellAns);
+      cell.g.classList.toggle("is-leaving", cellLeaving);
+      cell.g.classList.toggle("is-was-updated", cellWasUpdated);
+      cell.g.classList.toggle("is-just-updated", cellUpdated);
+    }
+
+    if (showSuccPairInStrip && modeState.startId && modeState.answerId && posMap[modeState.startId] && posMap[modeState.answerId]) {
+      const sx = posMap[modeState.startId].x;
+      const ax = posMap[modeState.answerId].x;
+      const midX = (sx + ax) / 2;
+      const bottomY = STRIP_Y + STRIP_H + 2;
+      const ctrlY = STRIP_Y + STRIP_H + 32;
+      svgPool.stripArcGroup.style.display = "";
+      svgPool.stripArcPath.setAttribute(
+        "d",
+        "M " + sx.toFixed(1) + " " + bottomY + " Q " + midX.toFixed(1) + " " + ctrlY + " " + ax.toFixed(1) + " " + (bottomY + 3)
+      );
+      svgPool.stripArcLabel.setAttribute("x", midX.toFixed(1));
+      svgPool.stripArcLabel.textContent = modeState.dir === "succ" ? "next" : "prev";
+    } else {
+      svgPool.stripArcGroup.style.display = "none";
+    }
+  }
+
+  /* ---------- Full UI Render ---------- */
+
+  function render() {
+    const isSucc = activeTab === "succ";
+    const st = isSucc ? succState : delState;
+
+    tabSuccBtn.setAttribute("aria-selected", String(isSucc));
+    tabSuccBtn.setAttribute("tabindex", isSucc ? "0" : "-1");
+    tabDelBtn.setAttribute("aria-selected", String(!isSucc));
+    tabDelBtn.setAttribute("tabindex", !isSucc ? "0" : "-1");
+
+    if (isSucc) {
+      const s = succState;
+      const isMirror = s.dir === "pred";
+      const startNode = s.startId ? s.byId[s.startId] : null;
+      const nextSug = succSuggestion(s);
+
+      conceptText.textContent = isMirror
+        ? "Predecessor is what an in-order iterator visited just before, and delete can equally use it to keep the tree sorted. Every node here also stores a link to its parent (the thin grey arrows), which is what lets us go up."
+        : "Successor is what an in-order iterator does next, and it's how delete keeps the tree sorted. Every node here also stores a link to its parent (the thin grey arrows), which is what lets us go up.";
+
+      if (s.phase === "pick") {
+        taskLabel.textContent = "Your task · Step 1 of 2";
+        taskText.textContent = nextSug && nextSug.node
+          ? "Click node " + nextSug.node.key + " (or any node) to start from it."
+          : "Click any node to find its " + (isMirror ? "predecessor" : "successor") + ".";
+      } else if (s.phase === "predict") {
+        taskLabel.textContent = "Your task · Step 2 of 2";
+        taskText.textContent = isMirror
+          ? "Click the node that comes right before " + startNode.key + ", or press No predecessor."
+          : "Click the node that comes right after " + startNode.key + ", or press No successor.";
+      } else if (s.phase === "animating") {
+        taskLabel.textContent = "Your task";
+        taskText.textContent = "Watch the path from node " + startNode.key + " (or press Skip animation).";
+      } else {
+        taskLabel.textContent = "Your task";
+        if (nextSug && nextSug.node) {
+          taskText.textContent = "Click node " + nextSug.node.key + " (" + nextSug.reason + "), or pick any node.";
+        } else {
+          taskText.textContent = "Click another node to test, or press Next: Delete →.";
+        }
+      }
+
+      delLegend.hidden = true;
+      succLegend.hidden = false;
+      legCase1Text.textContent = isMirror
+        ? "Case 1 — Left child exists: go left once, then right as far as possible."
+        : "Case 1 — Right child exists: go right once, then left as far as possible.";
+      legCase2Text.textContent = isMirror
+        ? "Case 2 — No left child: go up until you arrive from a right child. That parent is the predecessor."
+        : "Case 2 — No right child: go up until you arrive from a left child. That parent is the successor.";
+
+      checkCase1.textContent = s.seen.case1 ? "[✓]" : "[ ]";
+      checkCase2.textContent = s.seen.case2 ? "[✓]" : "[ ]";
+      legCase1.classList.toggle("seen", s.seen.case1);
+      legCase2.classList.toggle("seen", s.seen.case2);
+
+      const activeCaseType =
+        (s.phase === "animating" || s.phase === "done") ? s.caseType : null;
+      legCase1.classList.toggle("active", activeCaseType === 1);
+      legCase2.classList.toggle("active", activeCaseType === 2);
+
+      const showMirror = s.phase === "pick" || s.phase === "done";
+      mirrorBtn.hidden = !showMirror;
+      mirrorBtn.textContent = isMirror ? "Show successor instead" : "Show predecessor instead";
+
+      if (s.phase === "predict") {
+        altPredictBtn.hidden = false;
+        altPredictBtn.textContent = isMirror ? "No predecessor" : "No successor";
+        skipBtn.hidden = false;
+        skipBtn.textContent = "Skip, show me";
+      } else if (s.phase === "animating") {
+        altPredictBtn.hidden = true;
+        skipBtn.hidden = false;
+        skipBtn.textContent = "Skip animation";
+      } else {
+        altPredictBtn.hidden = true;
+        skipBtn.hidden = true;
+      }
+      resetBtn.className = "btn secondary";
+
+      const allSeen = s.seen.case1 && s.seen.case2 && s.seen.none;
+      footerNavBtn.textContent = "Next: Delete →";
+      footerNavBtn.className = allSeen ? "btn primary" : "btn secondary";
+      footerNote.textContent = "Next page: delete nodes by copying a neighbour's value so the strip stays sorted.";
+    } else {
+      const d = delState;
+      const targetNode = d.targetId ? d.byId[d.targetId] : null;
+      const nextSug = delSuggestion(d);
+      const baseCount = activeKeySequence.length;
+
+      conceptText.textContent =
+        "A leaf can simply go; any other node copies its predecessor or successor, and that neighbour node is removed instead.";
+
+      if (d.phase === "empty") {
+        taskLabel.textContent = "Your task";
+        taskText.textContent = "Press Reset to bring the tree back.";
+      } else if (d.phase === "pick") {
+        taskLabel.textContent = "Your task · Step 1 of 2";
+        taskText.textContent = nextSug && nextSug.node
+          ? "Click node " + nextSug.node.key + " (or any node) to delete it."
+          : "Click any node to delete it.";
+      } else if (d.phase === "predict") {
+        taskLabel.textContent = "Your task · Step 2 of 2";
+        taskText.textContent =
+          "Click the neighbour whose value will move into " + targetNode.key + "'s place, or press Just remove it (leaf).";
+      } else if (d.phase === "animating") {
+        taskLabel.textContent = "Your task";
+        taskText.textContent = "Deleting node " + targetNode.key + " (or press Skip animation).";
+      } else {
+        taskLabel.textContent = "Your task";
+        taskText.textContent = nextSug && nextSug.node
+          ? "Click node " + nextSug.node.key + " (" + nextSug.reason + "), or pick any node."
+          : "Click another node to delete, or press Reset.";
+      }
+
+      succLegend.hidden = true;
+      mirrorBtn.hidden = true;
+      delLegend.hidden = false;
+
+      const innerSeen = d.seen.pred || d.seen.succ;
+      checkDelLeaf.textContent = d.seen.leaf ? "[✓]" : "[ ]";
+      checkDelInner.textContent = innerSeen ? "[✓]" : "[ ]";
+      checkDelChain.textContent = d.seen.chain ? "[✓]" : "[ ]";
+      delLegLeaf.classList.toggle("seen", d.seen.leaf);
+      delLegInner.classList.toggle("seen", innerSeen);
+      delLegChain.classList.toggle("seen", d.seen.chain);
+
+      const showDelCase = d.phase === "animating" || d.phase === "done";
+      delLegLeaf.classList.toggle("active", showDelCase && d.activeCase === "leaf");
+      delLegInner.classList.toggle("active", showDelCase && d.activeCase === "inner");
+      delLegChain.classList.toggle("active", showDelCase && !!d.activeChain);
+
+      if (d.phase === "predict") {
+        altPredictBtn.hidden = false;
+        altPredictBtn.textContent = "Just remove it (leaf)";
+        skipBtn.hidden = false;
+        skipBtn.textContent = "Skip, show me";
+      } else if (d.phase === "animating") {
+        altPredictBtn.hidden = true;
+        skipBtn.hidden = false;
+        skipBtn.textContent = "Skip animation";
+      } else {
+        altPredictBtn.hidden = true;
+        skipBtn.hidden = true;
+      }
+
+      resetBtn.className = d.phase === "empty" ? "btn primary" : "btn secondary";
+
+      footerNavBtn.textContent = "← Back: Successor";
+      footerNavBtn.className = "btn secondary";
+      footerNote.textContent = "Last page. Reset brings back all " + baseCount + (baseCount === 1 ? " key." : " keys.");
+    }
+
+    statusWhat.textContent = st.statusWhat;
+    statusNext.textContent = st.statusNext;
+
+    const layout = computeLayout(st.root);
+    livePositions = layout.pos;
+    drawGeometry(st, livePositions);
+  }
+
+  /* ---------- Successor Mode Logic ---------- */
+
+  function succFeedbackText(dir, startNode, guess, answer, steps) {
+    const word = dir === "succ" ? "successor" : "predecessor";
+    if (guess === "skip") return "Here is the answer.";
+
+    if (answer === null) {
+      if (guess === "none") return "Right: " + startNode.key + " has no " + word + ".";
+      const gNode = succState.byId[guess];
+      return dir === "succ"
+        ? "You guessed " + gNode.key + ", but " + gNode.key + " < " + startNode.key + ". Nothing is bigger than " + startNode.key + " (last in the strip)."
+        : "You guessed " + gNode.key + ", but " + gNode.key + " > " + startNode.key + ". Nothing is smaller than " + startNode.key + " (first in the strip).";
+    }
+
+    if (guess === answer.id) {
+      return "Right: " + answer.key + " is the " + word + " of " + startNode.key + ".";
+    }
+
+    if (guess === "none") {
+      if (dir === "succ") {
+        return !startNode.right
+          ? startNode.key + " has no right child, so go up until you arrive from a left child (" + answer.key + ")."
+          : startNode.key + " has a right subtree with bigger keys (smallest is " + answer.key + ").";
+      }
+      return !startNode.left
+        ? startNode.key + " has no left child, so go up until you arrive from a right child (" + answer.key + ")."
+        : startNode.key + " has a left subtree with smaller keys (largest is " + answer.key + ").";
+    }
+
+    const gNode = succState.byId[guess];
+    const firstChildStep = steps.length > 0 && steps[0].dir === "down" ? steps[0].to : null;
+
+    if (dir === "succ") {
+      if (gNode.key < startNode.key) {
+        if (startNode.left && isInSubtree(gNode, startNode.left)) {
+          return gNode.key + " is in " + startNode.key + "'s left subtree (" + gNode.key + " < " + startNode.key + "). Go up instead until you arrive at a parent from its left child (" + answer.key + ").";
+        }
+        if (isInSubtree(startNode, gNode)) {
+          return "You went up to " + gNode.key + ", but you arrived from its right child. Keep going up until you arrive from a left child (" + answer.key + ").";
+        }
+        return gNode.key + " is smaller than " + startNode.key + "; the successor must be bigger (" + answer.key + ").";
+      }
+      if (firstChildStep && gNode.id === firstChildStep.id && answer.id !== firstChildStep.id) {
+        return "You went right once to " + gNode.key + ", then stopped — keep going left as far as possible to " + answer.key + ".";
+      }
+      if (startNode.right && !isInSubtree(gNode, startNode.right)) {
+        return gNode.key + " is an ancestor above " + startNode.key + ", but " + startNode.key + " has a right child (" + startNode.right.key + "). Use Case 1 first: right once, then left to " + answer.key + ".";
+      }
+      return gNode.key + " is bigger than " + startNode.key + ", but " + answer.key + " sits between them.";
+    } else {
+      if (gNode.key > startNode.key) {
+        if (startNode.right && isInSubtree(gNode, startNode.right)) {
+          return gNode.key + " is in " + startNode.key + "'s right subtree (" + gNode.key + " > " + startNode.key + "). Go up instead until you arrive at a parent from its right child (" + answer.key + ").";
+        }
+        if (isInSubtree(startNode, gNode)) {
+          return "You went up to " + gNode.key + ", but you arrived from its left child. Keep going up until you arrive from a right child (" + answer.key + ").";
+        }
+        return gNode.key + " is bigger than " + startNode.key + "; the predecessor must be smaller (" + answer.key + ").";
+      }
+      if (firstChildStep && gNode.id === firstChildStep.id && answer.id !== firstChildStep.id) {
+        return "You went left once to " + gNode.key + ", then stopped — keep going right as far as possible to " + answer.key + ".";
+      }
+      if (startNode.left && !isInSubtree(gNode, startNode.left)) {
+        return gNode.key + " is an ancestor above " + startNode.key + ", but " + startNode.key + " has a left child (" + startNode.left.key + "). Use Case 1 first: left once, then right to " + answer.key + ".";
+      }
+      return gNode.key + " is smaller than " + startNode.key + ", but " + answer.key + " sits between them.";
+    }
+  }
+
+  function succExplanationText(dir, startNode, pathRes) {
+    const { caseType, steps, answer } = pathRes;
+
+    if (caseType === 1) {
+      const first = steps[0].to;
+      if (dir === "succ") {
+        return steps.length === 1
+          ? "Case 1: right once from " + startNode.key + " to " + answer.key + " (no left child)."
+          : "Case 1: right once to " + first.key + ", then left as far as possible to " + answer.key + ".";
+      }
+      return steps.length === 1
+        ? "Case 1: left once from " + startNode.key + " to " + answer.key + " (no right child)."
+        : "Case 1: left once to " + first.key + ", then right as far as possible to " + answer.key + ".";
+    }
+
+    if (answer === null) {
+      return dir === "succ"
+        ? startNode.key + " has no right child and every step up to the root arrives from a right child — no successor."
+        : startNode.key + " has no left child and every step up to the root arrives from a left child — no predecessor.";
+    }
+
+    const passedAncestors = [];
+    for (let i = 0; i < steps.length - 1; i++) {
+      passedAncestors.push(steps[i].to.key);
+    }
+    if (dir === "succ") {
+      const viaText = passedAncestors.length > 0
+        ? "past " + passedAncestors.join(" and ") + " (arrived from right) "
+        : "";
+      return "Case 2: no right child, so go up " + viaText + "until arriving from a left child at " + answer.key + ".";
+    } else {
+      const viaText = passedAncestors.length > 0
+        ? "past " + passedAncestors.join(" and ") + " (arrived from left) "
+        : "";
+      return "Case 2: no left child, so go up " + viaText + "until arriving from a right child at " + answer.key + ".";
+    }
+  }
+
+  function succDoneStatus(s, feedback, explanation) {
+    s.statusWhat = feedback + " " + explanation;
+    const allSeen = s.seen.case1 && s.seen.case2 && s.seen.none;
+    if (allSeen) {
+      const lessonSummary = s.dir === "succ"
+        ? "Lesson: whether going right-then-left (Case 1) or up until arriving from a left child (Case 2), the successor is always the next item in the strip."
+        : "Lesson: whether going left-then-right (Case 1) or up until arriving from a right child (Case 2), the predecessor is always the previous item in the strip.";
+      s.statusWhat = feedback + " " + explanation + " " + lessonSummary;
+      s.statusNext = s.dir === "succ"
+        ? "Next: press Show predecessor instead, or press Next: Delete →."
+        : "Next: press Next: Delete →, or click another node.";
+    } else {
+      const sug = succSuggestion(s);
+      if (sug && sug.node) {
+        s.statusNext = "Next: click node " + sug.node.key + " (" + sug.reason + ").";
+      } else {
+        s.statusNext = "Next: click another node.";
+      }
+    }
+  }
+
+  function finalizeSuccSync(s) {
+    if (s.phase !== "animating") return;
+    const startNode = s.byId[s.startId];
+    const pathRes = s.dir === "succ" ? succPath(startNode) : predPath(startNode);
+    s.revealedStepsCount = pathRes.steps.length;
+    s.phase = "done";
+    if (pathRes.answer === null) s.seen.none = true;
+    else if (pathRes.caseType === 1) s.seen.case1 = true;
+    else s.seen.case2 = true;
+
+    const fb = succFeedbackText(s.dir, startNode, s.guess, pathRes.answer, pathRes.steps);
+    const exp = succExplanationText(s.dir, startNode, pathRes);
+    succDoneStatus(s, fb, exp);
+    hideCursor();
+  }
+
+  async function runSuccReveal(guess) {
+    const s = succState;
+    const startNode = s.byId[s.startId];
+    const pathRes = s.dir === "succ" ? succPath(startNode) : predPath(startNode);
+    const myId = ++anim.id;
+    anim.fast = false;
+
+    s.phase = "animating";
+    s.guess = guess;
+    s.answerId = pathRes.answer ? pathRes.answer.id : null;
+    s.caseType = pathRes.caseType;
+    s.activeSteps = pathRes.steps;
+    s.revealedStepsCount = 0;
+    s.statusWhat = "Tracing from node " + startNode.key + "...";
+    s.statusNext = "";
+    render();
+
+    const color = pathRes.caseType === 1 ? "#2b5c8a" : "#2f7a5b";
+
+    try {
+      const startPos = livePositions[startNode.id];
+      if (startPos) showCursorAt(startPos.x, startPos.y, color);
+
+      for (let i = 0; i < pathRes.steps.length; i++) {
+        const step = pathRes.steps[i];
+        s.statusWhat = step.narration;
+        statusWhat.textContent = s.statusWhat;
+
+        const fromPos = livePositions[step.from.id];
+        const toPos = livePositions[step.to.id];
+
+        await tween(STEP_MS * 0.72, function (t) {
+          const x = fromPos.x + (toPos.x - fromPos.x) * t;
+          const y = fromPos.y + (toPos.y - fromPos.y) * t;
+          showCursorAt(x, y, color);
+        }, myId);
+
+        s.revealedStepsCount = i + 1;
+        drawGeometry(s, livePositions);
+
+        await pause(STEP_MS * 0.35, myId);
+      }
+
+      if (pathRes.answer === null) {
+        s.statusWhat = s.dir === "succ"
+          ? "Reached the root: every step up arrived from a right child → no successor."
+          : "Reached the root: every step up arrived from a left child → no predecessor.";
+        statusWhat.textContent = s.statusWhat;
+        await pause(STEP_MS * 0.5, myId);
+      }
+
+      hideCursor();
+      if (pathRes.answer === null) s.seen.none = true;
+      else if (pathRes.caseType === 1) s.seen.case1 = true;
+      else s.seen.case2 = true;
+
+      s.phase = "done";
+      const fb = succFeedbackText(s.dir, startNode, guess, pathRes.answer, pathRes.steps);
+      const exp = succExplanationText(s.dir, startNode, pathRes);
+      succDoneStatus(s, fb, exp);
+      render();
+    } catch (err) {
+      if (err !== CANCEL) throw err;
+    }
+  }
+
+  function startSuccPredict(nodeId) {
+    const s = succState;
+    const node = s.byId[nodeId];
+    const hasChild = s.dir === "succ" ? !!node.right : !!node.left;
+    s.phase = "predict";
+    s.startId = nodeId;
+    s.guess = null;
+    s.answerId = null;
+    s.caseType = null;
+    s.activeSteps = [];
+    s.revealedStepsCount = 0;
+    if (s.dir === "succ") {
+      s.statusWhat = hasChild
+        ? "Node " + node.key + " has a right child (" + node.right.key + "), so Case 1 applies."
+        : "Node " + node.key + " has no right child, so Case 2 applies (go up until you arrive from a left child).";
+      s.statusNext = "Next: click its successor on the tree, or press No successor.";
+    } else {
+      s.statusWhat = hasChild
+        ? "Node " + node.key + " has a left child (" + node.left.key + "), so Case 1 applies."
+        : "Node " + node.key + " has no left child, so Case 2 applies (go up until you arrive from a right child).";
+      s.statusNext = "Next: click its predecessor on the tree, or press No predecessor.";
+    }
+    render();
+  }
+
+  function handleSuccNodeClick(nodeId) {
+    const s = succState;
+    if (s.phase === "animating") {
+      anim.fast = true;
+      return;
+    }
+    if (s.phase === "pick" || s.phase === "done") {
+      startSuccPredict(nodeId);
+      return;
+    }
+    if (s.phase === "predict") {
+      if (nodeId === s.startId) {
+        const altLabel = s.dir === "succ" ? "No successor" : "No predecessor";
+        s.statusWhat = "That is the starting node (" + s.byId[nodeId].key + ").";
+        s.statusNext = "Next: click a different node as your prediction, or press " + altLabel + ".";
+        render();
+        return;
+      }
+      runSuccReveal(nodeId);
+    }
+  }
+
+  function toggleDirection() {
+    const s = succState;
+    if (s.phase === "animating" || s.phase === "predict") return;
+    anim.id++;
+    hideCursor();
+    s.dir = s.dir === "succ" ? "pred" : "succ";
+    s.phase = "pick";
+    s.startId = null;
+    s.guess = null;
+    s.answerId = null;
+    s.caseType = null;
+    s.activeSteps = [];
+    s.revealedStepsCount = 0;
+    const sug = succSuggestion(s);
+    if (s.dir === "pred") {
+      s.statusWhat = "Showing predecessor (mirror of successor: swap left and right).";
+      s.statusNext = sug && sug.node ? "Next: click node " + sug.node.key + " (" + sug.reason + ")." : "Next: click any node.";
+    } else {
+      s.statusWhat = "Showing successor.";
+      s.statusNext = sug && sug.node ? "Next: click node " + sug.node.key + " (" + sug.reason + ")." : "Next: click any node.";
+    }
+    render();
+  }
+
+  /* ---------- Delete Mode Logic ---------- */
+
+  function delWalkSteps(node, preferVia) {
+    const steps = [];
+    const useSucc = preferVia === "succ" ? !!node.right : !node.left;
+    if (!useSucc && node.left) {
+      steps.push({ from: node, to: node.left });
+      let cur = node.left;
+      while (cur.right) {
+        steps.push({ from: cur, to: cur.right });
+        cur = cur.right;
+      }
+      return { via: "pred", rep: cur, steps };
+    }
+    steps.push({ from: node, to: node.right });
+    let cur = node.right;
+    while (cur.left) {
+      steps.push({ from: cur, to: cur.left });
+      cur = cur.left;
+    }
+    return { via: "succ", rep: cur, steps };
+  }
+
+  function evaluateDelPrediction(target, guess) {
+    if (isLeaf(target)) {
+      const isRight = guess === "remove";
+      const fb = guess === "skip"
+        ? "Here is what happens."
+        : (isRight
+          ? "Right: " + target.key + " is a leaf, so it is simply removed."
+          : target.key + " has no children, so no value moves into its place — it is simply removed.");
+      return { isRight, chosenVia: null, expectedId: "remove", feedback: fb };
+    }
+
+    const predNode = target.left ? pred(target) : null;
+    const succNode = target.right ? succ(target) : null;
+    const hasTwoChildren = !!(target.left && target.right);
+
+    // Accept BOTH predecessor and successor when a node has two children!
+    if (hasTwoChildren) {
+      if (guess === predNode.id) {
+        return {
+          isRight: true,
+          chosenVia: "pred",
+          expectedId: predNode.id,
+          feedback: "Right: " + predNode.key + " (predecessor) moves into " + target.key + "'s place (successor " + succNode.key + " also works)."
+        };
+      }
+      if (guess === succNode.id) {
+        return {
+          isRight: true,
+          chosenVia: "succ",
+          expectedId: succNode.id,
+          feedback: "Right: " + succNode.key + " (successor) moves into " + target.key + "'s place (predecessor " + predNode.key + " is the default convention; both work)."
+        };
+      }
+    }
+
+    const defaultVia = target.left ? "pred" : "succ";
+    const ansNode = defaultVia === "pred" ? predNode : succNode;
+
+    if (guess === "skip") {
+      return { isRight: false, chosenVia: defaultVia, expectedId: ansNode.id, feedback: "Here is what happens." };
+    }
+    if (guess === ansNode.id) {
+      return {
+        isRight: true,
+        chosenVia: defaultVia,
+        expectedId: ansNode.id,
+        feedback: "Right: " + ansNode.key + " moves into " + target.key + "'s place."
+      };
+    }
+    if (guess === "remove") {
+      return {
+        isRight: false,
+        chosenVia: defaultVia,
+        expectedId: ansNode.id,
+        feedback: target.key + " has children; removing it directly would cut off its subtrees. Copy an adjacent neighbour (" + ansNode.key + ") instead."
+      };
+    }
+
+    const gNode = delState.byId[guess];
+    if (target.left && gNode.id === target.left.id && ansNode.id !== target.left.id) {
+      return {
+        isRight: false,
+        chosenVia: defaultVia,
+        expectedId: ansNode.id,
+        feedback: "You went left once to " + gNode.key + ", but " + gNode.key + " has a right child (" + ansNode.key + "). Keep going right to predecessor " + ansNode.key + " (or use successor " + (succNode ? succNode.key : "") + ")."
+      };
+    }
+    if (target.right && gNode.id === target.right.id && (!succNode || succNode.id !== target.right.id)) {
+      return {
+        isRight: false,
+        chosenVia: defaultVia,
+        expectedId: ansNode.id,
+        feedback: "You went right once to " + gNode.key + ", but " + gNode.key + " has a left child (" + (succNode ? succNode.key : ansNode.key) + "). Keep going left to the adjacent neighbour."
+      };
+    }
+    const validChoicesText = hasTwoChildren
+      ? "predecessor " + predNode.key + " or successor " + succNode.key
+      : (defaultVia === "pred" ? "predecessor " + ansNode.key : "successor " + ansNode.key);
+    return {
+      isRight: false,
+      chosenVia: defaultVia,
+      expectedId: ansNode.id,
+      feedback: "Moving " + gNode.key + " into " + target.key + " would break sorted order. Only an adjacent key (" + validChoicesText + ") keeps the strip sorted."
+    };
+  }
+
+  function delNarrativeText(records) {
+    if (records.length === 1 && records[0].type === "leaf") {
+      return "Leaf " + records[0].key + " was removed, leaving the strip sorted.";
+    }
+    const parts = [];
+    for (let i = 0; i < records.length; i++) {
+      const r = records[i];
+      if (r.type === "copy") {
+        if (i === 0) {
+          parts.push(
+            (r.via === "pred" ? "Predecessor " : "Successor ") +
+              r.from + " copied into " + r.to + "'s place."
+          );
+        } else {
+          parts.push("Old " + r.to + " still had a child, so " + r.from + " copied into it.");
+        }
+      } else {
+        parts.push("Leaf " + r.key + " was removed; the strip stayed sorted.");
+      }
+    }
+    return parts.join(" ");
+  }
+
+  function delDoneStatus(d, feedback, narrative) {
+    if (!d.root) {
+      d.phase = "empty";
+      d.statusWhat = feedback + " " + narrative + " The tree is now empty.";
+      d.statusNext = "Next: press Reset.";
+      return;
+    }
+
+    d.phase = "done";
+    const allSeen = delAllCategoriesSeen(d);
+    const sug = delSuggestion(d);
+
+    if (allSeen) {
+      d.statusWhat =
+        feedback + " " + narrative +
+        " Lesson: delete never breaks sorted order because only a leaf ever disappears, and any other node takes an adjacent neighbour's value.";
+      if (sug && sug.node) {
+        d.statusNext = "Next: click node " + sug.node.key + " (" + sug.reason + "), or press Reset.";
+      } else {
+        d.statusNext = "Next: click another node, or press Reset.";
+      }
+    } else {
+      d.statusWhat = feedback + " " + narrative;
+      d.statusNext = sug && sug.node
+        ? "Next: click node " + sug.node.key + " (" + sug.reason + ")."
+        : "Next: click another node.";
+    }
+  }
+
+  function detachLeaf(d, leaf, receiverNode) {
+    const leafEl = svgPool.nodes[leaf.id].g;
+    const hadFocus = document.activeElement === leafEl;
+    const oldOrder = inorder(d.root);
+    const idx = oldOrder.indexOf(leaf);
+
+    if (!leaf.parent) {
+      d.root = null;
+    } else if (leaf.parent.left === leaf) {
+      leaf.parent.left = null;
+    } else {
+      leaf.parent.right = null;
+    }
+    leaf.parent = null;
+    leaf.removed = true;
+
+    if (hadFocus) {
+      if (receiverNode && !receiverNode.removed) {
+        svgPool.nodes[receiverNode.id].g.focus();
+      } else {
+        const nextNode = idx >= 0 && idx + 1 < oldOrder.length ? oldOrder[idx + 1] : null;
+        if (nextNode && !nextNode.removed) {
+          svgPool.nodes[nextNode.id].g.focus();
+        } else {
+          resetBtn.focus();
+        }
+      }
+    }
+  }
+
+  function finishDeleteSync(d) {
+    if (d.phase !== "animating") return;
+    let cur = d.pendingNodeId ? d.byId[d.pendingNodeId] : null;
+    let lastReceiver = d.pendingReceiverId ? d.byId[d.pendingReceiverId] : null;
+    let preferVia = d.pendingVia;
+    while (cur && !cur.removed) {
+      if (isLeaf(cur)) {
+        if (d.guessWrongId === cur.id) d.guessWrongId = null;
+        detachLeaf(d, cur, lastReceiver);
+        if (d.pendingRecords.length === 0) d.seen.leaf = true;
+        d.pendingRecords.push({ type: "leaf", key: cur.key });
+        break;
+      }
+      const walk = delWalkSteps(cur, preferVia);
+      preferVia = null;
+      if (d.pendingRecords.length === 0) {
+        if (walk.via === "pred") d.seen.pred = true;
+        else d.seen.succ = true;
+      } else {
+        d.seen.chain = true;
+      }
+      const fromKey = walk.rep.key;
+      const toKey = cur.key;
+      d.lastChanges[cur.id] = toKey;
+      cur.key = fromKey;
+      if (d.guessWrongId === cur.id) d.guessWrongId = null;
+      d.pendingRecords.push({ type: "copy", from: fromKey, to: toKey, via: walk.via });
+      lastReceiver = cur;
+      cur = walk.rep;
+    }
+
+    d.pendingNodeId = null;
+    d.pendingReceiverId = null;
+    d.pendingVia = null;
+    d.activeWalkEdges = [];
+    d.leavingStripId = null;
+    d.justUpdatedId = null;
+    d.fadingNodeId = null;
+    svgPool.flyGroup.style.display = "none";
+    hideCursor();
+
+    const fb = d.pendingFeedback || "Here is what happens.";
+    const nar = delNarrativeText(d.pendingRecords);
+    delDoneStatus(d, fb, nar);
+  }
+
+  async function delRecursive(node, receiverNode, preferVia, myId) {
+    const d = delState;
+    d.pendingNodeId = node.id;
+    d.pendingReceiverId = receiverNode ? receiverNode.id : null;
+    d.pendingVia = preferVia || null;
+
+    if (isLeaf(node)) {
+      d.statusWhat = "Removing leaf " + node.key + "...";
+      statusWhat.textContent = d.statusWhat;
+
+      d.fadingNodeId = node.id;
+      const nodeUi = svgPool.nodes[node.id];
+      const cellUi = svgPool.stripCells[node.id];
+      nodeUi.circle.style.stroke = "#d63a24";
+      nodeUi.circle.style.strokeWidth = "3.2";
+      const basePos = livePositions[node.id];
+
+      await pause(FADE_MS * 0.55, myId);
+
+      await tween(FADE_MS, function (t) {
+        const s = 1 - 0.5 * t;
+        nodeUi.g.setAttribute(
+          "transform",
+          "translate(" + basePos.x.toFixed(1) + "," + basePos.y.toFixed(1) + ") scale(" + s.toFixed(3) + ")"
+        );
+        nodeUi.g.style.opacity = String((1 - t).toFixed(3));
+        cellUi.g.style.opacity = String((1 - t).toFixed(3));
+      }, myId);
+
+      nodeUi.circle.style.stroke = "";
+      nodeUi.circle.style.strokeWidth = "";
+      nodeUi.g.style.opacity = "";
+      cellUi.g.style.opacity = "";
+      d.fadingNodeId = null;
+      d.leavingStripId = null;
+      d.justUpdatedId = null;
+      if (d.guessWrongId === node.id) d.guessWrongId = null;
+
+      const oldPos = Object.assign({}, livePositions);
+      detachLeaf(d, node, receiverNode);
+      if (d.pendingRecords.length === 0) {
+        d.seen.leaf = true;
+      }
+      d.pendingRecords.push({ type: "leaf", key: node.key });
+      d.pendingNodeId = null;
+      d.pendingReceiverId = null;
+      d.pendingVia = null;
+
+      const newLayout = computeLayout(d.root);
+      const newPos = newLayout.pos;
+
+      await tween(RELAYOUT_MS, function (t) {
+        const interp = {};
+        for (const id in newPos) {
+          const a = oldPos[id] || newPos[id];
+          const b = newPos[id];
+          interp[id] = {
+            x: a.x + (b.x - a.x) * t,
+            y: a.y + (b.y - a.y) * t
+          };
+        }
+        livePositions = interp;
+        drawGeometry(d, livePositions);
+      }, myId);
+
+      livePositions = newPos;
+      return;
+    }
+
+    const walk = delWalkSteps(node, preferVia);
+    if (d.pendingRecords.length === 0) {
+      if (walk.via === "pred") d.seen.pred = true;
+      else d.seen.succ = true;
+    } else {
+      d.seen.chain = true;
+    }
+
+    d.statusWhat = walk.via === "pred"
+      ? "Finding predecessor of " + node.key + " (left once, then right as far as possible)..."
+      : "Finding successor of " + node.key + " (right once, then left as far as possible)...";
+    statusWhat.textContent = d.statusWhat;
+
+    const startP = livePositions[node.id];
+    showCursorAt(startP.x, startP.y, "#2b5c8a");
+    d.activeWalkEdges = [];
+
+    for (let i = 0; i < walk.steps.length; i++) {
+      const step = walk.steps[i];
+      const fromP = livePositions[step.from.id];
+      const toP = livePositions[step.to.id];
+
+      await tween(STEP_MS * 0.68, function (t) {
+        showCursorAt(fromP.x + (toP.x - fromP.x) * t, fromP.y + (toP.y - fromP.y) * t, "#2b5c8a");
+      }, myId);
+
+      d.activeWalkEdges.push({ childId: step.to.id, caseType: 1 });
+      drawGeometry(d, livePositions);
+      await pause(STEP_MS * 0.25, myId);
+    }
+
+    hideCursor();
+
+    const rep = walk.rep;
+    const fromKey = rep.key;
+    const toKey = node.key;
+    d.statusWhat = "Copying " + fromKey + " into " + toKey + "'s place...";
+    statusWhat.textContent = d.statusWhat;
+
+    const repPos = livePositions[rep.id];
+    const targetPos = livePositions[node.id];
+    svgPool.flyText.textContent = String(fromKey);
+    svgPool.flyGroup.style.display = "";
+
+    await tween(FLY_MS, function (t) {
+      const x = repPos.x + (targetPos.x - repPos.x) * t;
+      const y = repPos.y + (targetPos.y - repPos.y) * t;
+      svgPool.flyGroup.setAttribute("transform", "translate(" + x.toFixed(1) + "," + y.toFixed(1) + ")");
+    }, myId);
+
+    svgPool.flyGroup.style.display = "none";
+
+    d.lastChanges[node.id] = toKey;
+    node.key = fromKey;
+    d.pendingRecords.push({ type: "copy", from: fromKey, to: toKey, via: walk.via });
+    d.pendingNodeId = rep.id;
+    d.pendingReceiverId = node.id;
+    d.pendingVia = null;
+    if (d.guessWrongId === node.id) d.guessWrongId = null;
+    d.justUpdatedId = node.id;
+    d.leavingStripId = rep.id;
+    d.activeWalkEdges = [];
+    d.statusWhat = fromKey + " copied into " + toKey + " (strip stays sorted); now remove old " + fromKey + "...";
+    statusWhat.textContent = d.statusWhat;
+    drawGeometry(d, livePositions);
+
+    await pause(STEP_MS, myId);
+    d.justUpdatedId = null;
+
+    await delRecursive(rep, node, null, myId);
+  }
+
+  async function runDelSequence(guess) {
+    const d = delState;
+    const target = d.byId[d.targetId];
+    const myId = ++anim.id;
+    anim.fast = false;
+
+    const evalRes = evaluateDelPrediction(target, guess);
+    const activeCase = isLeaf(target) ? "leaf" : "inner";
+    const firstRep = isLeaf(target)
+      ? null
+      : (evalRes.chosenVia === "succ" ? succ(target) : (target.left ? pred(target) : succ(target)));
+    const activeChain = !!(firstRep && !isLeaf(firstRep));
+
+    d.phase = "animating";
+    d.guess = guess;
+    d.answer = evalRes.expectedId;
+    d.chosenVia = evalRes.chosenVia;
+    d.activeCase = activeCase;
+    d.activeChain = activeChain;
+    d.guessWrongId = (!evalRes.isRight && guess !== "skip" && guess !== "remove") ? guess : null;
+    d.lastChanges = {};
+    d.pendingFeedback = evalRes.feedback;
+    d.pendingRecords = [];
+    d.activeWalkEdges = [];
+    d.leavingStripId = null;
+    d.justUpdatedId = null;
+    d.statusNext = "";
+    render();
+
+    try {
+      await delRecursive(target, null, evalRes.chosenVia, myId);
+      d.pendingFeedback = "";
+      const nar = delNarrativeText(d.pendingRecords);
+      delDoneStatus(d, evalRes.feedback, nar);
+      render();
+    } catch (err) {
+      if (err !== CANCEL) throw err;
+    }
+  }
+
+  function startDelPredict(nodeId) {
+    const d = delState;
+    const node = d.byId[nodeId];
+    const leaf = isLeaf(node);
+    d.phase = "predict";
+    d.targetId = nodeId;
+    d.guess = null;
+    d.answer = null;
+    d.chosenVia = null;
+    d.activeCase = null;
+    d.activeChain = false;
+    d.guessWrongId = null;
+    d.lastChanges = {};
+    d.activeWalkEdges = [];
+    d.leavingStripId = null;
+    d.justUpdatedId = null;
+    if (leaf) {
+      d.statusWhat = "Selected node " + node.key + " (it has no children).";
+    } else if (node.left && node.right) {
+      d.statusWhat = "Selected node " + node.key + " (has two children: either predecessor or successor works).";
+    } else {
+      d.statusWhat = "Selected node " + node.key + " (has one child: copy its adjacent neighbour).";
+    }
+    d.statusNext = "Next: click the neighbour whose value replaces it, or press Just remove it (leaf).";
+    render();
+  }
+
+  function handleDelNodeClick(nodeId) {
+    const d = delState;
+    if (d.phase === "animating") {
+      anim.fast = true;
+      return;
+    }
+    if (d.phase === "empty") return;
+    if (d.phase === "pick" || d.phase === "done") {
+      startDelPredict(nodeId);
+      return;
+    }
+    if (d.phase === "predict") {
+      if (nodeId === d.targetId) {
+        const onlyOne = d.root && isLeaf(d.root);
+        d.statusWhat = onlyOne
+          ? "That is the only node left (" + d.byId[nodeId].key + ")."
+          : "That is the node being deleted (" + d.byId[nodeId].key + ").";
+        d.statusNext = onlyOne
+          ? "Next: press Just remove it (leaf)."
+          : "Next: click a different node whose value replaces it, or press Just remove it (leaf).";
+        render();
+        return;
+      }
+      runDelSequence(nodeId);
+    }
+  }
+
+  /* ---------- Top-Level & Custom Tree Interactions ---------- */
+
+  function onNodeActivate(nodeId) {
+    if (activeTab === "succ") handleSuccNodeClick(nodeId);
+    else handleDelNodeClick(nodeId);
+  }
+
+  function cleanTransientVisuals() {
+    hideCursor();
+    svgPool.flyGroup.style.display = "none";
+    for (const id in svgPool.nodes) {
+      const nUi = svgPool.nodes[id];
+      const cUi = svgPool.stripCells[id];
+      nUi.circle.style.stroke = "";
+      nUi.circle.style.strokeWidth = "";
+      nUi.g.style.opacity = "";
+      cUi.g.style.opacity = "";
+    }
+  }
+
+  function switchTab(nextTab) {
+    if (activeTab === nextTab) return;
+    if (activeTab === "succ" && succState.phase === "animating") {
+      finalizeSuccSync(succState);
+    } else if (activeTab === "del" && delState.phase === "animating") {
+      finishDeleteSync(delState);
+    }
+    anim.id++;
+    cleanTransientVisuals();
+    activeTab = nextTab;
+    syncPoolForTree(activeTab === "succ" ? succState.byId : delState.byId, activeTab === "succ" ? succState.root : delState.root);
+    render();
+  }
+
+  function resetActiveMode() {
+    anim.id++;
+    cleanTransientVisuals();
+    customFeedback.textContent = "";
+    if (activeTab === "succ") {
+      const keepDir = succState.dir;
+      const keepSeen = succState.seen;
+      const fresh = createSuccState(false);
+      fresh.dir = keepDir;
+      fresh.seen = { case1: keepSeen.case1, case2: keepSeen.case2, none: keepSeen.none };
+      const sug = succSuggestion(fresh);
+      fresh.statusWhat = "Cleared highlights.";
+      fresh.statusNext = sug && sug.node
+        ? "Next: click node " + sug.node.key + " (" + sug.reason + ")."
+        : "Next: click any node.";
+      succState = fresh;
+      syncPoolForTree(succState.byId, succState.root);
+    } else {
+      delState = createDelState();
+      const count = activeKeySequence.length;
+      const sug = delSuggestion(delState);
+      delState.statusWhat = "All " + count + (count === 1 ? " key is" : " keys are") + " back.";
+      delState.statusNext = sug && sug.node
+        ? "Next: click node " + sug.node.key + " (" + sug.reason + ")."
+        : "Next: click any node.";
+      syncPoolForTree(delState.byId, delState.root);
+    }
+    render();
+  }
+
+  function applyCustomTreeKeys(newKeys, message) {
+    anim.id++;
+    cleanTransientVisuals();
+    activeKeySequence = newKeys.slice();
+    const keepDir = succState.dir;
+    succState = createSuccState(false);
+    succState.dir = keepDir;
+    delState = createDelState();
+    const activeSt = activeTab === "succ" ? succState : delState;
+    syncPoolForTree(activeSt.byId, activeSt.root);
+    if (message) {
+      activeSt.statusWhat = message;
+    }
+    render();
+  }
+
+  function handleCustomAdd() {
+    const raw = parseInt(customKeyInput.value, 10);
+    if (isNaN(raw) || raw < 1 || raw > 99) {
+      customFeedback.textContent = "Enter a number from 1 to 99.";
+      return;
+    }
+    if (activeKeySequence.includes(raw)) {
+      customFeedback.textContent = raw + " is already in the tree — try another number.";
+      return;
+    }
+    if (activeKeySequence.length >= MAX_CUSTOM_NODES) {
+      customFeedback.textContent = "Tree has " + MAX_CUSTOM_NODES + " keys (maximum for clear spacing). Try Small 5-key tree first.";
+      return;
+    }
+    customFeedback.textContent = "Inserted " + raw + ".";
+    const nextKeys = activeKeySequence.concat([raw]);
+    // Suggest a nearby unused number for next time
+    const nextCandidate = ((raw + 11) % 90) + 5;
+    if (!nextKeys.includes(nextCandidate)) customKeyInput.value = String(nextCandidate);
+    applyCustomTreeKeys(nextKeys, "Inserted " + raw + " into the tree (" + nextKeys.length + " keys).");
+  }
+
+  /* ---------- Event Wiring ---------- */
+
+  tabSuccBtn.addEventListener("click", function () {
+    switchTab("succ");
+  });
+  tabDelBtn.addEventListener("click", function () {
+    switchTab("del");
+  });
+
+  function handleTabKey(e) {
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      const target = activeTab === "succ" ? "del" : "succ";
+      switchTab(target);
+      (target === "succ" ? tabSuccBtn : tabDelBtn).focus();
+    }
+  }
+  tabSuccBtn.addEventListener("keydown", handleTabKey);
+  tabDelBtn.addEventListener("keydown", handleTabKey);
+
+  mirrorBtn.addEventListener("click", toggleDirection);
+
+  altPredictBtn.addEventListener("click", function () {
+    if (activeTab === "succ") {
+      if (succState.phase === "predict") {
+        if (document.activeElement === altPredictBtn && succState.startId) {
+          svgPool.nodes[succState.startId].g.focus();
+        }
+        runSuccReveal("none");
+      }
+    } else {
+      if (delState.phase === "predict") {
+        if (document.activeElement === altPredictBtn && delState.targetId) {
+          svgPool.nodes[delState.targetId].g.focus();
+        }
+        runDelSequence("remove");
+      }
+    }
+  });
+
+  skipBtn.addEventListener("click", function () {
+    const st = activeTab === "succ" ? succState : delState;
+    if (st.phase === "animating") {
+      if (document.activeElement === skipBtn) {
+        const focusId = activeTab === "succ" ? succState.startId : delState.targetId;
+        if (focusId && svgPool.nodes[focusId] && st.byId[focusId] && !st.byId[focusId].removed) {
+          svgPool.nodes[focusId].g.focus();
+        } else {
+          resetBtn.focus();
+        }
+      }
+      anim.fast = true;
+      return;
+    }
+    if (activeTab === "succ") {
+      if (succState.phase === "predict") {
+        if (document.activeElement === skipBtn && succState.startId) {
+          svgPool.nodes[succState.startId].g.focus();
+        }
+        runSuccReveal("skip");
+      }
+    } else {
+      if (delState.phase === "predict") {
+        if (document.activeElement === skipBtn && delState.targetId) {
+          svgPool.nodes[delState.targetId].g.focus();
+        }
+        runDelSequence("skip");
+      }
+    }
+  });
+
+  resetBtn.addEventListener("click", resetActiveMode);
+
+  customAddBtn.addEventListener("click", handleCustomAdd);
+  customKeyInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleCustomAdd();
+    }
+  });
+
+  customSmallBtn.addEventListener("click", function () {
+    customFeedback.textContent = "Loaded 5-key tree (20, 30, 40, 50, 70).";
+    applyCustomTreeKeys(SMALL_KEYS, "Loaded 5-key starter tree — insert your own keys or test directly.");
+  });
+
+  customDefaultBtn.addEventListener("click", function () {
+    customFeedback.textContent = "Restored default 15-key tree.";
+    applyCustomTreeKeys(DEFAULT_KEYS, "Restored default 15-key tree.");
+  });
+
+  footerNavBtn.addEventListener("click", function () {
+    switchTab(activeTab === "succ" ? "del" : "succ");
+    window.scrollTo({ top: 0, behavior: reducedMotion() ? "auto" : "smooth" });
+  });
+
+  /* ---------- Initialize ---------- */
+
+  initSvgPool();
+  render();
+})();
+</script>
+</body>
+</html>
