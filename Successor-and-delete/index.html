@@ -1113,11 +1113,11 @@
     if (st.dir === "succ") {
       if (!st.seen.case1) {
         const n30 = findByKey(st.root, 30);
-        if (n30 && n30.right && n30.right.left) return { node: n30, reason: "has a right child — Case 1" };
+        if (n30 && n30.right && n30.right.left) return { node: n30, reason: "has a right child Case 1" };
         const deepC1 = list.find(n => n.right && n.right.left);
-        if (deepC1) return { node: deepC1, reason: "has a right child — Case 1" };
+        if (deepC1) return { node: deepC1, reason: "has a right child Case 1" };
         const anyC1 = list.find(n => !!n.right);
-        if (anyC1) return { node: anyC1, reason: "has a right child — Case 1" };
+        if (anyC1) return { node: anyC1, reason: "has a right child Case 1" };
       }
       if (!st.seen.case2) {
         const n45 = findByKey(st.root, 45);
@@ -1135,11 +1135,11 @@
     } else {
       if (!st.seen.case1) {
         const n70 = findByKey(st.root, 70);
-        if (n70 && n70.left && n70.left.right) return { node: n70, reason: "has a left child — Case 1" };
+        if (n70 && n70.left && n70.left.right) return { node: n70, reason: "has a left child Case 1" };
         const deepC1 = list.find(n => n.left && n.left.right);
-        if (deepC1) return { node: deepC1, reason: "has a left child — Case 1" };
+        if (deepC1) return { node: deepC1, reason: "has a left child Case 1" };
         const anyC1 = list.find(n => !!n.left);
-        if (anyC1) return { node: anyC1, reason: "has a left child — Case 1" };
+        if (anyC1) return { node: anyC1, reason: "has a left child Case 1" };
       }
       if (!st.seen.case2) {
         const n35 = findByKey(st.root, 35);
@@ -1893,8 +1893,8 @@
       delLegend.hidden = true;
       succLegend.hidden = false;
       legCase1Text.textContent = isMirror
-        ? "Case 1 — Left child exists: go left once, then right as far as possible."
-        : "Case 1 — Right child exists: go right once, then left as far as possible.";
+        ? "Case 1 Left child exists: go left once, then right as far as possible."
+        : "Case 1 Right child exists: go right once, then left as far as possible.";
       legCase2Text.textContent = isMirror
         ? "Case 2 — No left child: go up until you arrive from a right child. That parent is the predecessor."
         : "Case 2 — No right child: go up until you arrive from a left child. That parent is the successor.";
