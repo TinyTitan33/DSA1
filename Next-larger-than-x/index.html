@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Next larger than x</title>
+<style>
+:root {
+  --paper: #F7F4EC;
+  --card: #FFFDF8;
+  --ink: #17171A;
+  --gray: #59564F;
+  --line: #CFC9BB;
+  --wash: #E8E3D4;
+  --red: #D8452B;
+  --red-text: #B83A21;
+  --serif: Georgia, "Times New Roman", serif;
+  --mono: ui-monospace, Consolas, "Courier New", monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { font-size: 16.5px; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 1rem/1.4 var(--serif);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.app {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+button {
+  font: inherit;
+  font-size: 1rem;
+  color: var(--ink);
+  cursor: pointer;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 2px solid var(--ink);
+  background: var(--card);
+  touch-action: manipulation;
+}
+nav button {
+  padding: 6px 11px;
+}
+nav button[aria-current="step"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+nav button.done::after {
+  content: "";
+  display: inline-block;
+  width: 0.55em;
+  height: 0.55em;
+  background: currentColor;
+  margin-left: 0.45em;
+  vertical-align: middle;
+}
+@media (hover: hover) {
+  button:hover:not(:disabled) {
+    background: var(--wash);
+  }
+  nav button[aria-current="step"]:hover:not(:disabled) {
+    background: var(--ink);
+  }
+  button.primary:hover:not(:disabled) {
+    background: #35353A;
+  }
+  .svg-cell.is-clickable:hover .cell-box {
+    fill: var(--wash);
+  }
+}
+button:active:not(:disabled) {
+  background: var(--wash);
+}
+nav button[aria-current="step"]:active:not(:disabled) {
+  background: var(--ink);
+}
+button:focus-visible,
+.svg-cell[tabindex="0"]:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+button:disabled {
+  color: var(--gray);
+  border: 2px dashed var(--gray);
+  background: transparent;
+  cursor: not-allowed;
+}
+button.primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+button.primary:active:not(:disabled) {
+  background: #35353A;
+}
+button.primary:disabled {
+  background: transparent;
+  color: var(--gray);
+}
+.goal {
+  margin: 0;
+  font-size: 1.08rem;
+  line-height: 1.3;
+  font-weight: 400;
+}
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.card {
+  background: var(--card);
+  border: 2px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+  padding: 10px 12px;
+  min-width: 0;
+}
+.main-col {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+svg.tree {
+  display: block;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  height: auto;
+}
+.edge {
+  stroke: var(--line);
+  stroke-width: 2.5;
+  fill: none;
+}
+.edge.slot { stroke-dasharray: 4 4; }
+.edge.on {
+  stroke: var(--ink);
+  stroke-width: 5;
+  stroke-dasharray: none;
+}
+.edge.new-edge {
+  stroke: var(--red);
+  stroke-width: 5.5;
+  stroke-dasharray: none;
+}
+.guide-line {
+  stroke: var(--line);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 4;
+}
+.node circle.c {
+  fill: var(--card);
+  stroke: var(--ink);
+  stroke-width: 2.5;
+}
+.node text {
+  font: 700 28px var(--mono);
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: var(--ink);
+}
+.node.seen circle.c { fill: var(--wash); }
+.node .halo {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.5;
+  stroke-dasharray: 4 4;
+  opacity: 0;
+}
+.node.best .halo { opacity: 1; }
+.slot rect {
+  fill: transparent;
+  stroke: var(--gray);
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+}
+.slotg.cur rect {
+  fill: var(--red);
+  stroke: var(--red);
+  stroke-dasharray: none;
+}
+.mover {
+  transition: transform 250ms ease-out;
+  pointer-events: none;
+}
+.mover.no-anim {
+  transition: none;
+}
+.mover circle {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 5.5;
+  transition: transform 250ms ease-out, stroke 150ms;
+}
+.mover.hot circle {
+  stroke: var(--red);
+  stroke-width: 6.5;
+}
+.mover.at-slot circle {
+  transform: scale(0.56);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mover, .mover circle { transition: none; }
+}
+.svg-cell.is-clickable {
+  cursor: pointer;
+}
+.svg-cell .cell-box {
+  fill: var(--card);
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+.svg-cell .cell-val {
+  font: 700 24px var(--mono);
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: var(--ink);
+}
+.svg-cell .cell-lbl {
+  font: 700 13px var(--serif);
+  text-anchor: middle;
+  fill: var(--ink);
+}
+.svg-cell.out .cell-box {
+  fill: var(--wash);
+  stroke: var(--gray);
+}
+.svg-cell.out .cell-val {
+  fill: var(--gray);
+}
+.svg-cell.struck .cell-box {
+  fill: var(--wash);
+  stroke: var(--gray);
+}
+.svg-cell.struck .cell-val {
+  fill: var(--gray);
+  text-decoration: line-through;
+}
+.svg-cell.best .cell-box {
+  fill: var(--card);
+  stroke: var(--ink);
+  stroke-width: 4;
+}
+.svg-cell.best .cell-val {
+  fill: var(--ink);
+}
+.svg-cell.ans .cell-box {
+  fill: var(--wash);
+  stroke: var(--ink);
+  stroke-width: 4;
+}
+.svg-cell.ans .cell-val {
+  fill: var(--ink);
+}
+.svg-cell.x-mark .cell-box {
+  stroke: var(--red);
+  stroke-width: 4;
+}
+.svg-cell.x-mark .cell-val,
+.svg-cell.x-mark .cell-lbl {
+  fill: var(--red-text);
+}
+.svg-cell.pick .cell-box {
+  stroke: var(--ink);
+  stroke-width: 4;
+}
+.svg-cell.bad .cell-box {
+  stroke: var(--red);
+  stroke-width: 4;
+}
+.svg-cell.bad .cell-val,
+.svg-cell.bad .cell-lbl {
+  fill: var(--red-text);
+}
+.svg-caret .caret-bar {
+  fill: var(--red);
+}
+.svg-caret .caret-lbl {
+  font: 700 13px var(--serif);
+  text-anchor: middle;
+  fill: var(--red-text);
+}
+.feedback-live {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.status {
+  margin: 0;
+  min-height: 2.5em;
+  line-height: 1.32;
+  padding: 2px 0 2px 10px;
+  border-left: 5px solid var(--ink);
+  color: var(--ink);
+}
+.status.err {
+  color: var(--red-text);
+  font-weight: 700;
+  border-left: 6px solid var(--red);
+}
+.takeaway {
+  margin: 0;
+  min-height: 1.4em;
+  font-weight: 700;
+  color: var(--ink);
+}
+.controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+.chip-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.chips button {
+  font: 700 1.1rem var(--mono);
+  min-width: 54px;
+  min-height: 44px;
+  padding: 4px 12px;
+}
+.chips button.pick {
+  border: 4px solid var(--ink);
+  color: var(--ink);
+}
+.chips button.ok {
+  border: 4px solid var(--ink);
+  background: var(--wash);
+  color: var(--ink);
+}
+.chips button.bad {
+  border: 4px solid var(--red);
+  color: var(--red-text);
+}
+.chip-lbl {
+  font-size: 0.98rem;
+  font-weight: 700;
+  min-height: 1.2em;
+  text-align: center;
+}
+.chip-lbl.bad { color: var(--red-text); }
+.key-hint {
+  align-self: center;
+  color: var(--gray);
+  font-size: 0.98rem;
+}
+.strip-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  min-height: 1.4em;
+}
+.none-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.none-btn {
+  font: 700 1rem var(--serif);
+  min-height: 44px;
+  padding: 4px 12px;
+}
+.none-btn.pick {
+  border: 4px solid var(--ink);
+  color: var(--ink);
+}
+.none-btn.ok {
+  border: 4px solid var(--ink);
+  background: var(--wash);
+  color: var(--ink);
+}
+.none-btn.bad {
+  border: 4px solid var(--red);
+  color: var(--red-text);
+}
+.none-lbl {
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+.none-lbl.bad { color: var(--red-text); }
+.strip-caption {
+  margin: 0;
+  font-size: 0.98rem;
+  color: var(--ink);
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.xbox {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.xbox span { color: var(--gray); }
+.xbox .x { font: 700 2.1rem/1 var(--mono); }
+.x-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.x-picker button {
+  font: 700 1rem var(--mono);
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px 6px;
+}
+.x-picker button.in-tree { border-style: solid; }
+.x-picker button.not-in-tree { border-style: dashed; }
+.x-picker button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.rule-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rule-heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.rule {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.rule div {
+  border: 2px solid var(--ink);
+  padding: 6px 8px;
+  font-size: 0.98rem;
+  line-height: 1.25;
+  background: var(--paper);
+}
+.rule div.rule-hint {
+  border: 4px solid var(--ink);
+  background: var(--wash);
+}
+.rule b {
+  display: block;
+  font-family: var(--mono);
+  font-size: 1rem;
+}
+.rule .rule-full {
+  grid-column: 1 / -1;
+}
+.tag {
+  border: 2px solid var(--ink);
+  padding: 8px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 10px;
+  background: var(--card);
+}
+.tag-left {
+  display: flex;
+  flex-direction: column;
+}
+.tag-note {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--red-text);
+}
+.tag .v {
+  font: 700 1.6rem/1.1 var(--mono);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+}
+.tag .v del {
+  color: var(--gray);
+  font-weight: 400;
+}
+.tag .v .new-val {
+  color: var(--red-text);
+}
+.tag.hot { border: 4px solid var(--red); }
+.tag.final { border-width: 4px; }
+.tag.final.none { border-color: var(--red); }
+.tag.final.none .v { color: var(--red-text); }
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.two svg.tree { max-width: 420px; }
+.panel-title {
+  margin: 0 0 4px;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.panel-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+  margin-top: 6px;
+}
+.panel-count {
+  margin: 0;
+  font-weight: 700;
+  font-family: var(--mono);
+}
+.panel-note {
+  margin: 4px 0 0;
+  color: var(--gray);
+}
+.panel-tag {
+  border: 2px solid var(--ink);
+  padding: 3px 8px;
+  font-size: 0.98rem;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  background: var(--paper);
+}
+.panel-tag .v {
+  font: 700 1.05rem var(--mono);
+  display: inline-flex;
+  gap: 4px;
+}
+.panel-tag .v del {
+  color: var(--gray);
+  font-weight: 400;
+}
+.panel-tag .v .new-val {
+  color: var(--red-text);
+}
+.panel-tag.hot { border: 3px solid var(--red); }
+.panel-tag.final { border: 3px solid var(--ink); background: var(--wash); }
+.panel-ans {
+  margin: 0;
+  font-weight: 700;
+  font-family: var(--mono);
+  border: 3px solid var(--ink);
+  background: var(--wash);
+  padding: 3px 8px;
+}
+.contrast-bottom {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.closing-line {
+  margin: 0;
+  color: var(--ink);
+}
+footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+}
+@media (max-width: 760px) {
+  .grid, .two { grid-template-columns: 1fr; }
+}
+@media (max-width: 440px) {
+  .app { padding: 8px 10px; }
+  .card { padding: 8px 10px; }
+}
+@media (max-width: 380px) {
+  .app { padding: 8px; }
+  .card { padding: 8px; }
+  .rule { grid-template-columns: 1fr; }
+  .chips button { min-width: 52px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <nav id="tabs" aria-label="Steps"></nav>
+  </header>
+  <p class="goal" id="goal"></p>
+  <main id="stage"></main>
+  <footer>
+    <button type="button" id="back">Back</button>
+    <button type="button" id="next">Continue</button>
+  </footer>
+</div>
+<script>
+(function () {
+  "use strict";
+
+  var NS = "http://www.w3.org/2000/svg";
+  var KIDS = { 8: [4, 12], 4: [2, 6], 12: [10, 14] };
+  var LEFT_SUB = {
+    8: [2, 4, 6],
+    4: [2],
+    12: [10],
+    2: [], 6: [], 10: [], 14: []
+  };
+  var RIGHT_SUB = {
+    8: [10, 12, 14],
+    4: [6],
+    12: [14],
+    2: [], 6: [], 10: [], 14: []
+  };
+  var POS = {
+    8: [240, 32],
+    4: [121, 88], 12: [359, 88],
+    2: [63, 144], 6: [179, 144], 10: [301, 144], 14: [417, 144],
+    L2: [34, 195], R2: [92, 195],
+    L6: [150, 195], R6: [208, 195],
+    L10: [272, 195], R10: [330, 195],
+    L14: [388, 195], R14: [446, 195]
+  };
+  var CARET_X = {
+    before2: 34,
+    between2_4: 92,
+    between4_6: 150,
+    between6_8: 209.5,
+    between8_10: 270.5,
+    between10_12: 330,
+    between12_14: 388,
+    after14: 446
+  };
+  var SORTED = [2, 4, 6, 8, 10, 12, 14];
+  var IN_TREE = { 2: true, 4: true, 6: true, 8: true, 10: true, 12: true, 14: true };
+
+  function kid(n, side) {
+    var k = KIDS[n];
+    if (k) return k[side === "l" ? 0 : 1];
+    return (side === "l" ? "L" : "R") + n;
+  }
+
+  function solveTree(x) {
+    var at = 8, best = null;
+    while (typeof at === "number") {
+      if (at > x) {
+        best = at;
+        at = kid(at, "l");
+      } else {
+        at = kid(at, "r");
+      }
+    }
+    return { best: best };
+  }
+
+  function caretPosFor(x) {
+    if (x < 2) return CARET_X.before2;
+    if (x < 4) return CARET_X.between2_4;
+    if (x < 6) return CARET_X.between4_6;
+    if (x < 8) return CARET_X.between6_8;
+    if (x < 10) return CARET_X.between8_10;
+    if (x < 12) return CARET_X.between10_12;
+    if (x < 14) return CARET_X.between12_14;
+    return CARET_X.after14;
+  }
+
+  function mk(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  function buildTree(label, opts) {
+    opts = opts || {};
+    var showStrip = Boolean(opts.showStrip);
+    var vb = showStrip ? "0 0 480 283" : "0 0 480 220";
+    var svg = mk("svg", {
+      "class": "tree",
+      viewBox: vb,
+      role: "img",
+      "aria-label": label
+    });
+    var edges = {}, nodes = {}, slots = {};
+
+    if (showStrip) {
+      SORTED.forEach(function (v) {
+        mk("line", {
+          "class": "guide-line",
+          x1: POS[v][0], y1: POS[v][1] + 25,
+          x2: POS[v][0], y2: 216
+        }, svg);
+      });
+    }
+
+    [8, 4, 12, 2, 6, 10, 14].forEach(function (p) {
+      ["l", "r"].forEach(function (side) {
+        var c = kid(p, side);
+        var isSlot = typeof c === "string";
+        edges[p + "-" + c] = mk("line", {
+          "class": "edge" + (isSlot ? " slot" : ""),
+          x1: POS[p][0], y1: POS[p][1],
+          x2: POS[c][0], y2: POS[c][1]
+        }, svg);
+      });
+    });
+
+    Object.keys(POS).forEach(function (k) {
+      var p = POS[k];
+      if (isNaN(k)) {
+        var g = mk("g", { "class": "slotg slot" }, svg);
+        mk("rect", { x: p[0] - 13, y: p[1] - 13, width: 26, height: 26 }, g);
+        slots[k] = g;
+      } else {
+        var n = +k;
+        var g2 = mk("g", { "class": "node" }, svg);
+        mk("circle", { "class": "halo", cx: p[0], cy: p[1], r: 31 }, g2);
+        mk("circle", { "class": "c", cx: p[0], cy: p[1], r: 25 }, g2);
+        var t = mk("text", { x: p[0], y: p[1] }, g2);
+        t.textContent = n;
+        nodes[n] = g2;
+      }
+    });
+
+    var mover = mk("g", { "class": "mover no-anim" }, svg);
+    mk("circle", { cx: 0, cy: 0, r: 25 }, mover);
+
+    var stripCells = {};
+    var caretGroup = null, caretBar = null, caretLbl = null;
+    if (showStrip) {
+      SORTED.forEach(function (v) {
+        var cx = POS[v][0];
+        var g = mk("g", { "class": "svg-cell" }, svg);
+        mk("rect", { "class": "cell-box", x: cx - 21, y: 216, width: 42, height: 35 }, g);
+        var vt = mk("text", { "class": "cell-val", x: cx, y: 233.5 }, g);
+        vt.textContent = String(v);
+        var lt = mk("text", { "class": "cell-lbl", x: cx, y: 264 }, g);
+        if (opts.onCellPick) {
+          g.addEventListener("click", function () { opts.onCellPick(v); });
+          g.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              opts.onCellPick(v);
+            }
+          });
+        }
+        stripCells[v] = { g: g, lbl: lt };
+      });
+      caretGroup = mk("g", { "class": "svg-caret" }, svg);
+      caretBar = mk("rect", { "class": "caret-bar", x: 0, y: 216, width: 4, height: 35 }, caretGroup);
+      caretLbl = mk("text", { "class": "caret-lbl", x: 0, y: 278 }, caretGroup);
+      caretGroup.style.display = "none";
+    }
+
+    function upd(s) {
+      for (var k in edges) {
+        var isSlotEdge = k.indexOf("L") >= 0 || k.indexOf("R") >= 0;
+        var cls = "edge" + (isSlotEdge ? " slot" : "");
+        if (s.lastEdge === k) cls += " new-edge";
+        else if ((s.edges || []).indexOf(k) >= 0) cls += " on";
+        edges[k].setAttribute("class", cls);
+      }
+      for (var n in nodes) {
+        var num = +n;
+        var on = [];
+        if ((s.visited || []).indexOf(num) >= 0) on.push("seen");
+        if (s.best === num) on.push("best");
+        nodes[n].setAttribute("class", "node" + (on.length ? " " + on.join(" ") : ""));
+      }
+      for (var q in slots) {
+        slots[q].setAttribute("class", "slotg slot" + (s.at === q ? " cur" : ""));
+      }
+      var target = s.at !== undefined && s.at !== null ? POS[s.at] : null;
+      if (target) {
+        var mCls = "mover";
+        if (s.instant) mCls += " no-anim";
+        if (s.hotMarker) mCls += " hot";
+        if (typeof s.at === "string") mCls += " at-slot";
+        mover.setAttribute("class", mCls);
+        mover.style.transform = "translate(" + target[0] + "px, " + target[1] + "px)";
+        mover.style.opacity = "1";
+      } else {
+        mover.style.opacity = "0";
+      }
+      if (s.ariaLabel) svg.setAttribute("aria-label", s.ariaLabel);
+    }
+
+    function updStrip(cellStates, caret) {
+      if (!showStrip) return;
+      SORTED.forEach(function (v) {
+        var st = cellStates[v];
+        var item = stripCells[v];
+        var cls = "svg-cell";
+        if (st.classes.length) cls += " " + st.classes.join(" ");
+        if (st.clickable) cls += " is-clickable";
+        item.g.setAttribute("class", cls);
+        item.lbl.textContent = st.label || "";
+        if (st.yLabel) item.lbl.setAttribute("y", String(st.yLabel));
+        else item.lbl.setAttribute("y", "264");
+        item.g.setAttribute("aria-label", v + ", " + (st.srState || "available"));
+        if (st.clickable) {
+          item.g.setAttribute("role", "button");
+          item.g.setAttribute("tabindex", "0");
+        } else {
+          item.g.removeAttribute("role");
+          item.g.removeAttribute("tabindex");
+        }
+      });
+      if (caret && caret.show) {
+        caretGroup.style.display = "";
+        caretBar.setAttribute("x", String(caret.x - 2));
+        caretLbl.setAttribute("x", String(caret.x));
+        caretLbl.textContent = caret.label;
+      } else {
+        caretGroup.style.display = "none";
+      }
+    }
+
+    return { svg: svg, upd: upd, updStrip: updStrip };
+  }
+
+  function formatDecisionMsg(nodeVal, x, best, nextIsSlot, mode, pick) {
+    var parts = [];
+    if (nodeVal > x) {
+      parts.push(nodeVal + " is larger than " + x + ". Remember " + nodeVal + " as best so far and go left.");
+    } else if (nodeVal === x) {
+      parts.push(nodeVal + " equals x, which is not larger. Go right.");
+    } else {
+      parts.push(nodeVal + " is not larger than " + x + ". Go right.");
+    }
+
+    if (nextIsSlot) {
+      parts.push("Empty slot, so the walk stops.");
+      if (best === null) {
+        if (mode === "predict-yesno") {
+          parts.push("No node was larger than " + x + ", so nothing was ever remembered. There is no answer.");
+          if (pick === "No") parts.push("You predicted it.");
+          else if (pick === "Yes") parts.push("Yes would need a left turn, and the walk never turned left.");
+        } else {
+          parts.push("Best so far was never set, so there is no answer.");
+          if (mode === "free") {
+            if (pick === "none") parts.push("You predicted it.");
+            else if (pick !== null) parts.push("No value is larger than " + x + ", so the answer is none, not " + pick + ".");
+          }
+        }
+      } else {
+        parts.push("The answer is " + best + ".");
+        if (mode === "predict" || mode === "free") {
+          if (pick === best) {
+            parts.push("You predicted it.");
+          } else if (pick === "none") {
+            parts.push("There is a larger value, so the answer is not none.");
+          } else if (pick === x) {
+            parts.push(pick + " equals x, and the answer must be larger.");
+          } else if (pick > best) {
+            parts.push(pick + " is larger than " + x + ", but " + best + " is the smallest such value.");
+          } else if (pick !== null) {
+            parts.push(pick + " is smaller than " + x + ", and the answer must be larger.");
+          }
+        }
+      }
+    }
+    return parts.join(" ");
+  }
+
+  function formatWrongDriveMsg(nodeVal, x) {
+    if (nodeVal > x) {
+      return "Not quite: " + nodeVal + " is larger than " + x + ", so it could be the answer. Remember it and go left.";
+    }
+    if (nodeVal === x) {
+      return "Not quite: " + nodeVal + " equals x, which is not larger. Go right.";
+    }
+    return "Not quite: " + nodeVal + " is not larger than " + x + ", so it can't be the answer. Go right.";
+  }
+
+  var STEPS = [
+    {
+      t: "One search",
+      mode: "watch",
+      x: 5,
+      ruleTitle: "The rule you just watched",
+      hideRuleUntilDone: true,
+      goalLead: "Find the smallest value larger than 5.",
+      goalRest: "Watch where the search turns left.",
+      takeaway: "The last left turn is the answer."
+    },
+    {
+      t: "Guess the answer",
+      mode: "predict",
+      x: 10,
+      chips: [10, 12, 14],
+      ruleTitle: "Rule",
+      goalLead: "Find the smallest value larger than 10.",
+      goalRest: "Pick your answer before the walk starts.",
+      takeaway: "A node equal to x is not larger, so the walk goes right."
+    },
+    {
+      t: "Your turn",
+      mode: "drive",
+      x: 13,
+      ruleTitle: "Rule",
+      goalLead: "Find the smallest value larger than 13.",
+      goalRest: "Choose Left or Right at each node.",
+      takeaway: "You only chose directions. The rule did everything else."
+    },
+    {
+      t: "No answer",
+      mode: "predict-yesno",
+      x: 15,
+      chips: ["Yes", "No"],
+      ruleTitle: "Rule",
+      goalLead: "Find the smallest value larger than 15.",
+      goalRest: "Will the best tag ever be set?",
+      takeaway: "No left turn means no answer."
+    },
+    {
+      t: "Any x",
+      mode: "free",
+      x: 7,
+      ruleTitle: "Rule",
+      goalLead: "Pick any x.",
+      goalRest: "Guess the answer, then check it.",
+      takeaway: "It works for any x, in the tree or not."
+    },
+    {
+      t: "Where to start",
+      mode: "contrast",
+      goalLead: "What is the next larger value after 4?",
+      goalRest: "Compare starting at the root with starting at node 4.",
+      takeaway: "Start at the node if you have it. Start at the root if you only have x.",
+      closing: "Starting at the node is shorter when you already have the node. Starting at the root is the only option when x is not in the tree."
+    }
+  ];
+
+  var cur = 0;
+  var pages = [];
+  var tabBtns = [];
+  var tabs = document.getElementById("tabs");
+  var stage = document.getElementById("stage");
+  var goalEl = document.getElementById("goal");
+  var backB = document.getElementById("back");
+  var nextB = document.getElementById("next");
+
+  function renderBestTrail(tagValEl, history, hot) {
+    tagValEl.innerHTML = "";
+    if (!history.length) {
+      tagValEl.textContent = "none";
+      return;
+    }
+    history.forEach(function (val, idx) {
+      var isLast = idx === history.length - 1;
+      if (idx > 0) {
+        var arrow = document.createElement("span");
+        arrow.innerHTML = "&rarr;";
+        tagValEl.appendChild(arrow);
+      }
+      if (!isLast) {
+        var del = document.createElement("del");
+        del.textContent = String(val);
+        tagValEl.appendChild(del);
+      } else {
+        var span = document.createElement("span");
+        if (hot) span.className = "new-val";
+        span.textContent = String(val);
+        tagValEl.appendChild(span);
+      }
+    });
+  }
+
+  function createWalkPage(cfg, idx) {
+    var expectedBest = solveTree(cfg.x).best;
+    var answerChip = cfg.mode === "predict-yesno"
+      ? (expectedBest === null ? "No" : "Yes")
+      : expectedBest;
+
+    var sec = document.createElement("section");
+    sec.hidden = true;
+    sec.setAttribute("aria-label", (idx + 1) + ". " + cfg.t);
+
+    var grid = document.createElement("div");
+    grid.className = "grid";
+
+    var mainCard = document.createElement("div");
+    mainCard.className = "card main-col";
+    var tree = buildTree("Binary search tree for x = " + cfg.x, {
+      showStrip: true,
+      onCellPick: cfg.mode === "free" ? function (val) { pickFreeGuess(val); } : null
+    });
+    mainCard.appendChild(tree.svg);
+
+    var liveRegion = document.createElement("div");
+    liveRegion.className = "feedback-live";
+    liveRegion.setAttribute("aria-live", "polite");
+    var stEl = document.createElement("p");
+    stEl.className = "status";
+    var takeEl = document.createElement("p");
+    takeEl.className = "takeaway";
+    liveRegion.appendChild(stEl);
+    liveRegion.appendChild(takeEl);
+    mainCard.appendChild(liveRegion);
+
+    var ctlBar = document.createElement("div");
+    ctlBar.className = "controls-bar";
+    mainCard.appendChild(ctlBar);
+
+    var stripFooter = document.createElement("div");
+    stripFooter.className = "strip-footer";
+    var noneWrap = null, noneBtn = null, noneLbl = null;
+    if (cfg.mode === "free") {
+      noneWrap = document.createElement("div");
+      noneWrap.className = "none-wrap";
+      noneBtn = document.createElement("button");
+      noneBtn.type = "button";
+      noneBtn.className = "none-btn";
+      noneBtn.textContent = "none";
+      noneBtn.addEventListener("click", function () { pickFreeGuess("none"); });
+      noneLbl = document.createElement("span");
+      noneLbl.className = "none-lbl";
+      noneWrap.appendChild(noneBtn);
+      noneWrap.appendChild(noneLbl);
+      stripFooter.appendChild(noneWrap);
+    }
+    var stripCaption = document.createElement("p");
+    stripCaption.className = "strip-caption";
+    stripFooter.appendChild(stripCaption);
+    var srStrip = document.createElement("div");
+    var srCellSpans = {};
+    SORTED.forEach(function (v) {
+      var sp = document.createElement("span");
+      sp.className = "sr-only";
+      srStrip.appendChild(sp);
+      srCellSpans[v] = sp;
+    });
+    stripFooter.appendChild(srStrip);
+    mainCard.appendChild(stripFooter);
+
+    var sideCard = document.createElement("div");
+    sideCard.className = "card side";
+
+    var xbox = document.createElement("div");
+    xbox.className = "xbox";
+    var xSpan = document.createElement("span");
+    xSpan.textContent = "x =";
+    var xValEl = document.createElement("div");
+    xValEl.className = "x";
+    xbox.appendChild(xSpan);
+    xbox.appendChild(xValEl);
+    sideCard.appendChild(xbox);
+
+    var xPickerBtns = {};
+    if (cfg.mode === "free") {
+      var xPicker = document.createElement("div");
+      xPicker.className = "x-picker";
+      xPicker.setAttribute("role", "group");
+      xPicker.setAttribute("aria-label", "Choose x from 1 to 15");
+      for (var xv = 1; xv <= 15; xv++) {
+        (function (val) {
+          var xb = document.createElement("button");
+          xb.type = "button";
+          xb.textContent = String(val);
+          xb.className = IN_TREE[val] ? "in-tree" : "not-in-tree";
+          xb.addEventListener("click", function () {
+            s.x = val;
+            reset(true);
+          });
+          xPicker.appendChild(xb);
+          xPickerBtns[val] = xb;
+        })(xv);
+      }
+      sideCard.appendChild(xPicker);
+    }
+
+    var ruleWrap = document.createElement("div");
+    ruleWrap.className = "rule-wrap";
+    var rHead = document.createElement("p");
+    rHead.className = "rule-heading";
+    rHead.textContent = cfg.ruleTitle;
+    var rGrid = document.createElement("div");
+    rGrid.className = "rule";
+    var rLeft = document.createElement("div");
+    rLeft.innerHTML = "<b>node &gt; x</b>larger, remember it, go left";
+    var rRight = document.createElement("div");
+    rRight.innerHTML = "<b>node &le; x</b>not larger, go right";
+    var rFull = document.createElement("div");
+    rFull.className = "rule-full";
+    rFull.innerHTML = "<b>Empty slot</b> stop, the answer is best so far";
+    rGrid.appendChild(rLeft);
+    rGrid.appendChild(rRight);
+    rGrid.appendChild(rFull);
+    ruleWrap.appendChild(rHead);
+    ruleWrap.appendChild(rGrid);
+    sideCard.appendChild(ruleWrap);
+
+    var tag = document.createElement("div");
+    tag.className = "tag";
+    var tagLeft = document.createElement("div");
+    tagLeft.className = "tag-left";
+    var tagLbl = document.createElement("span");
+    var tagNote = document.createElement("span");
+    tagNote.className = "tag-note";
+    tagLeft.appendChild(tagLbl);
+    tagLeft.appendChild(tagNote);
+    var tagVal = document.createElement("span");
+    tagVal.className = "v";
+    tag.appendChild(tagLeft);
+    tag.appendChild(tagVal);
+    sideCard.appendChild(tag);
+
+    grid.appendChild(mainCard);
+    grid.appendChild(sideCard);
+    sec.appendChild(grid);
+    stage.appendChild(sec);
+
+    var chipBtns = {}, chipLbls = {};
+    if (cfg.mode === "predict" || cfg.mode === "predict-yesno") {
+      var chipsRow = document.createElement("div");
+      chipsRow.className = "chips";
+      cfg.chips.forEach(function (v) {
+        var wrap = document.createElement("div");
+        wrap.className = "chip-wrap";
+        var b = document.createElement("button");
+        b.type = "button";
+        b.textContent = String(v);
+        b.addEventListener("click", function () { pickChip(v); });
+        var l = document.createElement("span");
+        l.className = "chip-lbl";
+        wrap.appendChild(b);
+        wrap.appendChild(l);
+        chipsRow.appendChild(wrap);
+        chipBtns[v] = b;
+        chipLbls[v] = l;
+      });
+      ctlBar.appendChild(chipsRow);
+    }
+
+    var nextBtn = null, leftBtn = null, rightBtn = null, resetBtn = null;
+    function mkBtn(txt, fn, cls) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = txt;
+      if (cls) b.className = cls;
+      b.addEventListener("click", fn);
+      ctlBar.appendChild(b);
+      return b;
+    }
+
+    if (cfg.mode === "drive") {
+      leftBtn = mkBtn("Left", function () { drive("l"); });
+      rightBtn = mkBtn("Right", function () { drive("r"); });
+      resetBtn = mkBtn("Reset", function () { reset(false); });
+      var hint = document.createElement("span");
+      hint.className = "key-hint";
+      hint.textContent = "or use the arrow keys";
+      ctlBar.appendChild(hint);
+    } else {
+      nextBtn = mkBtn("Next step", function () { stepWalk(); }, "primary");
+      resetBtn = mkBtn("Reset", function () { reset(cfg.mode === "free"); });
+    }
+
+    var s = {
+      x: cfg.x,
+      at: 8,
+      best: null,
+      bestHistory: [],
+      hot: false,
+      hotMarker: false,
+      instant: true,
+      visited: [],
+      edges: [],
+      lastEdge: null,
+      ruledOut: {},
+      struck: {},
+      done: false,
+      pick: null,
+      err: false,
+      wrongCount: 0,
+      hintCell: null,
+      msg: ""
+    };
+
+    function pickChip(v) {
+      if (s.pick !== null) return;
+      s.pick = v;
+      s.msg = "You picked " + v + ". At the root, 8. Press Next step to walk the tree.";
+      render();
+      nextBtn.focus();
+    }
+
+    function pickFreeGuess(v) {
+      if (s.pick !== null || s.done) return;
+      s.pick = v;
+      s.msg = "You picked " + v + ". At the root, 8. Press Next step to walk the tree.";
+      render();
+      nextBtn.focus();
+    }
+
+    function applyStep(dir) {
+      var n = s.at;
+      var goLeft = dir === "l";
+      if (goLeft) {
+        if (s.best !== null) {
+          s.struck[s.best] = true;
+          s.ruledOut[s.best] = true;
+        }
+        s.best = n;
+        s.bestHistory.push(n);
+        s.hot = true;
+        RIGHT_SUB[n].forEach(function (v) { s.ruledOut[v] = true; });
+      } else {
+        s.hot = false;
+        s.ruledOut[n] = true;
+        LEFT_SUB[n].forEach(function (v) { s.ruledOut[v] = true; });
+      }
+
+      var nx = kid(n, dir);
+      var nextIsSlot = typeof nx === "string";
+      s.visited.push(n);
+      s.edges.push(n + "-" + nx);
+      s.lastEdge = n + "-" + nx;
+      s.at = nx;
+      s.hotMarker = true;
+      s.instant = false;
+      s.err = false;
+      s.wrongCount = 0;
+      s.hintCell = null;
+      if (nextIsSlot) s.done = true;
+
+      s.msg = formatDecisionMsg(n, s.x, s.best, nextIsSlot, cfg.mode, s.pick);
+    }
+
+    function stepWalk() {
+      if (s.done || typeof s.at !== "number") return;
+      if ((cfg.mode === "predict" || cfg.mode === "predict-yesno" || cfg.mode === "free") && s.pick === null) return;
+      var dir = s.at > s.x ? "l" : "r";
+      applyStep(dir);
+      var activeEl = document.activeElement;
+      render();
+      if (s.done && activeEl === nextBtn) {
+        resetBtn.focus();
+      }
+    }
+
+    function drive(dir) {
+      if (s.done || typeof s.at !== "number") return;
+      var n = s.at;
+      var want = n > s.x ? "l" : "r";
+      if (dir !== want) {
+        s.err = true;
+        s.hot = false;
+        s.hotMarker = false;
+        s.wrongCount += 1;
+        if (s.wrongCount >= 2) {
+          s.hintCell = want === "l" ? "left" : "right";
+        }
+        s.msg = formatWrongDriveMsg(n, s.x);
+        render();
+        return;
+      }
+      applyStep(dir);
+      var activeEl = document.activeElement;
+      render();
+      if (s.done && (activeEl === leftBtn || activeEl === rightBtn)) {
+        resetBtn.focus();
+      }
+    }
+
+    function updateStripUI() {
+      var freePicking = cfg.mode === "free" && s.pick === null && !s.done;
+      var cellStates = {};
+      var caret = null;
+
+      SORTED.forEach(function (v) {
+        var classes = [];
+        var label = "";
+        var srState = "available";
+        var yLabel = 264;
+        var isX = s.done && v === s.x;
+
+        if (s.done) {
+          if (v === s.best && cfg.mode === "free" && s.pick === v) {
+            classes.push("ans");
+            label = "pick, ans";
+            srState = "your pick, answer";
+          } else if (v === s.best) {
+            classes.push("ans");
+            label = "answer";
+            srState = "answer";
+          } else if (cfg.mode === "free" && s.pick === v) {
+            classes.push("bad");
+            label = isX ? "x=" + s.x + ", pick" : "your pick";
+            srState = isX ? "your pick, equals x" : "your pick";
+          } else if (isX) {
+            if (s.struck[v]) {
+              classes.push("struck");
+              srState = "previous best, replaced";
+            } else if (s.ruledOut[v]) {
+              classes.push("out");
+              srState = "ruled out";
+            }
+            classes.push("x-mark");
+            label = "x = " + s.x;
+            yLabel = 278;
+          } else if (s.struck[v]) {
+            classes.push("struck");
+            srState = "previous best, replaced";
+          } else if (s.ruledOut[v]) {
+            classes.push("out");
+            srState = "ruled out";
+          }
+        } else {
+          if (v === s.best) {
+            classes.push("best");
+            srState = "best so far";
+          } else if (s.struck[v]) {
+            classes.push("struck");
+            srState = "previous best, replaced";
+          } else if (s.ruledOut[v]) {
+            classes.push("out");
+            srState = "ruled out";
+          }
+          if (cfg.mode === "free" && s.pick === v) {
+            classes.push("pick");
+            label = "your pick";
+            srState = srState === "available" ? "your pick" : srState + ", your pick";
+          }
+        }
+
+        cellStates[v] = {
+          classes: classes,
+          label: label,
+          yLabel: yLabel,
+          clickable: freePicking,
+          srState: srState
+        };
+        srCellSpans[v].textContent = v + ": " + srState;
+      });
+
+      if (s.done && !IN_TREE[s.x]) {
+        caret = { show: true, x: caretPosFor(s.x), label: "x = " + s.x };
+      }
+
+      tree.updStrip(cellStates, caret);
+
+      if (cfg.mode === "free") {
+        noneBtn.disabled = !freePicking;
+        noneBtn.className = "none-btn";
+        noneLbl.className = "none-lbl";
+        noneLbl.textContent = "";
+        if (s.done) {
+          if (s.best === null && s.pick === "none") {
+            noneBtn.classList.add("ok");
+            noneLbl.textContent = "your pick, answer";
+          } else if (s.best === null) {
+            noneBtn.classList.add("ok");
+            noneLbl.textContent = "answer";
+          } else if (s.pick === "none") {
+            noneBtn.classList.add("bad");
+            noneLbl.classList.add("bad");
+            noneLbl.textContent = "your pick";
+          }
+        } else if (s.pick === "none") {
+          noneBtn.classList.add("pick");
+          noneLbl.textContent = "your pick";
+        }
+      }
+
+      stripCaption.innerHTML = "";
+      if (s.done) {
+        if (s.best === null) {
+          var st = document.createElement("strong");
+          st.textContent = "Nothing is left. ";
+          stripCaption.appendChild(st);
+          stripCaption.appendChild(document.createTextNode("There is no value after x's slot, so there is no answer."));
+        } else {
+          stripCaption.textContent = "The answer is the first value after x's slot.";
+        }
+      } else if (cfg.mode === "free" && s.pick === null) {
+        stripCaption.textContent = "Click a strip value (or none) to commit your guess.";
+      }
+    }
+
+    function render() {
+      var posDesc = typeof s.at === "number"
+        ? "Marker is at node " + s.at + "."
+        : "Walk ended at empty slot " + s.at + ".";
+      tree.upd({
+        at: s.at,
+        visited: s.visited,
+        edges: s.edges,
+        lastEdge: s.lastEdge,
+        best: s.best,
+        hotMarker: s.hotMarker,
+        instant: s.instant,
+        ariaLabel: "Binary search tree for x = " + s.x + ". " + posDesc + " Best so far is " + (s.best === null ? "none" : s.best) + "."
+      });
+
+      xValEl.textContent = String(s.x);
+      if (cfg.mode === "free") {
+        for (var k in xPickerBtns) {
+          xPickerBtns[k].setAttribute("aria-pressed", Number(k) === s.x ? "true" : "false");
+        }
+      }
+
+      ruleWrap.hidden = Boolean(cfg.hideRuleUntilDone && !s.done);
+      rLeft.className = s.hintCell === "left" ? "rule-hint" : "";
+      rRight.className = s.hintCell === "right" ? "rule-hint" : "";
+
+      var isFinalNone = s.done && s.best === null;
+      tag.className = "tag" + (s.hot ? " hot" : "") + (s.done ? " final" + (isFinalNone ? " none" : "") : "");
+      tagLbl.textContent = s.done ? "Answer" : "Best so far";
+      tagNote.textContent = s.hot ? "(just changed)" : "";
+      tagNote.hidden = !s.hot;
+      renderBestTrail(tagVal, s.bestHistory, s.hot);
+
+      stEl.textContent = s.msg;
+      stEl.className = "status" + (s.err ? " err" : "");
+      takeEl.textContent = s.done ? cfg.takeaway : "";
+
+      if (cfg.mode === "watch") {
+        nextBtn.disabled = s.done;
+      } else if (cfg.mode === "predict" || cfg.mode === "predict-yesno") {
+        nextBtn.disabled = s.done || s.pick === null;
+        cfg.chips.forEach(function (v) {
+          var b = chipBtns[v], l = chipLbls[v];
+          b.disabled = s.pick !== null;
+          b.className = "";
+          l.className = "chip-lbl";
+          l.textContent = "";
+          if (s.done) {
+            if (v === answerChip && v === s.pick) {
+              b.className = "ok";
+              l.textContent = "your pick, answer";
+            } else if (v === answerChip) {
+              b.className = "ok";
+              l.textContent = "answer";
+            } else if (v === s.pick) {
+              b.className = "bad";
+              l.classList.add("bad");
+              l.textContent = "your pick";
+            }
+          } else if (v === s.pick) {
+            b.className = "pick";
+            l.textContent = "your pick";
+          }
+        });
+      } else if (cfg.mode === "free") {
+        nextBtn.disabled = s.done || s.pick === null;
+      } else if (cfg.mode === "drive") {
+        leftBtn.disabled = s.done;
+        rightBtn.disabled = s.done;
+      }
+
+      updateStripUI();
+      syncFooter();
+    }
+
+    function reset(keepX) {
+      if (!keepX) s.x = cfg.x;
+      s.at = 8;
+      s.best = null;
+      s.bestHistory = [];
+      s.hot = false;
+      s.hotMarker = false;
+      s.instant = true;
+      s.visited = [];
+      s.edges = [];
+      s.lastEdge = null;
+      s.ruledOut = {};
+      s.struck = {};
+      s.done = false;
+      s.pick = null;
+      s.err = false;
+      s.wrongCount = 0;
+      s.hintCell = null;
+
+      if (cfg.mode === "watch") {
+        s.msg = "At the root, 8. Press Next step to compare 8 with " + s.x + ".";
+      } else if (cfg.mode === "predict") {
+        s.msg = "At the root, 8. Pick your answer first, then press Next step.";
+      } else if (cfg.mode === "drive") {
+        s.msg = "At the root, 8. Choose Left or Right.";
+      } else if (cfg.mode === "predict-yesno") {
+        s.msg = "At the root, 8. Will the best tag ever be set? Pick Yes or No.";
+      } else if (cfg.mode === "free") {
+        s.msg = "x = " + s.x + ". At the root, 8. Guess the answer in the strip, then press Next step.";
+      }
+
+      render();
+    }
+
+    reset(false);
+    return {
+      el: sec,
+      mode: cfg.mode,
+      isDone: function () { return s.done; },
+      onKey: function (e) {
+        if (cfg.mode === "drive") {
+          if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            drive("l");
+          } else if (e.key === "ArrowRight") {
+            e.preventDefault();
+            drive("r");
+          }
+        } else if (e.key === "Enter" || e.key === " ") {
+          var el = document.activeElement;
+          var isBtn = el && (el.tagName === "BUTTON" || el.getAttribute("role") === "button");
+          if (!isBtn) {
+            e.preventDefault();
+            stepWalk();
+          }
+        }
+      }
+    };
+  }
+
+  function createContrastPage(cfg, idx) {
+    var sec = document.createElement("section");
+    sec.hidden = true;
+    sec.setAttribute("aria-label", (idx + 1) + ". " + cfg.t);
+
+    var card = document.createElement("div");
+    card.className = "card";
+
+    var two = document.createElement("div");
+    two.className = "two";
+
+    var pA = document.createElement("div");
+    var tA = document.createElement("p");
+    tA.className = "panel-title";
+    tA.textContent = "Start at the root, x = 4";
+    var treeA = buildTree("Root walk starting at 8 for x = 4", { showStrip: false });
+    var metaA = document.createElement("div");
+    metaA.className = "panel-meta";
+    var cntA = document.createElement("p");
+    cntA.className = "panel-count";
+    var tagA = document.createElement("div");
+    tagA.className = "panel-tag";
+    var tagALbl = document.createElement("span");
+    var tagAVal = document.createElement("span");
+    tagAVal.className = "v";
+    tagA.appendChild(tagALbl);
+    tagA.appendChild(tagAVal);
+    metaA.appendChild(cntA);
+    metaA.appendChild(tagA);
+    pA.appendChild(tA);
+    pA.appendChild(treeA.svg);
+    pA.appendChild(metaA);
+
+    var pB = document.createElement("div");
+    var tB = document.createElement("p");
+    tB.className = "panel-title";
+    tB.textContent = "Start at node 4, x = 4";
+    var treeB = buildTree("Node walk starting at 4 for x = 4", { showStrip: false });
+    var metaB = document.createElement("div");
+    metaB.className = "panel-meta";
+    var cntB = document.createElement("p");
+    cntB.className = "panel-count";
+    var ansB = document.createElement("p");
+    ansB.className = "panel-ans";
+    metaB.appendChild(cntB);
+    metaB.appendChild(ansB);
+    var noteB = document.createElement("p");
+    noteB.className = "panel-note";
+    noteB.textContent = "Already standing on 4, so no search from the top.";
+    pB.appendChild(tB);
+    pB.appendChild(treeB.svg);
+    pB.appendChild(metaB);
+    pB.appendChild(noteB);
+
+    two.appendChild(pA);
+    two.appendChild(pB);
+    card.appendChild(two);
+
+    var bottom = document.createElement("div");
+    bottom.className = "contrast-bottom";
+
+    var liveRegion = document.createElement("div");
+    liveRegion.className = "feedback-live";
+    liveRegion.setAttribute("aria-live", "polite");
+    var stEl = document.createElement("p");
+    stEl.className = "status";
+    var takeEl = document.createElement("p");
+    takeEl.className = "takeaway";
+    liveRegion.appendChild(stEl);
+    liveRegion.appendChild(takeEl);
+    bottom.appendChild(liveRegion);
+
+    var closeEl = document.createElement("p");
+    closeEl.className = "closing-line";
+    bottom.appendChild(closeEl);
+
+    var ctl = document.createElement("div");
+    ctl.className = "controls-bar";
+    var nextBtn = document.createElement("button");
+    nextBtn.type = "button";
+    nextBtn.className = "primary";
+    nextBtn.textContent = "Next step";
+    nextBtn.addEventListener("click", function () { stepContrast(); });
+    var resetBtn = document.createElement("button");
+    resetBtn.type = "button";
+    resetBtn.textContent = "Reset";
+    resetBtn.addEventListener("click", function () { reset(); });
+    ctl.appendChild(nextBtn);
+    ctl.appendChild(resetBtn);
+    bottom.appendChild(ctl);
+
+    card.appendChild(bottom);
+    sec.appendChild(card);
+    stage.appendChild(sec);
+
+    var step = 0;
+
+    function stepContrast() {
+      if (step >= 3) return;
+      step += 1;
+      var activeEl = document.activeElement;
+      render(false);
+      if (step === 3 && activeEl === nextBtn) {
+        resetBtn.focus();
+      }
+    }
+
+    function render(instant) {
+      if (step === 0) {
+        treeA.upd({
+          at: 8, visited: [], edges: [], lastEdge: null, best: null,
+          hotMarker: false, instant: instant,
+          ariaLabel: "Root walk starting at 8."
+        });
+        treeB.upd({
+          at: 4, visited: [], edges: [], lastEdge: null, best: null,
+          hotMarker: false, instant: instant,
+          ariaLabel: "Node walk starting at 4."
+        });
+        cntA.textContent = "Looked at 8";
+        tagA.className = "panel-tag";
+        tagALbl.textContent = "Best so far:";
+        renderBestTrail(tagAVal, [], false);
+
+        cntB.textContent = "At 4";
+        ansB.hidden = true;
+        stEl.textContent = "Panel A starts at 8 and Panel B starts at 4; press Next step to watch both.";
+        takeEl.textContent = "";
+        closeEl.textContent = "";
+      } else if (step === 1) {
+        treeA.upd({
+          at: 4, visited: [8], edges: ["8-4"], lastEdge: "8-4", best: 8,
+          hotMarker: true, instant: instant,
+          ariaLabel: "Root walk at 4 after remembering 8."
+        });
+        treeB.upd({
+          at: 6, visited: [4], edges: ["4-6"], lastEdge: "4-6", best: null,
+          hotMarker: true, instant: instant,
+          ariaLabel: "Node walk went right from 4 to 6."
+        });
+        cntA.textContent = "Looked at 8, 4";
+        tagA.className = "panel-tag hot";
+        tagALbl.textContent = "Best so far:";
+        renderBestTrail(tagAVal, [8], true);
+
+        cntB.textContent = "Looked at 6";
+        ansB.hidden = true;
+        stEl.textContent = "Panel A remembers 8 as best and goes left to 4; Panel B goes right to 6.";
+        takeEl.textContent = "";
+        closeEl.textContent = "";
+      } else if (step === 2) {
+        treeA.upd({
+          at: 6, visited: [8, 4], edges: ["8-4", "4-6"], lastEdge: "4-6", best: 8,
+          hotMarker: true, instant: instant,
+          ariaLabel: "Root walk at 6 while best stays 8."
+        });
+        treeB.upd({
+          at: "L6", visited: [4, 6], edges: ["4-6", "6-L6"], lastEdge: "6-L6", best: null,
+          hotMarker: true, instant: instant,
+          ariaLabel: "Node walk ended in empty slot left of 6; answer is 6."
+        });
+        cntA.textContent = "Looked at 8, 4, 6";
+        tagA.className = "panel-tag";
+        tagALbl.textContent = "Best so far:";
+        renderBestTrail(tagAVal, [8], false);
+
+        cntB.textContent = "Looked at 6";
+        ansB.hidden = false;
+        ansB.textContent = "Answer: 6";
+        stEl.textContent = "Panel A goes right from 4 to 6 while best stays 8; Panel B stops at the empty slot left of 6 with 6.";
+        takeEl.textContent = "";
+        closeEl.textContent = "";
+      } else {
+        treeA.upd({
+          at: "L6", visited: [8, 4, 6], edges: ["8-4", "4-6", "6-L6"], lastEdge: "6-L6", best: 6,
+          hotMarker: true, instant: instant,
+          ariaLabel: "Root walk ended in empty slot left of 6; answer is 6."
+        });
+        treeB.upd({
+          at: "L6", visited: [4, 6], edges: ["4-6", "6-L6"], lastEdge: null, best: null,
+          hotMarker: true, instant: true,
+          ariaLabel: "Node walk already finished with answer 6."
+        });
+        cntA.textContent = "Looked at 8, 4, 6";
+        tagA.className = "panel-tag final hot";
+        tagALbl.textContent = "Answer:";
+        renderBestTrail(tagAVal, [8, 6], true);
+
+        cntB.textContent = "Looked at 6";
+        ansB.hidden = false;
+        ansB.textContent = "Answer: 6";
+        stEl.textContent = "Panel A updates best to 6 and stops at the empty slot left of 6, so both panels finish with 6.";
+        takeEl.textContent = cfg.takeaway;
+        closeEl.textContent = cfg.closing;
+      }
+      nextBtn.disabled = step >= 3;
+      syncFooter();
+    }
+
+    function reset() {
+      step = 0;
+      render(true);
+    }
+
+    reset();
+    return {
+      el: sec,
+      mode: cfg.mode,
+      isDone: function () { return step >= 3; },
+      onKey: function (e) {
+        if (e.key === "Enter" || e.key === " ") {
+          var el = document.activeElement;
+          var isBtn = el && (el.tagName === "BUTTON" || el.getAttribute("role") === "button");
+          if (!isBtn) {
+            e.preventDefault();
+            stepContrast();
+          }
+        }
+      }
+    };
+  }
+
+  function syncFooter() {
+    backB.disabled = cur === 0;
+    nextB.disabled = cur === STEPS.length - 1;
+    var curDone = pages[cur] ? pages[cur].isDone() : false;
+    nextB.className = cur < STEPS.length - 1 && curDone ? "primary" : "";
+    tabBtns.forEach(function (btn, idx) {
+      var done = pages[idx] ? pages[idx].isDone() : false;
+      btn.className = done ? "done" : "";
+      if (done) {
+        btn.setAttribute("aria-label", (idx + 1) + ". " + STEPS[idx].t + ", done");
+      } else {
+        btn.removeAttribute("aria-label");
+      }
+    });
+  }
+
+  STEPS.forEach(function (cfg, i) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = (i + 1) + ". " + cfg.t;
+    btn.addEventListener("click", function () { go(i); });
+    tabs.appendChild(btn);
+    tabBtns.push(btn);
+
+    pages.push(cfg.mode === "contrast" ? createContrastPage(cfg, i) : createWalkPage(cfg, i));
+  });
+
+  function go(i) {
+    var active = document.activeElement;
+    cur = i;
+    pages.forEach(function (p, idx) {
+      p.el.hidden = idx !== cur;
+      if (idx === cur) tabBtns[idx].setAttribute("aria-current", "step");
+      else tabBtns[idx].removeAttribute("aria-current");
+    });
+    goalEl.innerHTML = "";
+    var strong = document.createElement("strong");
+    strong.textContent = STEPS[cur].goalLead;
+    goalEl.appendChild(strong);
+    goalEl.appendChild(document.createTextNode(" " + STEPS[cur].goalRest));
+
+    syncFooter();
+    if (active === backB && backB.disabled) nextB.focus();
+    else if (active === nextB && nextB.disabled) backB.focus();
+    window.scrollTo(0, 0);
+  }
+
+  backB.addEventListener("click", function () {
+    if (cur > 0) go(cur - 1);
+  });
+  nextB.addEventListener("click", function () {
+    if (cur < STEPS.length - 1) go(cur + 1);
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (pages[cur] && pages[cur].onKey) {
+      pages[cur].onKey(e);
+    }
+  });
+
+  go(0);
+}());
+</script>
+</body>
+</html>
