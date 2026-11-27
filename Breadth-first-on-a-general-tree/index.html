@@ -1,0 +1,2503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>Breadth-first on a general tree</title>
+  <style>
+    :root {
+      --bg: #FFF8EE;
+      --ink: #2E1F3A;
+      --muted: #7A6A80;
+      --frontier: #FF7A1A;
+      --printed: #4B3FD1;
+      --alert: #C2185B;
+      --band1: #FCE9D6;
+      --band2: #FFF1E3;
+      --unseen: #D9CFC4;
+      --white: #FFFFFF;
+      --sans: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+      --mono: ui-monospace, 'Cascadia Code', Consolas, 'SFMono-Regular', Menlo, monospace;
+      --move-ms: 440ms;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      color-scheme: light;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.4;
+      overflow-x: hidden;
+    }
+
+    .page-wrap {
+      max-width: 1020px;
+      margin: 0 auto;
+      padding: 12px 16px 20px;
+    }
+
+    @media (max-width: 420px) {
+      .page-wrap {
+        padding: 10px 10px 16px;
+      }
+    }
+
+    .page-title {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.01em;
+    }
+
+    /* Stepper */
+    .stepper {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .step-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 44px;
+      padding: 6px 11px;
+      border: 1.5px solid var(--unseen);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    @media (hover: hover) {
+      .step-btn:hover {
+        background: var(--band2);
+        border-color: var(--muted);
+      }
+    }
+
+    .step-btn[aria-current="step"] {
+      background: var(--ink);
+      color: var(--bg);
+      border-color: var(--ink);
+    }
+
+    .step-dot {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .step-btn[aria-current="step"] .step-dot {
+      border-color: var(--bg);
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    /* One-line instruction with stable height so the tree never shifts vertically */
+    .instruction-line {
+      margin: 0 0 10px;
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    @media (min-width: 640px) {
+      .instruction-line {
+        min-height: 30px;
+      }
+    }
+
+    /* Main grid: Column 1 holds tree + lane/outputs; Column 2 holds code panel on Steps 1, 2, 4 */
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+    }
+
+    @media (min-width: 860px) {
+      .main-grid {
+        grid-template-columns: 470px minmax(0, 1fr);
+        column-gap: 20px;
+        row-gap: 12px;
+        align-items: start;
+      }
+    }
+
+    .visual-col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .tree-stage {
+      width: 100%;
+      border: 1.5px solid var(--unseen);
+      border-radius: 10px;
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    @media (max-width: 859px) {
+      .tree-stage {
+        width: min(100%, 520px, calc(55vh * 340 / 250));
+        margin: 0 auto;
+      }
+    }
+
+    #tree-svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 340 / 250;
+      font-family: var(--sans);
+    }
+
+    /* Code column */
+    .code-col {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .code-col.is-hidden {
+      display: none;
+    }
+
+    .bug-tabs {
+      display: flex;
+      gap: 8px;
+    }
+
+    .bug-tabs.is-hidden {
+      display: none;
+    }
+
+    .code-panel {
+      background: var(--band1);
+      border: 1.5px solid var(--unseen);
+      border-radius: 10px;
+      padding: 8px 4px;
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.55;
+      color: var(--ink);
+    }
+
+    @media (min-width: 480px) {
+      .code-panel {
+        font-size: 12.5px;
+        padding: 10px 8px;
+      }
+    }
+
+    @media (min-width: 960px) {
+      .code-panel {
+        font-size: 13px;
+      }
+    }
+
+    .code-line {
+      display: block;
+      padding: 2px 6px 2px 8px;
+      border-left: 4px solid transparent;
+      border-radius: 4px;
+      white-space: pre;
+    }
+
+    .code-line.is-comment {
+      color: var(--muted);
+    }
+
+    .code-line.is-active {
+      border-left-color: var(--frontier);
+      background: var(--band2);
+    }
+
+    .code-line.is-bug-line {
+      border: 1.5px solid var(--alert);
+      border-left-width: 4px;
+      background: var(--bg);
+    }
+
+    .code-line.is-bug-line.is-active {
+      border-left-color: var(--frontier);
+      background: var(--band2);
+    }
+
+    .tok-changed {
+      border: 1.5px solid var(--alert);
+      border-radius: 3px;
+      padding: 0 2px;
+    }
+
+    /* Queue / Stack lane */
+    .lane-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .lane-section.is-hidden {
+      display: none;
+    }
+
+    .lane-row,
+    .output-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .strip-label {
+      width: 56px;
+      flex-shrink: 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    @media (min-width: 480px) {
+      .strip-label {
+        width: 72px;
+      }
+    }
+
+    .lane-box {
+      flex: 1;
+      min-width: 0;
+      background: var(--band1);
+      border: 1.5px solid var(--unseen);
+      border-radius: 10px;
+      padding: 6px 8px;
+    }
+
+    .lane-box.is-stack {
+      border-left: 4px solid var(--ink);
+      border-top-left-radius: 3px;
+      border-bottom-left-radius: 3px;
+    }
+
+    .lane-ends {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .lane-slots {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+      flex-wrap: nowrap;
+      overflow: hidden;
+    }
+
+    .slot-item {
+      width: 34px;
+      height: 34px;
+      border-radius: 7px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 700;
+      flex-shrink: 0;
+      transition: transform var(--move-ms) ease, opacity var(--move-ms) ease;
+    }
+
+    .slot-item.is-frontier {
+      background: var(--bg);
+      border: 2.5px solid var(--frontier);
+      color: var(--ink);
+    }
+
+    .slot-item.is-printed {
+      background: var(--printed);
+      border: 2px solid var(--printed);
+      color: var(--white);
+    }
+
+    .slot-item.is-empty {
+      background: transparent;
+      border: 1.5px dashed var(--unseen);
+      color: var(--muted);
+    }
+
+    .slot-item.is-entering {
+      opacity: 0;
+      transform: translateX(22px);
+    }
+
+    .slot-item.is-leaving-left {
+      opacity: 0;
+      transform: translateX(-22px);
+    }
+
+    .slot-item.is-leaving-right {
+      opacity: 0;
+      transform: translateX(22px);
+    }
+
+    .output-box {
+      flex: 1;
+      min-width: 0;
+      background: var(--band1);
+      border: 1.5px solid var(--unseen);
+      border-radius: 10px;
+      padding: 6px 8px;
+    }
+
+    .output-slots {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 4px;
+    }
+
+    .output-slots .slot-item {
+      width: 100%;
+      height: 34px;
+    }
+
+    /* Step 3 Compare & Step 5 Disguise panels (in .visual-col directly below tree) */
+    .compare-section,
+    .disguise-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .compare-section.is-hidden,
+    .disguise-section.is-hidden {
+      display: none;
+    }
+
+    .compare-table {
+      background: var(--band1);
+      border: 1.5px solid var(--unseen);
+      border-radius: 10px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 62px repeat(7, minmax(0, 1fr));
+      gap: 4px;
+      align-items: center;
+    }
+
+    @media (min-width: 420px) {
+      .compare-grid {
+        grid-template-columns: 74px repeat(7, minmax(0, 1fr));
+      }
+    }
+
+    @media (min-width: 480px) {
+      .compare-grid {
+        grid-template-columns: 92px repeat(7, minmax(0, 1fr));
+        gap: 6px;
+      }
+    }
+
+    .compare-row-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+
+    @media (min-width: 420px) {
+      .compare-row-label {
+        font-size: 12px;
+      }
+    }
+
+    .compare-col-btn {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 2px;
+      min-height: 76px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      cursor: pointer;
+      font-family: var(--sans);
+      align-items: stretch;
+      justify-content: center;
+    }
+
+    .compare-col-btn:disabled {
+      cursor: default;
+    }
+
+    @media (hover: hover) {
+      .compare-col-btn:not(:disabled):hover {
+        border-color: var(--muted);
+        background: var(--band2);
+      }
+    }
+
+    .compare-col-btn.is-match-mark {
+      border-color: var(--frontier);
+      background: var(--bg);
+    }
+
+    .compare-col-btn.is-wrong-mark {
+      border-color: var(--alert);
+    }
+
+    .compare-cell {
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .compare-cell.is-empty {
+      border: 1.5px dashed var(--unseen);
+      color: var(--muted);
+    }
+
+    .compare-cell.is-printed {
+      background: var(--printed);
+      border: 1.5px solid var(--printed);
+      color: var(--white);
+    }
+
+    .compare-pos-row {
+      display: grid;
+      grid-template-columns: 62px repeat(7, minmax(0, 1fr));
+      gap: 4px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    @media (min-width: 420px) {
+      .compare-pos-row {
+        grid-template-columns: 74px repeat(7, minmax(0, 1fr));
+      }
+    }
+
+    @media (min-width: 480px) {
+      .compare-pos-row {
+        grid-template-columns: 92px repeat(7, minmax(0, 1fr));
+        gap: 6px;
+      }
+    }
+
+    .disguise-toggle {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .disguise-row {
+      display: grid;
+      grid-template-columns: 82px repeat(7, minmax(0, 1fr));
+      gap: 4px;
+      align-items: center;
+    }
+
+    @media (min-width: 480px) {
+      .disguise-row {
+        grid-template-columns: 98px repeat(7, minmax(0, 1fr));
+        gap: 6px;
+      }
+    }
+
+    /* Readouts */
+    .readouts-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 18px;
+      margin-top: 10px;
+      padding: 6px 10px;
+      background: var(--band1);
+      border: 1.5px solid var(--unseen);
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--ink);
+    }
+
+    .readouts-bar.is-hidden {
+      display: none;
+    }
+
+    .readout-item strong {
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    /* Status and feedback */
+    .feedback-area {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .visual-col > .feedback-area {
+      margin-top: 0;
+    }
+
+    .status-line {
+      margin: 0;
+      min-height: 1.5em;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .status-line.is-alert {
+      color: var(--alert);
+    }
+
+    .takeaway-line {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .takeaway-line.is-hidden {
+      display: none;
+    }
+
+    /* Step-specific controls + predict options */
+    .predict-options {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .predict-options.is-hidden {
+      display: none;
+    }
+
+    .option-item {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .option-reveal-label {
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.2;
+      color: var(--ink);
+    }
+
+    .option-reveal-label.is-hidden {
+      display: none;
+    }
+
+    .option-reveal-label.is-wrong-label {
+      color: var(--alert);
+    }
+
+    .option-lane-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 48px;
+      padding: 6px 10px;
+      border: 2px solid var(--unseen);
+      border-radius: 10px;
+      background: var(--band1);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    @media (hover: hover) {
+      .option-lane-btn:hover:not(:disabled) {
+        border-color: var(--ink);
+        background: var(--band2);
+      }
+    }
+
+    .option-lane-btn.is-correct {
+      border-color: var(--ink);
+      background: var(--bg);
+    }
+
+    .option-lane-btn.is-wrong {
+      border-color: var(--alert);
+      background: var(--bg);
+    }
+
+    .option-lane-btn:disabled {
+      cursor: default;
+    }
+
+    .mini-end {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .mini-slot {
+      width: 26px;
+      height: 26px;
+      border-radius: 5px;
+      border: 2px solid var(--frontier);
+      background: var(--bg);
+      color: var(--ink);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .bug-choices {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .bug-choices.is-hidden {
+      display: none;
+    }
+
+    .bug-choices .btn {
+      max-width: 100%;
+      text-align: left;
+    }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .action-group,
+    .nav-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn {
+      min-height: 44px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1.5px solid var(--ink);
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    @media (hover: hover) {
+      .btn:hover:not(:disabled) {
+        background: var(--band2);
+      }
+    }
+
+    .btn.is-primary {
+      background: var(--ink);
+      color: var(--bg);
+      border-color: var(--ink);
+    }
+
+    @media (hover: hover) {
+      .btn.is-primary:hover:not(:disabled) {
+        background: var(--ink);
+        opacity: 0.92;
+      }
+    }
+
+    .btn.is-selected {
+      background: var(--ink);
+      color: var(--bg);
+    }
+
+    .btn.is-wrong-pick {
+      border-color: var(--alert);
+      color: var(--alert);
+    }
+
+    .btn:disabled {
+      border-color: var(--unseen);
+      color: var(--muted);
+      background: var(--bg);
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    .btn.is-primary:disabled {
+      background: var(--unseen);
+      color: var(--muted);
+      border-color: var(--unseen);
+    }
+
+    .btn.is-hidden {
+      display: none;
+    }
+
+    /* Secondary Stack toggle at bottom of Step 1 */
+    .stack-switch-wrap {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--unseen);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .stack-switch-wrap.is-hidden {
+      display: none;
+    }
+
+    .switch-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 44px;
+      padding: 6px 12px;
+      border: 1.5px solid var(--unseen);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .switch-track {
+      width: 38px;
+      height: 22px;
+      border-radius: 999px;
+      border: 1.5px solid var(--muted);
+      background: var(--band1);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .switch-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--muted);
+      position: absolute;
+      top: 2.5px;
+      left: 3px;
+      transition: transform var(--move-ms) ease;
+    }
+
+    .switch-btn[aria-checked="true"] .switch-track {
+      background: var(--ink);
+      border-color: var(--ink);
+    }
+
+    .switch-btn[aria-checked="true"] .switch-thumb {
+      background: var(--bg);
+      transform: translateX(16px);
+    }
+
+    button:focus-visible {
+      outline: 2.5px solid var(--ink);
+      outline-offset: 2px;
+    }
+
+    /* SVG Transitions */
+    .svg-node-circle {
+      transition: fill var(--move-ms) ease, stroke var(--move-ms) ease, stroke-width var(--move-ms) ease;
+    }
+
+    .svg-pointer {
+      transition: transform var(--move-ms) ease, opacity var(--move-ms) ease;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: 0.001ms !important;
+        animation-duration: 0.001ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-wrap">
+    <h1 class="page-title">Breadth-first on a general tree</h1>
+
+    <nav class="stepper" aria-label="Steps" id="stepper-nav">
+      <button type="button" class="step-btn" data-step="1" aria-current="step"><span class="step-dot">1</span>Watch</button>
+      <button type="button" class="step-btn" data-step="2"><span class="step-dot">2</span>Predict</button>
+      <button type="button" class="step-btn" data-step="3"><span class="step-dot">3</span>Compare</button>
+      <button type="button" class="step-btn" data-step="4"><span class="step-dot">4</span>Spot the bug</button>
+      <button type="button" class="step-btn" data-step="5"><span class="step-dot">5</span>Disguise check</button>
+    </nav>
+
+    <p class="instruction-line" id="step-instruction"></p>
+
+    <div class="main-grid">
+      <div class="visual-col">
+        <div class="tree-stage" id="tree-stage">
+          <svg id="tree-svg" viewBox="0 0 340 250" role="img" aria-label="Tree diagram"></svg>
+        </div>
+
+        <!-- Steps 1, 2, 4: Queue/Stack lane + Output line -->
+        <div class="lane-section" id="lane-section">
+          <div class="lane-row">
+            <span class="strip-label" id="lane-name-label">queue</span>
+            <div class="lane-box" id="lane-box">
+              <div class="lane-ends">
+                <span id="lane-left-label">front</span>
+                <span id="lane-right-label">back</span>
+              </div>
+              <div class="lane-slots" id="lane-slots"></div>
+            </div>
+          </div>
+          <div class="output-row">
+            <span class="strip-label">output</span>
+            <div class="output-box">
+              <div class="output-slots" id="output-slots"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="predict-options is-hidden" id="predict-options" role="group" aria-label="Queue choices"></div>
+        <div class="bug-choices is-hidden" id="bug-choices" role="group" aria-label="Bug diagnosis"></div>
+
+        <!-- Step 3: Compare aligned lines -->
+        <div class="compare-section is-hidden" id="compare-section">
+          <div class="compare-table">
+            <div class="compare-pos-row" aria-hidden="true">
+              <span></span>
+              <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span>
+            </div>
+            <div class="compare-grid" id="compare-grid"></div>
+          </div>
+        </div>
+
+        <!-- Step 5: Disguise toggle + two level-order lines -->
+        <div class="disguise-section is-hidden" id="disguise-section">
+          <div class="disguise-toggle" role="group" aria-label="Tree view">
+            <button type="button" class="btn" id="view-general-btn">General tree</button>
+            <button type="button" class="btn is-selected" id="view-binary-btn">Binary picture</button>
+          </div>
+          <div class="compare-table" id="disguise-table"></div>
+        </div>
+      </div>
+
+      <!-- Steps 1, 2, 4: Code panel -->
+      <div class="code-col" id="code-col">
+        <div class="bug-tabs is-hidden" id="bug-tabs" role="group" aria-label="Bug choice">
+          <button type="button" class="btn is-selected" id="bug-a-btn">Bug A</button>
+          <button type="button" class="btn" id="bug-b-btn">Bug B</button>
+        </div>
+        <div class="code-panel" id="code-panel" aria-label="Java code"></div>
+      </div>
+    </div>
+
+    <div class="readouts-bar" id="readouts-bar">
+      <span class="readout-item" id="readout-current-wrap"><strong>current =</strong> <span id="readout-current">—</span></span>
+      <span class="readout-item" id="readout-child-wrap"><strong>child =</strong> <span id="readout-child">—</span></span>
+      <span class="readout-item" id="readout-len-wrap"><strong id="readout-len-label">queue length =</strong> <span id="readout-len">1</span></span>
+    </div>
+
+    <div class="feedback-area">
+      <p class="status-line" id="status-line" aria-live="polite"></p>
+      <p class="takeaway-line is-hidden" id="takeaway-line"></p>
+    </div>
+
+    <div class="controls-row">
+      <div class="action-group" id="action-group">
+        <button type="button" class="btn is-primary" id="btn-primary">Next poll</button>
+        <button type="button" class="btn is-hidden" id="btn-secondary">Different</button>
+        <button type="button" class="btn" id="btn-replay">Replay</button>
+      </div>
+      <div class="nav-group">
+        <button type="button" class="btn" id="btn-back">Previous step</button>
+        <button type="button" class="btn" id="btn-next">Next step</button>
+      </div>
+    </div>
+
+    <div class="stack-switch-wrap" id="stack-switch-wrap">
+      <button type="button" class="switch-btn" id="stack-switch-btn" role="switch" aria-checked="false">
+        <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+        <span>Swap the queue for a stack</span>
+      </button>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // =====================================================================
+      // EDITABLE CONSTANTS: Tree structure (0.3) and Java method names (0.4)
+      // Change only this block to adapt the tree or handout method names.
+      // =====================================================================
+      const METHODS = {
+        oldestChild: 'getLeftChild()',
+        nextSibling: 'getRightSibling()'
+      };
+
+      const TREE_CHILDREN = {
+        A: ['B', 'C', 'D'],
+        B: ['E', 'F'],
+        C: [],
+        D: ['G'],
+        E: [],
+        F: [],
+        G: []
+      };
+
+      const ROOT_ID = 'A';
+
+      // =====================================================================
+      // Sunrise palette constants (0.6 — exact 10 colours)
+      // =====================================================================
+      const COLORS = {
+        bg: '#FFF8EE',
+        ink: '#2E1F3A',
+        muted: '#7A6A80',
+        frontier: '#FF7A1A',
+        printed: '#4B3FD1',
+        alert: '#C2185B',
+        band1: '#FCE9D6',
+        band2: '#FFF1E3',
+        unseen: '#D9CFC4',
+        white: '#FFFFFF'
+      };
+
+      // =====================================================================
+      // Derived tree relations, orders, and SVG coordinates
+      // =====================================================================
+      const ALL_NODES = Object.keys(TREE_CHILDREN);
+      const OLDEST_CHILD = {};
+      const NEXT_SIBLING = {};
+      const PARENT_EDGES = [];
+
+      for (const node of ALL_NODES) {
+        NEXT_SIBLING[node] = null;
+      }
+
+      for (const node of ALL_NODES) {
+        const kids = TREE_CHILDREN[node];
+        OLDEST_CHILD[node] = kids.length ? kids[0] : null;
+        for (let i = 0; i < kids.length; i += 1) {
+          PARENT_EDGES.push([node, kids[i]]);
+          if (i + 1 < kids.length) {
+            NEXT_SIBLING[kids[i]] = kids[i + 1];
+          }
+        }
+      }
+
+      function computeGeneralLevels() {
+        const levels = [];
+        let frontier = [ROOT_ID];
+        while (frontier.length > 0) {
+          levels.push(frontier);
+          const next = [];
+          for (const n of frontier) {
+            for (const c of TREE_CHILDREN[n]) {
+              next.push(c);
+            }
+          }
+          frontier = next;
+        }
+        return levels;
+      }
+
+      function computeLevelOrderGeneral() {
+        const q = [ROOT_ID];
+        const out = [];
+        let maxLen = q.length;
+        while (q.length > 0) {
+          const cur = q.shift();
+          out.push(cur);
+          let ch = OLDEST_CHILD[cur];
+          while (ch !== null) {
+            q.push(ch);
+            if (q.length > maxLen) maxLen = q.length;
+            ch = NEXT_SIBLING[ch];
+          }
+        }
+        return { order: out, longestQueue: maxLen };
+      }
+
+      function computePreOrderGeneral() {
+        const out = [];
+        function walk(n) {
+          out.push(n);
+          let ch = OLDEST_CHILD[n];
+          while (ch !== null) {
+            walk(ch);
+            ch = NEXT_SIBLING[ch];
+          }
+        }
+        walk(ROOT_ID);
+        return out;
+      }
+
+      function computeBinaryLevelsAndOrder() {
+        const levels = [];
+        const order = [];
+        let row = [ROOT_ID];
+        while (row.length > 0) {
+          levels.push(row);
+          const nextRow = [];
+          for (const n of row) {
+            order.push(n);
+            if (OLDEST_CHILD[n] !== null) nextRow.push(OLDEST_CHILD[n]);
+            if (NEXT_SIBLING[n] !== null) nextRow.push(NEXT_SIBLING[n]);
+          }
+          row = nextRow;
+        }
+        return { levels, order };
+      }
+
+      const GENERAL_LEVELS = computeGeneralLevels();
+      const GENERAL_LEVEL_RESULT = computeLevelOrderGeneral();
+      const GENERAL_LEVEL_ORDER = GENERAL_LEVEL_RESULT.order;
+      const LONGEST_QUEUE = GENERAL_LEVEL_RESULT.longestQueue;
+      const GENERAL_PRE_ORDER = computePreOrderGeneral();
+      const BINARY_RESULT = computeBinaryLevelsAndOrder();
+      const BINARY_LEVELS = BINARY_RESULT.levels;
+      const BINARY_LEVEL_ORDER = BINARY_RESULT.order;
+
+      const FIRST_DISAGREEMENT = (() => {
+        for (let i = 0; i < GENERAL_LEVEL_ORDER.length; i += 1) {
+          if (GENERAL_LEVEL_ORDER[i] !== GENERAL_PRE_ORDER[i]) return i + 1;
+        }
+        return 1;
+      })();
+
+      // Fixed viewBox 340 x 250; radius 19.5 gives >= 36px circle diameter on 360px screens
+      const NODE_RADIUS = 19.5;
+
+      const GENERAL_POS = {
+        A: { x: 205, y: 51 },
+        B: { x: 115, y: 125 },
+        C: { x: 205, y: 125 },
+        D: { x: 295, y: 125 },
+        E: { x: 85, y: 199 },
+        F: { x: 145, y: 199 },
+        G: { x: 295, y: 199 }
+      };
+
+      const GENERAL_BANDS = [
+        { label: 'level 0', y: 14, h: 74, fill: COLORS.band1 },
+        { label: 'level 1', y: 88, h: 74, fill: COLORS.band2 },
+        { label: 'level 2', y: 162, h: 74, fill: COLORS.band1 }
+      ];
+
+      const BINARY_POS = {
+        A: { x: 205, y: 29 },
+        B: { x: 155, y: 77 },
+        E: { x: 105, y: 125 },
+        C: { x: 215, y: 125 },
+        F: { x: 155, y: 173 },
+        D: { x: 275, y: 173 },
+        G: { x: 225, y: 221 }
+      };
+
+      const BINARY_BANDS = [
+        { label: 'level 0', y: 5, h: 48, fill: COLORS.band1 },
+        { label: 'level 1', y: 53, h: 48, fill: COLORS.band2 },
+        { label: 'level 2', y: 101, h: 48, fill: COLORS.band1 },
+        { label: 'level 3', y: 149, h: 48, fill: COLORS.band2 },
+        { label: 'level 4', y: 197, h: 48, fill: COLORS.band1 }
+      ];
+
+      // =====================================================================
+      // DOM refs
+      // =====================================================================
+      const el = {
+        visualCol: document.querySelector('.visual-col'),
+        stepperBtns: Array.from(document.querySelectorAll('.step-btn')),
+        instruction: document.getElementById('step-instruction'),
+        treeSvg: document.getElementById('tree-svg'),
+        laneSection: document.getElementById('lane-section'),
+        laneNameLabel: document.getElementById('lane-name-label'),
+        laneBox: document.getElementById('lane-box'),
+        laneLeftLabel: document.getElementById('lane-left-label'),
+        laneRightLabel: document.getElementById('lane-right-label'),
+        laneSlots: document.getElementById('lane-slots'),
+        outputSlots: document.getElementById('output-slots'),
+        compareSection: document.getElementById('compare-section'),
+        compareGrid: document.getElementById('compare-grid'),
+        disguiseSection: document.getElementById('disguise-section'),
+        disguiseTable: document.getElementById('disguise-table'),
+        viewGeneralBtn: document.getElementById('view-general-btn'),
+        viewBinaryBtn: document.getElementById('view-binary-btn'),
+        codeCol: document.getElementById('code-col'),
+        bugTabs: document.getElementById('bug-tabs'),
+        bugABtn: document.getElementById('bug-a-btn'),
+        bugBBtn: document.getElementById('bug-b-btn'),
+        codePanel: document.getElementById('code-panel'),
+        readoutsBar: document.getElementById('readouts-bar'),
+        readoutCurrentWrap: document.getElementById('readout-current-wrap'),
+        readoutChildWrap: document.getElementById('readout-child-wrap'),
+        readoutLenWrap: document.getElementById('readout-len-wrap'),
+        readoutCurrent: document.getElementById('readout-current'),
+        readoutChild: document.getElementById('readout-child'),
+        readoutLenLabel: document.getElementById('readout-len-label'),
+        readoutLen: document.getElementById('readout-len'),
+        feedbackArea: document.querySelector('.feedback-area'),
+        statusLine: document.getElementById('status-line'),
+        takeawayLine: document.getElementById('takeaway-line'),
+        predictOptions: document.getElementById('predict-options'),
+        bugChoices: document.getElementById('bug-choices'),
+        btnPrimary: document.getElementById('btn-primary'),
+        btnSecondary: document.getElementById('btn-secondary'),
+        btnReplay: document.getElementById('btn-replay'),
+        btnBack: document.getElementById('btn-back'),
+        btnNext: document.getElementById('btn-next'),
+        stackSwitchWrap: document.getElementById('stack-switch-wrap'),
+        stackSwitchBtn: document.getElementById('stack-switch-btn')
+      };
+
+      // =====================================================================
+      // State & Cancellation Token
+      // =====================================================================
+      const state = {
+        step: 1,
+        animId: 0,
+        isAnimating: false,
+        stackMode: false,
+        nodeStates: {},
+        lane: [],
+        output: [],
+        currentVal: '—',
+        childVal: '—',
+        activeCodeKey: null,
+        pollCount: 0,
+        predictRound: 1,
+        predictAnswered: false,
+        compareRan: false,
+        compareDone: false,
+        compareCols: [],
+        bugType: 'A',
+        bugRan: false,
+        bugAnswered: false,
+        disguiseView: 'binary',
+        disguiseAnswered: false,
+        disguiseOutput: []
+      };
+
+      function prefersReducedMotion() {
+        return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      }
+
+      function sleep(ms, token) {
+        const delay = prefersReducedMotion() ? 45 : ms;
+        return new Promise((resolve) => {
+          setTimeout(() => resolve(token === state.animId), delay);
+        });
+      }
+
+      function cancelAnimations() {
+        state.animId += 1;
+        state.isAnimating = false;
+      }
+
+      // =====================================================================
+      // Code Panel Templates (exact 0.4 structure + Stack / Bug variants)
+      // =====================================================================
+      function escapeHtml(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
+      function getCodeLines(variant) {
+        const leftCall = `current.${METHODS.oldestChild}`;
+        const sibCall = `child.${METHODS.nextSibling}`;
+        const sibFromCur = `current.${METHODS.nextSibling}`;
+
+        if (variant === 'stack') {
+          return [
+            { key: 'init', html: `<span class="tok-changed">Deque&lt;Node&gt; stack = new ArrayDeque&lt;&gt;();</span>` },
+            { key: 'offerRoot', html: `<span class="tok-changed">stack.push(root);</span>` },
+            { key: 'loop', html: `while (!<span class="tok-changed">stack.isEmpty()</span>) {` },
+            { key: 'poll', html: `    Node current = <span class="tok-changed">stack.pop()</span>;` },
+            { key: 'print', html: `    print(current);` },
+            { isComment: true, html: `    // oldest child` },
+            { key: 'firstChild', html: `    Node child = ${escapeHtml(leftCall)};` },
+            { key: 'sibWhile', html: `    while (child != null) {` },
+            { key: 'offerChild', html: `        <span class="tok-changed">stack.push(child)</span>;` },
+            { isComment: true, html: `        // next sibling` },
+            { key: 'nextSib', html: `        child = ${escapeHtml(sibCall)};` },
+            { key: 'closeSib', html: `    }` },
+            { key: 'closeMain', html: `}` }
+          ];
+        }
+
+        if (variant === 'bugA') {
+          return [
+            { key: 'init', html: `Queue&lt;Node&gt; queue = new LinkedList&lt;&gt;();` },
+            { key: 'offerRoot', html: `queue.offer(root);` },
+            { key: 'loop', html: `while (!queue.isEmpty()) {` },
+            { key: 'poll', html: `    Node current = queue.poll();` },
+            { key: 'print', html: `    print(current);` },
+            { isComment: true, html: `    // oldest child` },
+            { key: 'firstChild', html: `    Node child = ${escapeHtml(leftCall)};` },
+            { isComment: true, html: `    // only the oldest child` },
+            { key: 'bugLine', isBug: true, html: `    if (child != null) queue.offer(child);` },
+            { key: 'closeMain', html: `}` }
+          ];
+        }
+
+        if (variant === 'bugB') {
+          return [
+            { key: 'init', html: `Queue&lt;Node&gt; queue = new LinkedList&lt;&gt;();` },
+            { key: 'offerRoot', html: `queue.offer(root);` },
+            { key: 'loop', html: `while (!queue.isEmpty()) {` },
+            { key: 'poll', html: `    Node current = queue.poll();` },
+            { key: 'print', html: `    print(current);` },
+            { isComment: true, html: `    // current's sibling, not its child` },
+            { key: 'firstChild', isBug: true, html: `    Node child = ${escapeHtml(sibFromCur)};` },
+            { key: 'sibWhile', html: `    while (child != null) {` },
+            { key: 'offerChild', html: `        queue.offer(child);` },
+            { isComment: true, html: `        // next sibling` },
+            { key: 'nextSib', html: `        child = ${escapeHtml(sibCall)};` },
+            { key: 'closeSib', html: `    }` },
+            { key: 'closeMain', html: `}` }
+          ];
+        }
+
+        return [
+          { key: 'init', html: `Queue&lt;Node&gt; queue = new LinkedList&lt;&gt;();` },
+          { key: 'offerRoot', html: `queue.offer(root);` },
+          { key: 'loop', html: `while (!queue.isEmpty()) {` },
+          { key: 'poll', html: `    Node current = queue.poll();` },
+          { key: 'print', html: `    print(current);` },
+          { isComment: true, html: `    // oldest child` },
+          { key: 'firstChild', html: `    Node child = ${escapeHtml(leftCall)};` },
+          { key: 'sibWhile', html: `    while (child != null) {` },
+          { key: 'offerChild', html: `        queue.offer(child);` },
+          { isComment: true, html: `        // next sibling` },
+          { key: 'nextSib', html: `        child = ${escapeHtml(sibCall)};` },
+          { key: 'closeSib', html: `    }` },
+          { key: 'closeMain', html: `}` }
+        ];
+      }
+
+      function renderCodePanel() {
+        let variant = 'queue';
+        if (state.step === 1 && state.stackMode) variant = 'stack';
+        else if (state.step === 4) variant = state.bugType === 'A' ? 'bugA' : 'bugB';
+
+        const lines = getCodeLines(variant);
+        el.codePanel.innerHTML = lines.map((line) => {
+          const classes = ['code-line'];
+          if (line.isComment) classes.push('is-comment');
+          if (line.isBug) classes.push('is-bug-line');
+          if (line.key && state.activeCodeKey === line.key) classes.push('is-active');
+          const keyAttr = line.key ? ` data-key="${line.key}"` : '';
+          return `<span class="${classes.join(' ')}"${keyAttr}>${line.html}</span>`;
+        }).join('');
+      }
+
+      function setActiveCode(key) {
+        state.activeCodeKey = key;
+        const nodes = el.codePanel.querySelectorAll('.code-line');
+        nodes.forEach((node) => {
+          const nodeKey = node.getAttribute('data-key');
+          node.classList.toggle('is-active', Boolean(key) && nodeKey === key);
+        });
+      }
+
+      // =====================================================================
+      // SVG Tree Rendering (Fixed viewBox 340 x 250 across all steps)
+      // =====================================================================
+      function svgEl(tag, attrs = {}) {
+        const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+        for (const [k, v] of Object.entries(attrs)) {
+          node.setAttribute(k, String(v));
+        }
+        return node;
+      }
+
+      function edgeSegment(p1, p2, r) {
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const ux = dx / dist;
+        const uy = dy / dist;
+        return {
+          x1: p1.x + ux * r,
+          y1: p1.y + uy * r,
+          x2: p2.x - ux * r,
+          y2: p2.y - uy * r
+        };
+      }
+
+      function getActiveTreePos() {
+        return (state.step === 5 && state.disguiseView === 'binary') ? BINARY_POS : GENERAL_POS;
+      }
+
+      function buildTreeSvg() {
+        const svg = el.treeSvg;
+        svg.innerHTML = '';
+
+        const isBinary = state.step === 5 && state.disguiseView === 'binary';
+        const bands = isBinary ? BINARY_BANDS : GENERAL_BANDS;
+        const posMap = isBinary ? BINARY_POS : GENERAL_POS;
+
+        // Marker definitions for sibling arrows and Step 3 routes
+        const defs = svgEl('defs');
+        const sibMarker = svgEl('marker', {
+          id: 'sib-arrow-head',
+          viewBox: '0 0 8 8',
+          refX: '6',
+          refY: '4',
+          markerWidth: '6',
+          markerHeight: '6',
+          orient: 'auto'
+        });
+        sibMarker.appendChild(svgEl('path', { d: 'M1,1 L7,4 L1,7 Z', fill: COLORS.muted }));
+        defs.appendChild(sibMarker);
+
+        const routePreMarker = svgEl('marker', {
+          id: 'route-pre-head',
+          viewBox: '0 0 8 8',
+          refX: '6',
+          refY: '4',
+          markerWidth: '6',
+          markerHeight: '6',
+          orient: 'auto'
+        });
+        routePreMarker.appendChild(svgEl('path', { d: 'M1,1 L7,4 L1,7 Z', fill: COLORS.printed }));
+        defs.appendChild(routePreMarker);
+
+        const routeLvlMarker = svgEl('marker', {
+          id: 'route-lvl-head',
+          viewBox: '0 0 8 8',
+          refX: '6',
+          refY: '4',
+          markerWidth: '6',
+          markerHeight: '6',
+          orient: 'auto'
+        });
+        routeLvlMarker.appendChild(svgEl('path', { d: 'M1,1 L7,4 L1,7 Z', fill: COLORS.ink }));
+        defs.appendChild(routeLvlMarker);
+        svg.appendChild(defs);
+
+        // 1. Level bands + left labels
+        const bandsGroup = svgEl('g', { id: 'svg-bands' });
+        for (const b of bands) {
+          bandsGroup.appendChild(svgEl('rect', {
+            x: 0,
+            y: b.y,
+            width: 340,
+            height: b.h,
+            fill: b.fill
+          }));
+          const lbl = svgEl('text', {
+            x: 8,
+            y: b.y + b.h / 2 + 4,
+            fill: COLORS.muted,
+            'font-size': 11,
+            'font-weight': 500
+          });
+          lbl.textContent = b.label;
+          bandsGroup.appendChild(lbl);
+        }
+        svg.appendChild(bandsGroup);
+
+        // 2. Tree edges
+        const edgesGroup = svgEl('g', { id: 'svg-edges' });
+        if (isBinary) {
+          for (const node of ALL_NODES) {
+            const left = OLDEST_CHILD[node];
+            const right = NEXT_SIBLING[node];
+            if (left) {
+              const seg = edgeSegment(posMap[node], posMap[left], NODE_RADIUS);
+              edgesGroup.appendChild(svgEl('line', {
+                x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2,
+                stroke: COLORS.ink, 'stroke-width': 2
+              }));
+            }
+            if (right) {
+              const seg = edgeSegment(posMap[node], posMap[right], NODE_RADIUS);
+              edgesGroup.appendChild(svgEl('line', {
+                x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2,
+                stroke: COLORS.muted, 'stroke-width': 2, 'stroke-dasharray': '4 3'
+              }));
+            }
+          }
+        } else {
+          for (const [p, c] of PARENT_EDGES) {
+            const seg = edgeSegment(posMap[p], posMap[c], NODE_RADIUS);
+            edgesGroup.appendChild(svgEl('line', {
+              x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2,
+              stroke: COLORS.ink, 'stroke-width': 2
+            }));
+          }
+        }
+        svg.appendChild(edgesGroup);
+
+        // 3. Sibling dashed arrows layer (visible while sibling loop runs)
+        svg.appendChild(svgEl('g', { id: 'svg-sib-arrows' }));
+
+        // 4. Step 3 comparison route overlay
+        svg.appendChild(svgEl('g', { id: 'svg-compare-routes' }));
+
+        // 5. Nodes
+        const nodesGroup = svgEl('g', { id: 'svg-nodes' });
+        for (const id of ALL_NODES) {
+          const p = posMap[id];
+          const g = svgEl('g', { id: `tree-node-${id}` });
+          const circle = svgEl('circle', {
+            cx: p.x,
+            cy: p.y,
+            r: NODE_RADIUS,
+            class: 'svg-node-circle'
+          });
+          const label = svgEl('text', {
+            x: p.x,
+            y: p.y + 5,
+            'text-anchor': 'middle',
+            'font-size': 15,
+            'font-weight': 700
+          });
+          label.textContent = id;
+          g.appendChild(circle);
+          g.appendChild(label);
+          nodesGroup.appendChild(g);
+        }
+        svg.appendChild(nodesGroup);
+
+        // 6. Tangerine `child` pointer layer
+        const pointer = svgEl('g', {
+          id: 'svg-child-pointer',
+          class: 'svg-pointer',
+          opacity: 0
+        });
+        pointer.appendChild(svgEl('rect', {
+          x: -18,
+          y: -40,
+          width: 36,
+          height: 16,
+          rx: 4,
+          fill: COLORS.frontier
+        }));
+        const pText = svgEl('text', {
+          x: 0,
+          y: -29,
+          'text-anchor': 'middle',
+          fill: COLORS.white,
+          'font-size': 10,
+          'font-weight': 700
+        });
+        pText.textContent = 'child';
+        pointer.appendChild(pText);
+        pointer.appendChild(svgEl('polygon', {
+          points: '-5,-24 5,-24 0,-19',
+          fill: COLORS.frontier
+        }));
+        svg.appendChild(pointer);
+
+        applyAllNodeVisuals();
+      }
+
+      function applyNodeVisual(id, st) {
+        state.nodeStates[id] = st;
+        const g = document.getElementById(`tree-node-${id}`);
+        if (!g) return;
+        const circle = g.querySelector('circle');
+        const text = g.querySelector('text');
+
+        if (st === 'frontier') {
+          circle.setAttribute('fill', COLORS.bg);
+          circle.setAttribute('stroke', COLORS.frontier);
+          circle.setAttribute('stroke-width', '4.5');
+          circle.removeAttribute('stroke-dasharray');
+          text.setAttribute('fill', COLORS.ink);
+        } else if (st === 'printed') {
+          circle.setAttribute('fill', COLORS.printed);
+          circle.setAttribute('stroke', COLORS.printed);
+          circle.setAttribute('stroke-width', '2.2');
+          circle.removeAttribute('stroke-dasharray');
+          text.setAttribute('fill', COLORS.white);
+        } else if (st === 'active' || st === 'neutral') {
+          circle.setAttribute('fill', COLORS.bg);
+          circle.setAttribute('stroke', COLORS.ink);
+          circle.setAttribute('stroke-width', '2.2');
+          circle.removeAttribute('stroke-dasharray');
+          text.setAttribute('fill', COLORS.ink);
+        } else {
+          // unseen
+          circle.setAttribute('fill', COLORS.bg);
+          circle.setAttribute('stroke', COLORS.unseen);
+          circle.setAttribute('stroke-width', '2.2');
+          circle.setAttribute('stroke-dasharray', '5 4');
+          text.setAttribute('fill', COLORS.muted);
+        }
+      }
+
+      function applyAllNodeVisuals() {
+        for (const id of ALL_NODES) {
+          applyNodeVisual(id, state.nodeStates[id] || 'unseen');
+        }
+      }
+
+      function showSiblingArrows(startChild) {
+        const layer = document.getElementById('svg-sib-arrows');
+        if (!layer) return;
+        layer.innerHTML = '';
+        let cur = startChild;
+        while (cur && NEXT_SIBLING[cur]) {
+          const nxt = NEXT_SIBLING[cur];
+          const p1 = GENERAL_POS[cur];
+          const p2 = GENERAL_POS[nxt];
+          layer.appendChild(svgEl('line', {
+            x1: p1.x + NODE_RADIUS + 2,
+            y1: p1.y,
+            x2: p2.x - NODE_RADIUS - 4,
+            y2: p2.y,
+            stroke: COLORS.muted,
+            'stroke-width': 2,
+            'stroke-dasharray': '4 3',
+            'marker-end': 'url(#sib-arrow-head)'
+          }));
+          cur = nxt;
+        }
+      }
+
+      function hideSiblingArrows() {
+        const layer = document.getElementById('svg-sib-arrows');
+        if (layer) layer.innerHTML = '';
+      }
+
+      function showChildPointer(nodeId) {
+        const ptr = document.getElementById('svg-child-pointer');
+        if (!ptr) return;
+        const pos = GENERAL_POS[nodeId];
+        ptr.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+        ptr.setAttribute('opacity', '1');
+      }
+
+      function hideChildPointer() {
+        const ptr = document.getElementById('svg-child-pointer');
+        if (ptr) ptr.setAttribute('opacity', '0');
+      }
+
+      function drawCompareRoutes() {
+        const layer = document.getElementById('svg-compare-routes');
+        if (!layer) return;
+        layer.innerHTML = '';
+        const pB = GENERAL_POS.B;
+        const pE = GENERAL_POS.E;
+        const pC = GENERAL_POS.C;
+
+        const dx = pE.x - pB.x;
+        const dy = pE.y - pB.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const ux = dx / dist;
+        const uy = dy / dist;
+        // Left perpendicular normal (points left & slightly up)
+        const nx = -uy;
+        const ny = ux;
+        const offset = 11;
+        const t1 = 20;
+        const t2 = dist - 21;
+
+        layer.appendChild(svgEl('line', {
+          x1: (pB.x + ux * t1 + nx * offset).toFixed(1),
+          y1: (pB.y + uy * t1 + ny * offset).toFixed(1),
+          x2: (pB.x + ux * t2 + nx * offset).toFixed(1),
+          y2: (pB.y + uy * t2 + ny * offset).toFixed(1),
+          stroke: COLORS.printed, 'stroke-width': 2.5, 'stroke-dasharray': '4 3',
+          'marker-end': 'url(#route-pre-head)'
+        }));
+        const preLbl = svgEl('text', {
+          x: 80, y: 159, 'text-anchor': 'end', fill: COLORS.printed, 'font-size': 9.5, 'font-weight': 600
+        });
+        preLbl.textContent = 'pre-order';
+        layer.appendChild(preLbl);
+
+        layer.appendChild(svgEl('line', {
+          x1: pB.x + NODE_RADIUS + 4, y1: pB.y, x2: pC.x - NODE_RADIUS - 6, y2: pC.y,
+          stroke: COLORS.ink, 'stroke-width': 2.5,
+          'marker-end': 'url(#route-lvl-head)'
+        }));
+        const lvlLbl = svgEl('text', {
+          x: 163, y: 115, 'text-anchor': 'middle', fill: COLORS.ink, 'font-size': 9, 'font-weight': 600
+        });
+        lvlLbl.textContent = 'level-order';
+        layer.appendChild(lvlLbl);
+      }
+
+      // =====================================================================
+      // Queue / Stack Lane & Output Strip Rendering
+      // =====================================================================
+      function renderLaneAndOutput() {
+        const isStack = state.step === 1 && state.stackMode;
+        el.laneNameLabel.textContent = isStack ? 'stack' : 'queue';
+        el.laneBox.classList.toggle('is-stack', isStack);
+        el.laneLeftLabel.textContent = isStack ? 'bottom' : 'front';
+        el.laneRightLabel.textContent = isStack ? 'top' : 'back';
+
+        el.laneSlots.innerHTML = '';
+        const maxDisplay = Math.max(4, state.lane.length);
+        for (let i = 0; i < maxDisplay; i += 1) {
+          const val = state.lane[i];
+          const div = document.createElement('div');
+          div.className = val ? 'slot-item is-frontier' : 'slot-item is-empty';
+          div.textContent = val || '';
+          div.setAttribute('data-slot-idx', String(i));
+          el.laneSlots.appendChild(div);
+        }
+
+        el.outputSlots.innerHTML = '';
+        for (let i = 0; i < ALL_NODES.length; i += 1) {
+          const val = state.output[i];
+          const div = document.createElement('div');
+          div.className = val ? 'slot-item is-printed' : 'slot-item is-empty';
+          div.textContent = val || '';
+          el.outputSlots.appendChild(div);
+        }
+      }
+
+      function renderReadouts() {
+        if (state.step === 5) {
+          el.readoutsBar.classList.add('is-hidden');
+          return;
+        }
+        el.readoutsBar.classList.remove('is-hidden');
+
+        if (state.step === 3) {
+          el.readoutCurrentWrap.style.display = 'none';
+          el.readoutChildWrap.style.display = 'none';
+          el.readoutLenLabel.textContent = 'longest queue =';
+          el.readoutLen.textContent = String(LONGEST_QUEUE);
+          return;
+        }
+
+        el.readoutCurrentWrap.style.display = '';
+        el.readoutChildWrap.style.display = '';
+        el.readoutCurrent.textContent = state.currentVal;
+        el.readoutChild.textContent = state.childVal;
+        el.readoutLenLabel.textContent = (state.step === 1 && state.stackMode) ? 'stack length =' : 'queue length =';
+        el.readoutLen.textContent = String(state.lane.length);
+      }
+
+      function setStatus(text, isAlert = false) {
+        el.statusLine.textContent = text;
+        el.statusLine.classList.toggle('is-alert', Boolean(isAlert));
+      }
+
+      function setTakeaway(text) {
+        if (!text) {
+          el.takeawayLine.textContent = '';
+          el.takeawayLine.classList.add('is-hidden');
+        } else {
+          el.takeawayLine.textContent = text;
+          el.takeawayLine.classList.remove('is-hidden');
+        }
+      }
+
+      // =====================================================================
+      // Shared Poll Animation Engine (B.3)
+      // =====================================================================
+      async function animateSinglePoll({ mode = 'queue', token }) {
+        const isStack = mode === 'stack';
+        const isBugA = mode === 'bugA';
+        const isBugB = mode === 'bugB';
+
+        if (state.lane.length === 0) return null;
+
+        // 1. Poll / Pop
+        setActiveCode('poll');
+        const poppedIdx = isStack ? state.lane.length - 1 : 0;
+        const current = isStack ? state.lane[state.lane.length - 1] : state.lane[0];
+        const leavingSlot = el.laneSlots.querySelector(`[data-slot-idx="${poppedIdx}"]`);
+        if (leavingSlot && !prefersReducedMotion()) {
+          leavingSlot.classList.add(isStack ? 'is-leaving-right' : 'is-leaving-left');
+        }
+        if (!(await sleep(430, token))) return null;
+
+        if (isStack) state.lane.pop();
+        else state.lane.shift();
+
+        state.currentVal = current;
+        applyNodeVisual(current, 'active');
+        renderLaneAndOutput();
+        renderReadouts();
+        if (!(await sleep(120, token))) return null;
+
+        // 2. Print
+        setActiveCode('print');
+        applyNodeVisual(current, 'printed');
+        state.output.push(current);
+        renderLaneAndOutput();
+        if (!(await sleep(450, token))) return null;
+
+        // 3. First child (or Bug B: current.getRightSibling())
+        setActiveCode('firstChild');
+        let child = isBugB ? NEXT_SIBLING[current] : OLDEST_CHILD[current];
+        state.childVal = child === null ? 'null' : child;
+        renderReadouts();
+
+        if (child !== null) {
+          if (!isBugA) showSiblingArrows(child);
+          showChildPointer(child);
+        }
+        if (!(await sleep(450, token))) return null;
+
+        const addedChildren = [];
+        if (isBugA) {
+          if (child !== null) {
+            setActiveCode('bugLine');
+            applyNodeVisual(child, 'frontier');
+            state.lane.push(child);
+            addedChildren.push(child);
+            renderLaneAndOutput();
+            renderReadouts();
+            const addedSlot = el.laneSlots.querySelector(`[data-slot-idx="${state.lane.length - 1}"]`);
+            if (addedSlot && !prefersReducedMotion()) {
+              addedSlot.classList.add('is-entering');
+              requestAnimationFrame(() => addedSlot.classList.remove('is-entering'));
+            }
+            if (!(await sleep(450, token))) return null;
+          }
+        } else {
+          // Standard sibling loop (Queue, Stack, Bug B)
+          while (child !== null) {
+            setActiveCode('offerChild');
+            applyNodeVisual(child, 'frontier');
+            state.lane.push(child);
+            addedChildren.push(child);
+            renderLaneAndOutput();
+            renderReadouts();
+            const addedSlot = el.laneSlots.querySelector(`[data-slot-idx="${state.lane.length - 1}"]`);
+            if (addedSlot && !prefersReducedMotion()) {
+              addedSlot.classList.add('is-entering');
+              requestAnimationFrame(() => addedSlot.classList.remove('is-entering'));
+            }
+            if (!(await sleep(450, token))) return null;
+
+            setActiveCode('nextSib');
+            child = NEXT_SIBLING[child];
+            state.childVal = child === null ? 'null' : child;
+            renderReadouts();
+            if (child !== null) {
+              showChildPointer(child);
+            } else {
+              hideChildPointer();
+            }
+            if (!(await sleep(430, token))) return null;
+          }
+        }
+
+        // 5. Cleanup pointer & arrows
+        hideChildPointer();
+        hideSiblingArrows();
+        setActiveCode(null);
+
+        return { current, addedChildren };
+      }
+
+      // =====================================================================
+      // Step Setup & Rendering
+      // =====================================================================
+      function updateStepperAndNav() {
+        el.stepperBtns.forEach((btn) => {
+          const s = Number(btn.getAttribute('data-step'));
+          if (s === state.step) btn.setAttribute('aria-current', 'step');
+          else btn.removeAttribute('aria-current');
+        });
+        el.btnBack.disabled = state.step === 1;
+        el.btnNext.disabled = state.step === 5;
+      }
+
+      function updatePanelsVisibility() {
+        const showCode = state.step === 1 || state.step === 2 || state.step === 4;
+        el.codeCol.classList.toggle('is-hidden', !showCode);
+        el.laneSection.classList.toggle('is-hidden', !showCode);
+        el.bugTabs.classList.toggle('is-hidden', state.step !== 4);
+        el.compareSection.classList.toggle('is-hidden', state.step !== 3);
+        el.disguiseSection.classList.toggle('is-hidden', state.step !== 5);
+        el.stackSwitchWrap.classList.toggle('is-hidden', state.step !== 1);
+
+        if (state.step === 2 || state.step === 4) {
+          el.visualCol.insertBefore(el.feedbackArea, el.compareSection);
+        } else {
+          el.readoutsBar.insertAdjacentElement('afterend', el.feedbackArea);
+        }
+      }
+
+      function resetAllNodes(defaultState) {
+        for (const id of ALL_NODES) {
+          state.nodeStates[id] = defaultState;
+        }
+      }
+
+      function initStep1() {
+        resetAllNodes('unseen');
+        state.nodeStates[ROOT_ID] = 'frontier';
+        state.lane = [ROOT_ID];
+        state.output = [];
+        state.currentVal = '—';
+        state.childVal = '—';
+        state.activeCodeKey = null;
+        state.pollCount = 0;
+
+        el.instruction.textContent = state.stackMode
+          ? 'Press Next pop and watch the sibling loop fill the stack.'
+          : 'Press Next poll and watch the sibling loop fill the queue.';
+
+        el.predictOptions.classList.add('is-hidden');
+        el.bugChoices.classList.add('is-hidden');
+        el.btnPrimary.classList.remove('is-hidden');
+        el.btnPrimary.textContent = state.stackMode ? 'Next pop' : 'Next poll';
+        el.btnPrimary.disabled = false;
+        el.btnSecondary.classList.add('is-hidden');
+        el.btnReplay.classList.remove('is-hidden');
+        el.btnReplay.disabled = false;
+
+        el.stackSwitchBtn.setAttribute('aria-checked', state.stackMode ? 'true' : 'false');
+        setStatus('');
+        setTakeaway(state.stackMode ? 'Same loop, different container, depth-first (right to left).' : '');
+
+        buildTreeSvg();
+        renderCodePanel();
+        renderLaneAndOutput();
+        renderReadouts();
+      }
+
+      function shuffleCopy(arr) {
+        const copy = arr.slice();
+        for (let i = copy.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [copy[i], copy[j]] = [copy[j], copy[i]];
+        }
+        return copy;
+      }
+
+      function buildPredictRound(roundNum) {
+        state.predictRound = roundNum;
+        state.predictAnswered = false;
+        state.activeCodeKey = null;
+
+        if (roundNum === 1) {
+          resetAllNodes('unseen');
+          state.nodeStates.A = 'printed';
+          state.nodeStates.B = 'frontier';
+          state.nodeStates.C = 'frontier';
+          state.nodeStates.D = 'frontier';
+          state.lane = ['B', 'C', 'D'];
+          state.output = ['A'];
+          state.currentVal = 'A';
+          state.childVal = 'null';
+          setTakeaway('');
+        } else {
+          resetAllNodes('unseen');
+          state.nodeStates.A = 'printed';
+          state.nodeStates.B = 'printed';
+          state.nodeStates.C = 'frontier';
+          state.nodeStates.D = 'frontier';
+          state.nodeStates.E = 'frontier';
+          state.nodeStates.F = 'frontier';
+          state.lane = ['C', 'D', 'E', 'F'];
+          state.output = ['A', 'B'];
+          state.currentVal = 'B';
+          state.childVal = 'null';
+          setTakeaway('');
+        }
+
+        el.instruction.textContent = 'What will the queue look like after the next poll?';
+        setStatus('');
+
+        const roundOptions = roundNum === 1
+          ? [
+              { id: 'cdef', slots: ['C', 'D', 'E', 'F'], correct: true, feedback: 'Right: E and F join behind C and D.' },
+              { id: 'efcd', slots: ['E', 'F', 'C', 'D'], correct: false, feedback: 'That puts the children at the front, which is what a stack does.' },
+              { id: 'cde', slots: ['C', 'D', 'E'], correct: false, feedback: 'The sibling loop keeps going: F is offered too.' }
+            ]
+          : [
+              { id: 'def', slots: ['D', 'E', 'F'], correct: true, feedback: 'Right: C has no children, so the queue just shrinks.' },
+              { id: 'cdef', slots: ['C', 'D', 'E', 'F'], correct: false, feedback: 'Poll removes C from the queue.' },
+              { id: 'defg', slots: ['D', 'E', 'F', 'G'], correct: false, feedback: "G is D's child. It joins only when D is polled." }
+            ];
+
+        const shuffled = shuffleCopy(roundOptions);
+        el.predictOptions.innerHTML = '';
+        for (const opt of shuffled) {
+          const item = document.createElement('div');
+          item.className = 'option-item';
+
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'option-lane-btn';
+          btn.setAttribute('data-correct', opt.correct ? 'true' : 'false');
+          btn.setAttribute('aria-label', `Queue from front to back: ${opt.slots.join(' ')}`);
+
+          const frontSpan = document.createElement('span');
+          frontSpan.className = 'mini-end';
+          frontSpan.textContent = 'front';
+          btn.appendChild(frontSpan);
+
+          for (const letter of opt.slots) {
+            const slot = document.createElement('span');
+            slot.className = 'mini-slot';
+            slot.textContent = letter;
+            btn.appendChild(slot);
+          }
+
+          const backSpan = document.createElement('span');
+          backSpan.className = 'mini-end';
+          backSpan.textContent = 'back';
+          btn.appendChild(backSpan);
+
+          const reveal = document.createElement('span');
+          reveal.className = 'option-reveal-label is-hidden';
+
+          btn.addEventListener('click', () => handlePredictChoice(btn, opt));
+          item.appendChild(btn);
+          item.appendChild(reveal);
+          el.predictOptions.appendChild(item);
+        }
+
+        el.predictOptions.classList.remove('is-hidden');
+        el.bugChoices.classList.add('is-hidden');
+        el.btnPrimary.classList.add('is-hidden');
+        el.btnSecondary.classList.add('is-hidden');
+        el.btnReplay.classList.remove('is-hidden');
+        el.btnReplay.disabled = false;
+
+        buildTreeSvg();
+        renderCodePanel();
+        renderLaneAndOutput();
+        renderReadouts();
+      }
+
+      async function handlePredictChoice(pickedBtn, opt) {
+        if (state.isAnimating || state.predictAnswered) return;
+        state.predictAnswered = true;
+        state.isAnimating = true;
+        const token = state.animId;
+
+        const allOptionBtns = Array.from(el.predictOptions.querySelectorAll('.option-lane-btn'));
+        allOptionBtns.forEach((b) => { b.disabled = true; });
+        el.btnReplay.disabled = true;
+
+        const res = await animateSinglePoll({ mode: 'queue', token });
+        if (!res) return;
+
+        state.isAnimating = false;
+        el.btnReplay.disabled = false;
+
+        allOptionBtns.forEach((b) => {
+          if (b.getAttribute('data-correct') === 'true') {
+            b.classList.add('is-correct');
+            const lbl = b.parentElement.querySelector('.option-reveal-label');
+            if (lbl) {
+              lbl.textContent = 'correct';
+              lbl.classList.remove('is-hidden', 'is-wrong-label');
+            }
+          }
+        });
+        if (!opt.correct) {
+          pickedBtn.classList.add('is-wrong');
+          const lbl = pickedBtn.parentElement.querySelector('.option-reveal-label');
+          if (lbl) {
+            lbl.textContent = 'your pick';
+            lbl.classList.remove('is-hidden');
+            lbl.classList.add('is-wrong-label');
+          }
+        }
+
+        setStatus(opt.feedback, !opt.correct);
+        if (state.predictRound === 1) {
+          el.btnPrimary.classList.remove('is-hidden');
+          el.btnPrimary.textContent = 'Next round';
+          el.btnPrimary.disabled = false;
+        } else {
+          setTakeaway('A node with no children adds nothing.');
+        }
+      }
+
+      function renderCompareGrid() {
+        const grid = el.compareGrid;
+        grid.innerHTML = '';
+
+        const labelsCol = document.createElement('div');
+        labelsCol.style.display = 'flex';
+        labelsCol.style.flexDirection = 'column';
+        labelsCol.style.gap = '6px';
+        labelsCol.style.justifyContent = 'center';
+
+        const preLbl = document.createElement('div');
+        preLbl.className = 'compare-row-label';
+        preLbl.style.height = '32px';
+        preLbl.style.display = 'flex';
+        preLbl.style.alignItems = 'center';
+        preLbl.textContent = 'pre-order';
+
+        const lvlLbl = document.createElement('div');
+        lvlLbl.className = 'compare-row-label';
+        lvlLbl.style.height = '32px';
+        lvlLbl.style.display = 'flex';
+        lvlLbl.style.alignItems = 'center';
+        lvlLbl.textContent = 'level-order';
+
+        labelsCol.appendChild(preLbl);
+        labelsCol.appendChild(lvlLbl);
+        grid.appendChild(labelsCol);
+
+        for (let i = 0; i < ALL_NODES.length; i += 1) {
+          const pos = i + 1;
+          const colBtn = document.createElement('button');
+          colBtn.type = 'button';
+          colBtn.className = 'compare-col-btn';
+          colBtn.setAttribute('data-pos', String(pos));
+          colBtn.setAttribute('aria-label', `Position ${pos}`);
+          colBtn.disabled = !state.compareRan || state.compareDone;
+
+          const topVal = state.compareCols[i] ? GENERAL_PRE_ORDER[i] : '';
+          const botVal = state.compareCols[i] ? GENERAL_LEVEL_ORDER[i] : '';
+
+          const topCell = document.createElement('span');
+          topCell.className = topVal ? 'compare-cell is-printed' : 'compare-cell is-empty';
+          topCell.textContent = topVal;
+
+          const botCell = document.createElement('span');
+          botCell.className = botVal ? 'compare-cell is-printed' : 'compare-cell is-empty';
+          botCell.textContent = botVal;
+
+          colBtn.appendChild(topCell);
+          colBtn.appendChild(botCell);
+          colBtn.addEventListener('click', () => handleComparePick(pos));
+          grid.appendChild(colBtn);
+        }
+      }
+
+      function initStep3() {
+        resetAllNodes('neutral');
+        state.compareRan = false;
+        state.compareDone = false;
+        state.compareCols = Array(ALL_NODES.length).fill(false);
+
+        el.instruction.textContent = 'Press Run both to compare pre-order and level-order.';
+        el.predictOptions.classList.add('is-hidden');
+        el.bugChoices.classList.add('is-hidden');
+        el.btnPrimary.classList.remove('is-hidden');
+        el.btnPrimary.textContent = 'Run both';
+        el.btnPrimary.disabled = false;
+        el.btnSecondary.classList.add('is-hidden');
+        el.btnReplay.classList.remove('is-hidden');
+        el.btnReplay.disabled = false;
+
+        setStatus('');
+        setTakeaway('');
+        buildTreeSvg();
+        renderCompareGrid();
+        renderReadouts();
+      }
+
+      function handleComparePick(pos) {
+        if (!state.compareRan || state.compareDone) return;
+        const buttons = Array.from(el.compareGrid.querySelectorAll('.compare-col-btn'));
+        buttons.forEach((b) => b.classList.remove('is-wrong-mark'));
+
+        if (pos === FIRST_DISAGREEMENT) {
+          state.compareDone = true;
+          const targetBtn = el.compareGrid.querySelector(`[data-pos="${pos}"]`);
+          if (targetBtn) targetBtn.classList.add('is-match-mark');
+          buttons.forEach((b) => { b.disabled = true; });
+          drawCompareRoutes();
+          setStatus('Pre-order goes deep before wide. Level-order goes wide before deep.', false);
+          setTakeaway('The queue only ever holds nodes from two neighbouring levels.');
+        } else if (pos < FIRST_DISAGREEMENT) {
+          const btn = el.compareGrid.querySelector(`[data-pos="${pos}"]`);
+          if (btn) btn.classList.add('is-wrong-mark');
+          setStatus('These match. Look further right.', true);
+        } else {
+          const btn = el.compareGrid.querySelector(`[data-pos="${pos}"]`);
+          if (btn) btn.classList.add('is-wrong-mark');
+          setStatus("There's an earlier difference. Look further left.", true);
+        }
+      }
+
+      function initStep4() {
+        resetAllNodes('unseen');
+        state.nodeStates[ROOT_ID] = 'frontier';
+        state.lane = [ROOT_ID];
+        state.output = [];
+        state.currentVal = '—';
+        state.childVal = '—';
+        state.activeCodeKey = null;
+        state.bugRan = false;
+        state.bugAnswered = false;
+
+        el.bugABtn.classList.toggle('is-selected', state.bugType === 'A');
+        el.bugBBtn.classList.toggle('is-selected', state.bugType === 'B');
+
+        el.instruction.textContent = 'Run the broken loop. What went wrong?';
+        el.predictOptions.classList.add('is-hidden');
+        el.bugChoices.innerHTML = '';
+        el.bugChoices.classList.add('is-hidden');
+        el.btnPrimary.classList.remove('is-hidden');
+        el.btnPrimary.textContent = 'Run';
+        el.btnPrimary.disabled = false;
+        el.btnSecondary.classList.add('is-hidden');
+        el.btnReplay.classList.remove('is-hidden');
+        el.btnReplay.disabled = false;
+
+        setStatus('');
+        setTakeaway('');
+
+        buildTreeSvg();
+        renderCodePanel();
+        renderLaneAndOutput();
+        renderReadouts();
+      }
+
+      function showBugChoices() {
+        const opts = state.bugType === 'A'
+          ? [
+              { text: 'Only oldest children were offered', correct: true, feedback: 'Yes: without the sibling loop, younger siblings are skipped.' },
+              { text: 'Nodes were offered twice', correct: false, feedback: 'Count the output: nothing appears twice.' }
+            ]
+          : [
+              { text: 'It offered siblings of current, not its children', correct: true, feedback: 'Yes: the sibling loop must start at the oldest child.' },
+              { text: 'The queue was never filled at the start', correct: false, feedback: 'A was offered before the loop; look at the line in red.' }
+            ];
+
+        el.bugChoices.innerHTML = '';
+        for (const opt of opts) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn';
+          btn.textContent = opt.text;
+          btn.addEventListener('click', () => {
+            if (state.bugAnswered) return;
+            const allBtns = Array.from(el.bugChoices.querySelectorAll('button'));
+            allBtns.forEach((b) => b.classList.remove('is-wrong-pick', 'is-selected'));
+            if (opt.correct) {
+              state.bugAnswered = true;
+              btn.classList.add('is-selected');
+              allBtns.forEach((b) => { b.disabled = true; });
+              setStatus(opt.feedback, false);
+            } else {
+              btn.classList.add('is-wrong-pick');
+              setStatus(opt.feedback, true);
+            }
+          });
+          el.bugChoices.appendChild(btn);
+        }
+        el.bugChoices.classList.remove('is-hidden');
+      }
+
+      function renderDisguiseTable() {
+        const table = el.disguiseTable;
+        table.innerHTML = '';
+
+        const row1 = document.createElement('div');
+        row1.className = 'disguise-row';
+        const lbl1 = document.createElement('span');
+        lbl1.className = 'compare-row-label';
+        lbl1.textContent = 'general tree';
+        row1.appendChild(lbl1);
+        for (const ch of GENERAL_LEVEL_ORDER) {
+          const cell = document.createElement('span');
+          cell.className = 'compare-cell is-printed';
+          cell.textContent = ch;
+          row1.appendChild(cell);
+        }
+
+        const row2 = document.createElement('div');
+        row2.className = 'disguise-row';
+        const lbl2 = document.createElement('span');
+        lbl2.className = 'compare-row-label';
+        lbl2.textContent = 'binary picture';
+        row2.appendChild(lbl2);
+        for (let i = 0; i < BINARY_LEVEL_ORDER.length; i += 1) {
+          const val = state.disguiseOutput[i];
+          const cell = document.createElement('span');
+          cell.className = val ? 'compare-cell is-printed' : 'compare-cell is-empty';
+          cell.textContent = val || '';
+          row2.appendChild(cell);
+        }
+
+        table.appendChild(row1);
+        table.appendChild(row2);
+      }
+
+      function initStep5() {
+        resetAllNodes('neutral');
+        state.disguiseView = 'binary';
+        state.disguiseAnswered = false;
+        state.disguiseOutput = [];
+
+        el.viewGeneralBtn.classList.remove('is-selected');
+        el.viewBinaryBtn.classList.add('is-selected');
+
+        el.instruction.textContent = 'Is the level-order of the binary picture the same as before?';
+        el.predictOptions.classList.add('is-hidden');
+        el.bugChoices.classList.add('is-hidden');
+        el.btnPrimary.classList.remove('is-hidden');
+        el.btnPrimary.textContent = 'Same';
+        el.btnPrimary.disabled = false;
+        el.btnSecondary.classList.remove('is-hidden');
+        el.btnSecondary.textContent = 'Different';
+        el.btnSecondary.disabled = false;
+        el.btnReplay.classList.remove('is-hidden');
+        el.btnReplay.disabled = false;
+
+        setStatus('');
+        setTakeaway('');
+        buildTreeSvg();
+        renderDisguiseTable();
+        renderReadouts();
+      }
+
+      function goToStep(stepNum) {
+        cancelAnimations();
+        state.step = stepNum;
+        updateStepperAndNav();
+        updatePanelsVisibility();
+
+        if (stepNum === 1) initStep1();
+        else if (stepNum === 2) buildPredictRound(1);
+        else if (stepNum === 3) initStep3();
+        else if (stepNum === 4) initStep4();
+        else if (stepNum === 5) initStep5();
+      }
+
+      // =====================================================================
+      // Step Action Handlers
+      // =====================================================================
+      async function runStep1Poll() {
+        if (state.isAnimating || state.lane.length === 0) return;
+        state.isAnimating = true;
+        const token = state.animId;
+        el.btnPrimary.disabled = true;
+
+        const mode = state.stackMode ? 'stack' : 'queue';
+        const res = await animateSinglePoll({ mode, token });
+        if (!res) return;
+
+        state.isAnimating = false;
+        state.pollCount += 1;
+
+        if (state.lane.length === 0) {
+          el.btnPrimary.disabled = true;
+          setStatus(state.stackMode
+            ? 'Stack empty. Every node printed once.'
+            : 'Queue empty. Every node printed once.');
+        } else {
+          el.btnPrimary.disabled = false;
+          if (!state.stackMode && state.pollCount === 1) {
+            setStatus('The sibling loop offered B, then C, then D.');
+          } else if (res.addedChildren.length === 0) {
+            setStatus(`${res.current} has no children, so nothing is added.`);
+          } else if (state.stackMode) {
+            setStatus(`Pushed ${res.addedChildren.join(', ')} onto the top of the stack.`);
+          } else {
+            setStatus(`Offered ${res.addedChildren.join(', ')} to the back of the queue.`);
+          }
+        }
+      }
+
+      async function runStep3Both() {
+        if (state.isAnimating || state.compareRan) return;
+        state.isAnimating = true;
+        const token = state.animId;
+        el.btnPrimary.disabled = true;
+
+        for (let i = 0; i < ALL_NODES.length; i += 1) {
+          state.compareCols[i] = true;
+          renderCompareGrid();
+          if (!(await sleep(430, token))) return;
+        }
+
+        state.isAnimating = false;
+        state.compareRan = true;
+        el.instruction.textContent = 'Click the first position where they disagree.';
+        renderCompareGrid();
+      }
+
+      async function runStep4Bug() {
+        if (state.isAnimating || state.bugRan) return;
+        state.isAnimating = true;
+        const token = state.animId;
+        el.btnPrimary.disabled = true;
+
+        const mode = state.bugType === 'A' ? 'bugA' : 'bugB';
+        while (state.lane.length > 0) {
+          const res = await animateSinglePoll({ mode, token });
+          if (!res) return;
+          if (!(await sleep(160, token))) return;
+        }
+
+        state.isAnimating = false;
+        state.bugRan = true;
+        setStatus(`Queue empty. Output: ${state.output.join(' ')}.`);
+        showBugChoices();
+      }
+
+      async function handleStep5Answer(choice) {
+        if (state.isAnimating || state.disguiseAnswered) return;
+        state.disguiseAnswered = true;
+        state.isAnimating = true;
+        const token = state.animId;
+
+        el.btnPrimary.disabled = true;
+        el.btnSecondary.disabled = true;
+        el.btnReplay.disabled = true;
+
+        if (state.disguiseView !== 'binary') {
+          state.disguiseView = 'binary';
+          el.viewGeneralBtn.classList.remove('is-selected');
+          el.viewBinaryBtn.classList.add('is-selected');
+          buildTreeSvg();
+        }
+        resetAllNodes('neutral');
+        applyAllNodeVisuals();
+
+        for (let i = 0; i < BINARY_LEVEL_ORDER.length; i += 1) {
+          const node = BINARY_LEVEL_ORDER[i];
+          state.disguiseOutput.push(node);
+          applyNodeVisual(node, 'printed');
+          renderDisguiseTable();
+          if (!(await sleep(420, token))) return;
+        }
+
+        state.isAnimating = false;
+        el.btnReplay.disabled = false;
+
+        if (choice === 'different') {
+          setStatus('Right: in the binary picture, C sits a level below B.', false);
+        } else {
+          setStatus('Look at position 3: E jumps ahead of C.', true);
+        }
+        setTakeaway('Right means next sibling, not child. Walk the general tree, not the picture.');
+      }
+
+      // =====================================================================
+      // Event Listeners
+      // =====================================================================
+      el.stepperBtns.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          goToStep(Number(btn.getAttribute('data-step')));
+        });
+      });
+
+      el.btnBack.addEventListener('click', () => {
+        if (state.step > 1) goToStep(state.step - 1);
+      });
+
+      el.btnNext.addEventListener('click', () => {
+        if (state.step < 5) goToStep(state.step + 1);
+      });
+
+      el.btnPrimary.addEventListener('click', () => {
+        if (state.step === 1) runStep1Poll();
+        else if (state.step === 2 && state.predictAnswered && state.predictRound === 1) {
+          cancelAnimations();
+          buildPredictRound(2);
+        }
+        else if (state.step === 3) runStep3Both();
+        else if (state.step === 4) runStep4Bug();
+        else if (state.step === 5) handleStep5Answer('same');
+      });
+
+      el.btnSecondary.addEventListener('click', () => {
+        if (state.step === 5) handleStep5Answer('different');
+      });
+
+      el.btnReplay.addEventListener('click', () => {
+        goToStep(state.step);
+      });
+
+      el.stackSwitchBtn.addEventListener('click', () => {
+        if (state.step !== 1) return;
+        cancelAnimations();
+        state.stackMode = !state.stackMode;
+        initStep1();
+      });
+
+      el.bugABtn.addEventListener('click', () => {
+        if (state.step !== 4) return;
+        cancelAnimations();
+        state.bugType = 'A';
+        initStep4();
+      });
+
+      el.bugBBtn.addEventListener('click', () => {
+        if (state.step !== 4) return;
+        cancelAnimations();
+        state.bugType = 'B';
+        initStep4();
+      });
+
+      el.viewGeneralBtn.addEventListener('click', () => {
+        if (state.step !== 5 || state.isAnimating) return;
+        state.disguiseView = 'general';
+        el.viewGeneralBtn.classList.add('is-selected');
+        el.viewBinaryBtn.classList.remove('is-selected');
+        buildTreeSvg();
+      });
+
+      el.viewBinaryBtn.addEventListener('click', () => {
+        if (state.step !== 5 || state.isAnimating) return;
+        state.disguiseView = 'binary';
+        el.viewBinaryBtn.classList.add('is-selected');
+        el.viewGeneralBtn.classList.remove('is-selected');
+        buildTreeSvg();
+      });
+
+      // Boot Step 1
+      goToStep(1);
+    })();
+  </script>
+</body>
+</html>
