@@ -1,0 +1,2440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A general tree is a binary tree in disguise</title>
+<style>
+:root {
+  color-scheme: dark;
+  --page: #0F1226;
+  --panel: #1A1F3D;
+  --inset: #141832;
+  --raised: #222849;
+  --ink: #F2F4FF;
+  --muted: #A9B1D6;
+  --line: #343B6B;
+  --visited: #3D4785;
+  --action: #00D1C1;
+  --action-hover: #33DDCF;
+  --action-tint: rgba(0, 209, 193, 0.14);
+  --action-glow: rgba(0, 209, 193, 0.50);
+  --on-action: #0F1226;
+  --alert: #FF4F8B;
+  --alert-tint: rgba(255, 79, 139, 0.16);
+  --alert-tint-strong: rgba(255, 79, 139, 0.26);
+  --serif: Georgia, "Times New Roman", serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html {
+  font-size: 16px;
+  background: var(--page);
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.45;
+}
+
+.app {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 14px 16px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px 16px;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 10px;
+}
+
+.title-block h1 {
+  margin: 0;
+  font-size: 1.45rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.title-block .subtitle {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.96rem;
+}
+
+.step-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+button {
+  font-family: var(--serif);
+  font-size: 0.96rem;
+  color: var(--ink);
+  background: var(--raised);
+  border: 2px solid var(--ink);
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 14px;
+  cursor: pointer;
+  touch-action: manipulation;
+  border-radius: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+button.mono-btn {
+  font-family: var(--mono);
+  font-size: 0.92rem;
+}
+
+button.primary {
+  background: var(--action);
+  color: var(--on-action);
+  border-color: var(--action);
+  font-weight: 700;
+}
+
+button[aria-selected="true"] {
+  background: var(--ink);
+  color: var(--page);
+  font-weight: 700;
+}
+
+button:hover:not(:disabled) {
+  background: var(--visited);
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--action-hover);
+  border-color: var(--action-hover);
+}
+
+button[aria-selected="true"]:hover:not(:disabled) {
+  background: var(--ink);
+}
+
+button:active:not(:disabled) {
+  background: var(--line);
+}
+
+button:focus-visible,
+.svg-node-btn:focus-visible {
+  outline: 3px solid var(--action);
+  outline-offset: 3px;
+}
+
+button:disabled {
+  color: var(--muted);
+  border: 2px dashed var(--muted);
+  background: transparent;
+  cursor: not-allowed;
+}
+
+button.dead-end-reset {
+  border: 3.5px solid var(--alert);
+  background: var(--alert-tint);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+button.dead-end-reset:hover:not(:disabled) {
+  background: var(--alert-tint-strong);
+}
+
+.panel {
+  background: var(--panel);
+  border: 2px solid var(--ink);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.task-line {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.prose-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  max-width: 72ch;
+}
+
+.status-box {
+  border: 2px solid var(--ink);
+  background: var(--inset);
+  padding: 8px 12px;
+  min-height: 3.4rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.96rem;
+}
+
+.status-box.is-alert {
+  border: 3px solid var(--alert);
+  background: var(--alert-tint);
+}
+
+.status-tag {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border: 1.5px solid var(--ink);
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+
+.status-action {
+  font-weight: 700;
+  color: var(--action);
+}
+
+.status-box.is-alert .status-tag {
+  border: 2px solid var(--alert);
+  color: var(--alert);
+  background: var(--panel);
+}
+
+@keyframes cue-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 var(--action-glow);
+  }
+  50% {
+    box-shadow: 0 0 0 7px var(--action-glow);
+  }
+}
+
+@keyframes svg-cue-pulse {
+  0%, 100% {
+    stroke-opacity: 0.5;
+    stroke-width: 2;
+  }
+  50% {
+    stroke-opacity: 1;
+    stroke-width: 4;
+  }
+}
+
+.cue {
+  border-color: var(--action);
+  animation: cue-pulse 1.6s ease-in-out infinite;
+}
+
+.svg-cue-ring {
+  animation: svg-cue-pulse 1.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.svg-hover-ring {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.svg-node-btn.is-unchosen {
+  cursor: pointer;
+}
+
+.svg-node-btn.is-unchosen:hover .svg-hover-ring,
+.svg-node-btn.is-unchosen:focus-visible .svg-hover-ring {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cue {
+    animation: none;
+    outline: 2px solid var(--action);
+    outline-offset: 2px;
+  }
+  .svg-cue-ring {
+    animation: none;
+    stroke-opacity: 1;
+    stroke-width: 2px;
+  }
+}
+
+.walk-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.tree-stage {
+  border: 1.5px solid var(--line);
+  background: var(--inset);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tree-stage svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.route-strip {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.route-line {
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.walk-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.node-card {
+  border: 2px solid var(--ink);
+  background: var(--panel);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.record-header {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding-bottom: 4px;
+  border-bottom: 1.5px solid var(--ink);
+}
+
+.record-prompt {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.node-ref-btn {
+  width: 100%;
+  justify-content: space-between;
+  padding: 8px 12px;
+  min-height: 44px;
+}
+
+.ref-name {
+  flex: 1;
+  text-align: left;
+}
+
+.ref-val {
+  font-weight: 700;
+  margin-right: 10px;
+}
+
+.ref-arrow {
+  font-weight: 700;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.preorder-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.code-and-stack {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.code-box {
+  border: 1.5px solid var(--ink);
+  background: var(--inset);
+  padding: 8px 0;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  overflow-x: auto;
+}
+
+.code-n {
+  display: inline;
+  margin: 0;
+  background: var(--ink);
+  color: var(--page);
+  padding: 0 2px;
+  font-weight: 700;
+}
+
+.code-child {
+  display: inline;
+  margin: 0;
+  border-bottom: 2px dashed var(--alert);
+  padding-bottom: 1px;
+}
+
+.code-line {
+  display: block;
+  padding: 3px 6px 3px 3px;
+  border-left: 4px solid transparent;
+  white-space: pre;
+}
+
+.code-line.is-active {
+  background: var(--visited);
+  border-left: 4px solid var(--action);
+  font-weight: 700;
+}
+
+.code-line .gutter {
+  display: inline-block;
+  width: 1em;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.stack-box {
+  border: 1.5px solid var(--ink);
+  background: var(--inset);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.stack-title {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 4px;
+}
+
+.stack-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+}
+
+.stack-list li {
+  padding: 1px 0;
+}
+
+.stack-list li.stack-sep {
+  color: var(--muted);
+}
+
+.stack-list li.top-frame {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.naming-trap {
+  margin: 8px 0 0;
+  font-size: 0.86rem;
+  color: var(--ink);
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.node-picker-row {
+  display: none;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.node-picker-btn {
+  font-family: var(--mono);
+  font-weight: 700;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 6px 4px;
+  gap: 4px;
+}
+
+.node-picker-btn.is-chosen {
+  background: var(--visited);
+  border-width: 2.5px;
+}
+
+.picker-pos {
+  font-size: 0.74rem;
+  border: 1px solid var(--ink);
+  background: var(--panel);
+  padding: 0 4px;
+}
+
+.controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.strips-panel {
+  border: 1.5px solid var(--ink);
+  background: var(--inset);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.strip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.strip-label {
+  font-family: var(--mono);
+  font-size: 0.86rem;
+  font-weight: 700;
+  min-width: 145px;
+}
+
+.slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.slot {
+  width: 42px;
+  height: 44px;
+  border: 1.5px solid var(--ink);
+  background: var(--panel);
+  font-family: var(--mono);
+  font-size: 0.98rem;
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.slot.empty {
+  border-style: dashed;
+  color: var(--muted);
+  background: transparent;
+}
+
+.slot.just-printed {
+  border: 3px solid var(--alert);
+  background: var(--alert-tint);
+}
+
+.slot.diff {
+  border: 3px solid var(--alert);
+  background: var(--alert-tint);
+}
+
+.slot .diff-mark {
+  font-size: 0.56rem;
+  line-height: 1;
+  color: var(--alert);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.reveal-box {
+  border: 2px solid var(--ink);
+  background: var(--panel);
+  padding: 10px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.reveal-box.has-diff {
+  border: 3px solid var(--alert);
+  background: var(--alert-tint);
+}
+
+.reveal-msg {
+  margin: 0;
+  font-size: 0.95rem;
+  flex: 1 1 280px;
+}
+
+.reveal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.svg-node-btn {
+  cursor: default;
+}
+
+@media (max-width: 820px) {
+  .walk-layout,
+  .preorder-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .node-picker-row {
+    display: grid;
+  }
+  .stack-box {
+    min-height: 0;
+  }
+  .app {
+    padding: 10px 10px 20px;
+  }
+  .panel {
+    padding: 10px;
+  }
+  .slot {
+    width: 38px;
+    height: 40px;
+    font-size: 0.9rem;
+  }
+  .strip-label {
+    min-width: 100%;
+  }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="site-header">
+    <div class="title-block">
+      <h1>A general tree is a binary tree in disguise.</h1>
+      <p class="subtitle">Two references per node—oldest child and next sibling—are enough for any number of children.</p>
+    </div>
+    <nav class="step-nav" role="tablist" aria-label="Activity steps">
+      <button type="button" id="tab-walk" role="tab" aria-selected="true" aria-controls="panel-walk">Step 1: Walk</button>
+      <button type="button" id="tab-preorder" role="tab" aria-selected="false" aria-controls="panel-preorder">Step 2: Pre-order</button>
+    </nav>
+  </header>
+
+  <!-- STEP 1: WALK -->
+  <section id="panel-walk" class="panel" role="tabpanel" aria-labelledby="tab-walk">
+    <h2 id="walk-task" class="task-line">Target 1 of 3: reach G using only the two references.</h2>
+    <p class="prose-note">Each node stores only two references, and there is no way back up.</p>
+
+    <div id="walk-status" class="status-box" aria-live="polite">
+      <span id="walk-status-tag" class="status-tag">Ready</span>
+      <span><span id="walk-status-info" class="status-info"></span> <strong id="walk-status-action" class="status-action"></strong></span>
+    </div>
+
+    <div class="walk-layout">
+      <div class="tree-stage">
+        <svg id="walk-svg" viewBox="0 0 680 390" role="img" aria-label="General tree diagram for Step 1 Walk"></svg>
+        <div class="route-strip" aria-label="Route taken">
+          <div id="walk-route-line" class="route-line">Route: A</div>
+        </div>
+      </div>
+
+      <div class="walk-controls">
+        <div class="node-card" aria-label="Current node references">
+          <div id="record-header" class="record-header">You are at A</div>
+          <p class="record-prompt">Follow a reference:</p>
+          <button type="button" id="btn-first-child" class="mono-btn node-ref-btn" aria-label="Follow firstChild to B">
+            <span class="ref-name">firstChild</span>
+            <span id="val-first-child" class="ref-val">B</span>
+            <span class="ref-arrow" aria-hidden="true">&#8595;</span>
+          </button>
+          <button type="button" id="btn-next-sibling" class="mono-btn node-ref-btn" aria-label="nextSibling is null">
+            <span class="ref-name">nextSibling</span>
+            <span id="val-next-sibling" class="ref-val">null</span>
+            <span class="ref-arrow" aria-hidden="true">&#8594;</span>
+          </button>
+        </div>
+
+        <div class="action-row">
+          <button type="button" id="btn-walk-reset">Reset</button>
+          <button type="button" id="btn-next-target" class="primary" hidden>Next target (I)</button>
+          <button type="button" id="btn-redraw-binary" class="primary" hidden>Redraw as a binary tree</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 2: PRE-ORDER -->
+  <section id="panel-preorder" class="panel" role="tabpanel" aria-labelledby="tab-preorder" hidden>
+    <h2 id="preorder-task" class="task-line">Predict the order this prints, then run it.</h2>
+
+    <div id="pre-status" class="status-box" aria-live="polite">
+      <span id="pre-status-tag" class="status-tag">Predict</span>
+      <span><span id="pre-status-info" class="status-info"></span> <strong id="pre-status-action" class="status-action"></strong></span>
+    </div>
+
+    <div id="preorder-grid" class="preorder-grid">
+      <div class="tree-stage">
+        <svg id="pre-svg" viewBox="0 0 560 360" role="img" aria-label="Interactive general tree for pre-order prediction and trace"></svg>
+        <div id="node-picker-row" class="node-picker-row" aria-label="Pick node in print order"></div>
+        <div class="legend-row" aria-label="Pre-order edge key">
+          <span>Solid edge: first child</span>
+          <span>Dashed edge: next sibling</span>
+        </div>
+      </div>
+
+      <div id="code-side-panel">
+        <div id="code-and-stack" class="code-and-stack">
+          <div class="code-box" aria-label="Java preorder code">
+            <div class="code-line" data-line="1"><span class="gutter"> </span>void preorder(Node <span class="code-n">n</span>) {</div>
+            <div class="code-line" data-line="2"><span class="gutter"> </span>    visit(<span class="code-n">n</span>);</div>
+            <div class="code-line" data-line="3"><span class="gutter"> </span>    Node <span class="code-child">child</span> = <span class="code-n">n</span>.getLeftChild();</div>
+            <div class="code-line" data-line="4"><span class="gutter"> </span>    while (<span class="code-child">child</span> != null) {</div>
+            <div class="code-line" data-line="5"><span class="gutter"> </span>        preorder(<span class="code-child">child</span>);</div>
+            <div class="code-line" data-line="6"><span class="gutter"> </span>        <span class="code-child">child</span> = <span class="code-child">child</span>.getRightSibling();</div>
+            <div class="code-line" data-line="7"><span class="gutter"> </span>    }</div>
+            <div class="code-line" data-line="8"><span class="gutter"> </span>}</div>
+          </div>
+
+          <div id="stack-box" class="stack-box" aria-label="Call stack" hidden>
+            <div class="stack-title">Call stack</div>
+            <ul id="call-stack-list" class="stack-list"></ul>
+          </div>
+        </div>
+
+        <p id="naming-trap" class="naming-trap" hidden>
+          <span style="font-family:var(--mono)">getLeftChild()</span> returns the first child and <span style="font-family:var(--mono)">getRightSibling()</span> returns the next sibling. Here, left and right do not mean smaller and larger.
+        </p>
+      </div>
+    </div>
+
+    <div id="pre-controls-bar" class="controls-bar">
+      <button type="button" id="btn-pred-undo">Undo last</button>
+      <button type="button" id="btn-pred-lock" class="primary">Lock in</button>
+      <button type="button" id="btn-run-next-print" class="primary" hidden>Jump to next print</button>
+      <button type="button" id="btn-run-step" hidden>Step one line</button>
+    </div>
+
+    <div class="strips-panel">
+      <div class="strip-row">
+        <span class="strip-label">Your prediction</span>
+        <div id="prediction-slots" class="slots" aria-label="Your prediction sequence"></div>
+      </div>
+      <div id="printed-row" class="strip-row" hidden>
+        <span class="strip-label">Printed</span>
+        <div id="printed-slots" class="slots" aria-label="Actual printed output"></div>
+      </div>
+    </div>
+
+    <div id="reveal-box" class="reveal-box" hidden>
+      <p id="reveal-msg" class="reveal-msg"></p>
+      <div class="reveal-actions">
+        <button type="button" id="btn-show-mismatch" hidden>Show me position 1</button>
+        <button type="button" id="btn-try-again" class="primary">Try again</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var COLORS = {
+    page: "#0F1226",
+    panel: "#1A1F3D",
+    inset: "#141832",
+    raised: "#222849",
+    ink: "#F2F4FF",
+    muted: "#A9B1D6",
+    line: "#343B6B",
+    visited: "#3D4785",
+    action: "#00D1C1",
+    actionHover: "#33DDCF",
+    actionTint: "rgba(0, 209, 193, 0.14)",
+    actionGlow: "rgba(0, 209, 193, 0.50)",
+    onAction: "#0F1226",
+    alert: "#FF4F8B",
+    alertTint: "rgba(255, 79, 139, 0.16)",
+    alertTintStrong: "rgba(255, 79, 139, 0.26)"
+  };
+
+  var NODES = ["A", "B", "C", "D", "E", "F", "G", "H", "I"];
+  var TREE = {
+    A: { firstChild: "B", nextSibling: null },
+    B: { firstChild: "E", nextSibling: "C" },
+    C: { firstChild: null, nextSibling: "D" },
+    D: { firstChild: "G", nextSibling: null },
+    E: { firstChild: null, nextSibling: "F" },
+    F: { firstChild: null, nextSibling: null },
+    G: { firstChild: null, nextSibling: "H" },
+    H: { firstChild: null, nextSibling: "I" },
+    I: { firstChild: null, nextSibling: null }
+  };
+
+  var ORG_EDGES = [
+    ["A", "B"], ["A", "C"], ["A", "D"],
+    ["B", "E"], ["B", "F"],
+    ["D", "G"], ["D", "H"], ["D", "I"]
+  ];
+
+  var REF_EDGES = [
+    { from: "A", to: "B", type: "child" },
+    { from: "B", to: "E", type: "child" },
+    { from: "D", to: "G", type: "child" },
+    { from: "B", to: "C", type: "sibling" },
+    { from: "C", to: "D", type: "sibling" },
+    { from: "E", to: "F", type: "sibling" },
+    { from: "G", to: "H", type: "sibling" },
+    { from: "H", to: "I", type: "sibling" }
+  ];
+
+  var POS_ORG = {
+    A: { x: 340, y: 58 },
+    B: { x: 160, y: 178 },
+    C: { x: 340, y: 178 },
+    D: { x: 520, y: 178 },
+    E: { x: 105, y: 308 },
+    F: { x: 215, y: 308 },
+    G: { x: 430, y: 308 },
+    H: { x: 520, y: 308 },
+    I: { x: 610, y: 308 }
+  };
+
+  var POS_BINARY = {
+    A: { x: 235, y: 52 },
+    B: { x: 145, y: 132 },
+    E: { x: 75,  y: 216 },
+    F: { x: 185, y: 272 },
+    C: { x: 280, y: 186 },
+    D: { x: 415, y: 242 },
+    G: { x: 335, y: 320 },
+    H: { x: 460, y: 340 },
+    I: { x: 585, y: 356 }
+  };
+
+  var POS_PRE = {
+    A: { x: 280, y: 52 },
+    B: { x: 135, y: 165 },
+    C: { x: 280, y: 165 },
+    D: { x: 425, y: 165 },
+    E: { x: 85,  y: 282 },
+    F: { x: 185, y: 282 },
+    G: { x: 350, y: 282 },
+    H: { x: 435, y: 282 },
+    I: { x: 520, y: 282 }
+  };
+
+  var NULL_BADGE_POS = {
+    A: { x: 506, y: 165 },
+    B: { x: 245, y: 336 },
+    C: { x: 280, y: 218 },
+    D: { x: 510, y: 336 },
+    E: { x: 85,  y: 336 },
+    F: { x: 185, y: 336 },
+    G: { x: 350, y: 336 },
+    H: { x: 435, y: 336 },
+    I: { x: 510, y: 336 }
+  };
+
+  var NULL_BADGE_POS_PHONE = {
+    A: { x: 486, y: 100 },
+    B: { x: 245, y: 336 },
+    C: { x: 280, y: 218 },
+    D: { x: 487, y: 336 },
+    E: { x: 85,  y: 336 },
+    F: { x: 185, y: 336 },
+    G: { x: 350, y: 336 },
+    H: { x: 435, y: 336 },
+    I: { x: 487, y: 336 }
+  };
+
+  function svgEl(tag, attrs, text) {
+    var el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    if (attrs) {
+      for (var k in attrs) {
+        if (Object.prototype.hasOwnProperty.call(attrs, k)) {
+          el.setAttribute(k, String(attrs[k]));
+        }
+      }
+    }
+    if (text !== undefined) {
+      el.textContent = text;
+    }
+    return el;
+  }
+
+  function addArrowDefs(svg, prefix) {
+    var defs = svgEl("defs");
+    function makeMarker(id, color, size) {
+      var m = svgEl("marker", {
+        id: id,
+        viewBox: "0 0 10 10",
+        refX: "8",
+        refY: "5",
+        markerWidth: size,
+        markerHeight: size,
+        orient: "auto-start-reverse"
+      });
+      m.appendChild(svgEl("path", { d: "M 0 1 L 9 5 L 0 9 z", fill: color }));
+      return m;
+    }
+    defs.appendChild(makeMarker(prefix + "-arrow-ink", COLORS.ink, 6));
+    defs.appendChild(makeMarker(prefix + "-arrow-muted", COLORS.muted, 5.5));
+    defs.appendChild(makeMarker(prefix + "-arrow-alert", COLORS.alert, 6.5));
+    svg.appendChild(defs);
+  }
+
+  function shortenedLine(p1, p2, r1, r2) {
+    var dx = p2.x - p1.x;
+    var dy = p2.y - p1.y;
+    var d = Math.hypot(dx, dy) || 1;
+    return {
+      x1: p1.x + (dx / d) * r1,
+      y1: p1.y + (dy / d) * r1,
+      x2: p2.x - (dx / d) * r2,
+      y2: p2.y - (dy / d) * r2,
+      mx: (p1.x + p2.x) / 2,
+      my: (p1.y + p2.y) / 2,
+      ux: dx / d,
+      uy: dy / d
+    };
+  }
+
+  function rectsOverlap(a, b) {
+    return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  }
+
+  function circleIntersectsRect(cx, cy, r, rect) {
+    var nearX = Math.max(rect.x, Math.min(cx, rect.x + rect.w));
+    var nearY = Math.max(rect.y, Math.min(cy, rect.y + rect.h));
+    var dx = cx - nearX;
+    var dy = cy - nearY;
+    return dx * dx + dy * dy < r * r;
+  }
+
+  /* =========================================================================
+     STEP NAVIGATION
+     ========================================================================= */
+  var tabWalk = document.getElementById("tab-walk");
+  var tabPre = document.getElementById("tab-preorder");
+  var panelWalk = document.getElementById("panel-walk");
+  var panelPre = document.getElementById("panel-preorder");
+
+  function switchStep(step) {
+    var isWalk = step === "walk";
+    if (!isWalk) {
+      preState.visited = true;
+      tabPre.classList.remove("cue");
+    }
+    tabWalk.setAttribute("aria-selected", isWalk ? "true" : "false");
+    tabPre.setAttribute("aria-selected", isWalk ? "false" : "true");
+    panelWalk.hidden = !isWalk;
+    panelPre.hidden = isWalk;
+  }
+
+  tabWalk.addEventListener("click", function () { switchStep("walk"); });
+  tabPre.addEventListener("click", function () { switchStep("preorder"); });
+
+  /* =========================================================================
+     STEP 1: WALK
+     ========================================================================= */
+  var TARGETS = ["G", "I", "F"];
+
+  var walkState = {
+    targetIndex: 0,
+    curr: "A",
+    route: ["A"],
+    walkedEdges: [],
+    previewHighlight: null,
+    cueDone: false,
+    statusTag: "Ready",
+    statusInfo: "You are at A.",
+    statusAction: "Click a reference in the node card to follow it.",
+    statusAlert: false,
+    deadEnd: false,
+    success: false,
+    allThreeDone: false,
+    completedTargets: {},
+    redrawSeen: false,
+    layoutMode: "org",
+    animProgress: 0,
+    animRaf: null
+  };
+
+  var walkSvg = document.getElementById("walk-svg");
+  var walkTask = document.getElementById("walk-task");
+  var walkStatusBox = document.getElementById("walk-status");
+  var walkStatusTag = document.getElementById("walk-status-tag");
+  var walkStatusInfo = document.getElementById("walk-status-info");
+  var walkStatusAction = document.getElementById("walk-status-action");
+  var recordHeader = document.getElementById("record-header");
+  var btnFirstChild = document.getElementById("btn-first-child");
+  var btnNextSibling = document.getElementById("btn-next-sibling");
+  var valFirstChild = document.getElementById("val-first-child");
+  var valNextSibling = document.getElementById("val-next-sibling");
+  var btnWalkReset = document.getElementById("btn-walk-reset");
+  var btnNextTarget = document.getElementById("btn-next-target");
+  var btnRedrawBinary = document.getElementById("btn-redraw-binary");
+  var walkRouteLine = document.getElementById("walk-route-line");
+
+  function canReach(from, target) {
+    if (from === target) return true;
+    var queue = [from];
+    var seen = {};
+    while (queue.length > 0) {
+      var u = queue.shift();
+      if (u === target) return true;
+      seen[u] = true;
+      var fc = TREE[u].firstChild;
+      var ns = TREE[u].nextSibling;
+      if (fc && !seen[fc]) queue.push(fc);
+      if (ns && !seen[ns]) queue.push(ns);
+    }
+    return false;
+  }
+
+  function currentTarget() {
+    return TARGETS[walkState.targetIndex];
+  }
+
+  function routeSymbols() {
+    var parts = ["A"];
+    for (var i = 0; i < walkState.walkedEdges.length; i++) {
+      var we = walkState.walkedEdges[i];
+      parts.push(we.kind === "firstChild" ? "\u2193" : "\u2192");
+      parts.push(we.to);
+    }
+    return parts.join(" ");
+  }
+
+  function readyStatusForCurrentTarget() {
+    var tgt = currentTarget();
+    if (walkState.targetIndex === 0 && Object.keys(walkState.completedTargets).length === 0) {
+      return {
+        info: "You are at A.",
+        action: "Click a reference in the node card to follow it."
+      };
+    }
+    return {
+      info: "Start at A.",
+      action: "Reach " + tgt + "."
+    };
+  }
+
+  function resetWalk(keepMode) {
+    if (!keepMode && walkState.animRaf) {
+      cancelAnimationFrame(walkState.animRaf);
+      walkState.animRaf = null;
+    }
+    var ready = readyStatusForCurrentTarget();
+    walkState.curr = "A";
+    walkState.route = ["A"];
+    walkState.walkedEdges = [];
+    walkState.previewHighlight = null;
+    walkState.deadEnd = false;
+    walkState.success = false;
+    walkState.statusTag = "Ready";
+    walkState.statusInfo = ready.info;
+    walkState.statusAction = ready.action;
+    walkState.statusAlert = false;
+    if (!keepMode) {
+      walkState.layoutMode = "org";
+      walkState.animProgress = 0;
+    }
+    renderWalk();
+  }
+
+  function makeDeadEndMessage(curr, target) {
+    var fc = TREE[curr].firstChild;
+    var ns = TREE[curr].nextSibling;
+    if (fc && ns) {
+      return "From " + curr + " you can only move to " + fc + " or " + ns + ". " + target + " is out of reach, and there is no way back up.";
+    }
+    if (fc) {
+      return "From " + curr + " you can only move to " + fc + ", because " + curr + " has no next sibling. " + target + " is out of reach, and there is no way back up.";
+    }
+    if (ns) {
+      return "From " + curr + " you can only move to " + ns + ", because " + curr + " has no first child. " + target + " is out of reach, and there is no way back up.";
+    }
+    return "From " + curr + " you cannot move at all, because " + curr + " has no first child and no next sibling. " + target + " is out of reach, and there is no way back up.";
+  }
+
+  function performWalkMove(kind) {
+    if (walkState.success || walkState.deadEnd) return;
+    var prev = walkState.curr;
+    var next = kind === "firstChild" ? TREE[prev].firstChild : TREE[prev].nextSibling;
+    if (!next) return;
+
+    walkState.cueDone = true;
+    walkState.curr = next;
+    walkState.route.push(next);
+    walkState.walkedEdges.push({ from: prev, to: next, kind: kind });
+    walkState.previewHighlight = null;
+
+    var tgt = currentTarget();
+    if (next === tgt) {
+      walkState.success = true;
+      walkState.deadEnd = false;
+      walkState.completedTargets[tgt] = true;
+      if (Object.keys(walkState.completedTargets).length === TARGETS.length) {
+        walkState.allThreeDone = true;
+        walkState.statusTag = "Complete";
+        walkState.statusInfo = "Reached " + tgt + ": " + routeSymbols() + ". You reached every node using only two references, and there is exactly one way to each.";
+        walkState.statusAction = "Press Redraw as a binary tree.";
+      } else {
+        walkState.statusTag = "Reached";
+        walkState.statusInfo = "Reached " + tgt + ": " + routeSymbols() + ".";
+        walkState.statusAction = "Press Next target.";
+      }
+      walkState.statusAlert = false;
+    } else if (!canReach(next, tgt)) {
+      walkState.deadEnd = true;
+      walkState.statusTag = "Dead end";
+      walkState.statusInfo = makeDeadEndMessage(next, tgt);
+      walkState.statusAction = "Press Reset to A.";
+      walkState.statusAlert = true;
+    } else {
+      walkState.deadEnd = false;
+      walkState.statusTag = "Moved";
+      walkState.statusInfo = kind === "firstChild"
+        ? "Moved to " + next + ": " + next + " is " + prev + "'s first child."
+        : "Moved to " + next + ": " + next + " is " + prev + "'s next sibling.";
+      walkState.statusAction = "";
+      walkState.statusAlert = false;
+    }
+    renderWalk();
+  }
+
+  function getInterpolatedWalkPositions() {
+    var t = walkState.animProgress;
+    var eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    var out = {};
+    for (var i = 0; i < NODES.length; i++) {
+      var id = NODES[i];
+      var p0 = POS_ORG[id];
+      var p1 = POS_BINARY[id];
+      out[id] = {
+        x: p0.x + (p1.x - p0.x) * eased,
+        y: p0.y + (p1.y - p0.y) * eased
+      };
+    }
+    return out;
+  }
+
+  function toggleBinaryRedraw() {
+    var targetProgress = walkState.layoutMode === "org" ? 1 : 0;
+    walkState.layoutMode = targetProgress === 1 ? "binary" : "org";
+    if (walkState.animRaf) cancelAnimationFrame(walkState.animRaf);
+    var startProgress = walkState.animProgress;
+    var startTime = null;
+    var duration = 650;
+
+    function stepAnim(ts) {
+      if (startTime === null) startTime = ts;
+      var elapsed = ts - startTime;
+      var frac = Math.min(1, elapsed / duration);
+      walkState.animProgress = startProgress + (targetProgress - startProgress) * frac;
+      drawWalkSvg();
+      if (frac < 1) {
+        walkState.animRaf = requestAnimationFrame(stepAnim);
+      } else {
+        walkState.animRaf = null;
+        walkState.animProgress = targetProgress;
+        drawWalkSvg();
+      }
+    }
+
+    if (walkState.layoutMode === "binary") {
+      walkState.redrawSeen = true;
+    }
+    walkState.statusTag = "View";
+    walkState.statusInfo = "Same nodes, same references. Only the drawing changed.";
+    walkState.statusAction = walkState.layoutMode === "binary" ? "Open Step 2: Pre-order at the top." : "";
+    walkState.statusAlert = false;
+    renderWalk();
+    walkState.animRaf = requestAnimationFrame(stepAnim);
+  }
+
+  function placePreviewLabel(seg, pos, labelW, targetNode, currNode, placedRects) {
+    var labelH = 16;
+    var nx = -seg.uy;
+    var ny = seg.ux;
+    var offsets = [
+      { ox: 0, oy: 0 },
+      { ox: nx * 16, oy: ny * 16 },
+      { ox: -nx * 16, oy: -ny * 16 },
+      { ox: nx * 24, oy: ny * 24 },
+      { ox: -nx * 24, oy: -ny * 24 },
+      { ox: nx * 32, oy: ny * 32 },
+      { ox: -nx * 32, oy: -ny * 32 },
+      { ox: nx * 40, oy: ny * 40 },
+      { ox: -nx * 40, oy: -ny * 40 },
+      { ox: nx * 20 - seg.ux * 16, oy: ny * 20 - seg.uy * 16 },
+      { ox: -nx * 20 - seg.ux * 16, oy: -ny * 20 - seg.uy * 16 },
+      { ox: nx * 40 - seg.ux * 22, oy: ny * 40 - seg.uy * 22 },
+      { ox: -nx * 40 - seg.ux * 22, oy: -ny * 40 - seg.uy * 22 }
+    ];
+    var tp = pos[targetNode];
+    var targetRect = { x: tp.x - 28, y: tp.y - 49, w: 56, h: 20 };
+    var cp = pos[currNode];
+    var currRect = { x: cp.x - 30, y: cp.y + 24, w: 60, h: 19 };
+
+    for (var i = 0; i < offsets.length; i++) {
+      var cx = Math.max(labelW / 2 + 6, Math.min(680 - labelW / 2 - 6, seg.mx + offsets[i].ox));
+      var cy = Math.max(labelH / 2 + 6, Math.min(390 - labelH / 2 - 6, seg.my + offsets[i].oy));
+      var rect = { x: cx - labelW / 2, y: cy - labelH / 2, w: labelW, h: labelH };
+      if (rectsOverlap(rect, targetRect) || rectsOverlap(rect, currRect)) continue;
+
+      var hitsPrev = false;
+      for (var p = 0; p < placedRects.length; p++) {
+        if (rectsOverlap(rect, placedRects[p])) {
+          hitsPrev = true;
+          break;
+        }
+      }
+      if (hitsPrev) continue;
+
+      var hitsNode = false;
+      for (var n = 0; n < NODES.length; n++) {
+        var id = NODES[n];
+        var np = pos[id];
+        var rad = id === targetNode ? 32 : 25;
+        if (circleIntersectsRect(np.x, np.y, rad, rect)) {
+          hitsNode = true;
+          break;
+        }
+      }
+      if (!hitsNode) {
+        return { x: cx, y: cy, rect: rect };
+      }
+    }
+    var fallbackRect = { x: seg.mx - labelW / 2, y: seg.my - labelH / 2, w: labelW, h: labelH };
+    return { x: seg.mx, y: seg.my, rect: fallbackRect };
+  }
+
+  function setPreviewHighlight(kind) {
+    if (walkState.previewHighlight === kind) return;
+    walkState.previewHighlight = kind;
+    drawWalkSvg();
+  }
+
+  function drawWalkSvg() {
+    walkSvg.innerHTML = "";
+    addArrowDefs(walkSvg, "walk");
+    var pos = getInterpolatedWalkPositions();
+    var targetNode = currentTarget();
+    var showBinaryEdges = walkState.animProgress > 0.5;
+
+    // 1. Base structural edges
+    var baseGroup = svgEl("g");
+    if (!showBinaryEdges) {
+      for (var i = 0; i < ORG_EDGES.length; i++) {
+        var e = ORG_EDGES[i];
+        var seg = shortenedLine(pos[e[0]], pos[e[1]], 23, 23);
+        baseGroup.appendChild(svgEl("line", {
+          x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2,
+          stroke: COLORS.muted, "stroke-width": "2"
+        }));
+      }
+    } else {
+      for (var j = 0; j < REF_EDGES.length; j++) {
+        var re = REF_EDGES[j];
+        var rseg = shortenedLine(pos[re.from], pos[re.to], 23, 25);
+        baseGroup.appendChild(svgEl("line", {
+          x1: rseg.x1, y1: rseg.y1, x2: rseg.x2, y2: rseg.y2,
+          stroke: re.type === "child" ? COLORS.ink : COLORS.muted,
+          "stroke-width": "2",
+          "stroke-dasharray": re.type === "sibling" ? "6,4" : "none",
+          "marker-end": re.type === "child" ? "url(#walk-arrow-ink)" : "url(#walk-arrow-muted)"
+        }));
+      }
+    }
+    walkSvg.appendChild(baseGroup);
+
+    // 2. Preview arrows from current node (hidden on success or dead end)
+    var previewGroup = svgEl("g");
+    if (!walkState.success && !walkState.deadEnd) {
+      var currNode = walkState.curr;
+      var previews = [];
+      if (TREE[currNode].firstChild) {
+        previews.push({ kind: "firstChild", to: TREE[currNode].firstChild, label: "firstChild", width: 76 });
+      }
+      if (TREE[currNode].nextSibling) {
+        previews.push({ kind: "nextSibling", to: TREE[currNode].nextSibling, label: "nextSibling", width: 84 });
+      }
+      var placedRects = [];
+      for (var p = 0; p < previews.length; p++) {
+        var pv = previews[p];
+        var isActivePreview = walkState.previewHighlight === pv.kind;
+        var pseg = shortenedLine(pos[currNode], pos[pv.to], 24, 27);
+        previewGroup.appendChild(svgEl("line", {
+          x1: pseg.x1, y1: pseg.y1, x2: pseg.x2, y2: pseg.y2,
+          stroke: isActivePreview ? COLORS.ink : COLORS.muted,
+          "stroke-width": isActivePreview ? "3.5" : "2",
+          "stroke-dasharray": "6,4",
+          "marker-end": isActivePreview ? "url(#walk-arrow-ink)" : "url(#walk-arrow-muted)"
+        }));
+        var lp = placePreviewLabel(pseg, pos, pv.width, targetNode, currNode, placedRects);
+        placedRects.push(lp.rect);
+        previewGroup.appendChild(svgEl("rect", {
+          x: lp.x - pv.width / 2, y: lp.y - 8,
+          width: pv.width, height: 16,
+          fill: COLORS.panel,
+          stroke: isActivePreview ? COLORS.ink : COLORS.muted,
+          "stroke-width": "2"
+        }));
+        previewGroup.appendChild(svgEl("text", {
+          x: lp.x, y: lp.y + 3.5,
+          "text-anchor": "middle",
+          "font-family": "ui-monospace, Consolas, monospace",
+          "font-size": "11",
+          "font-weight": "700",
+          fill: isActivePreview ? COLORS.ink : COLORS.muted
+        }, pv.label));
+      }
+    }
+    walkSvg.appendChild(previewGroup);
+
+    // 3. Walked route edges (thick alert arrow marks last move, drawn above previews)
+    var walkedGroup = svgEl("g");
+    for (var k = 0; k < walkState.walkedEdges.length; k++) {
+      var we = walkState.walkedEdges[k];
+      var isLast = k === walkState.walkedEdges.length - 1;
+      var wseg = shortenedLine(pos[we.from], pos[we.to], 24, 27);
+      walkedGroup.appendChild(svgEl("line", {
+        x1: wseg.x1, y1: wseg.y1, x2: wseg.x2, y2: wseg.y2,
+        stroke: isLast ? COLORS.alert : COLORS.ink,
+        "stroke-width": isLast ? "3.5" : "2.4",
+        "stroke-dasharray": isLast ? "none" : "6,4",
+        "marker-end": isLast ? "url(#walk-arrow-alert)" : "url(#walk-arrow-ink)"
+      }));
+    }
+    walkSvg.appendChild(walkedGroup);
+
+    // 4. Nodes
+    var visitedSet = {};
+    for (var v = 0; v < walkState.route.length; v++) {
+      visitedSet[walkState.route[v]] = true;
+    }
+
+    for (var n = 0; n < NODES.length; n++) {
+      var id = NODES[n];
+      var pt = pos[id];
+      var isCurr = id === walkState.curr;
+      var isTarget = id === targetNode;
+      var isVisited = Boolean(visitedSet[id]) && !isCurr;
+
+      var g = svgEl("g");
+
+      if (isTarget) {
+        g.appendChild(svgEl("circle", {
+          cx: pt.x, cy: pt.y, r: 29,
+          fill: "none", stroke: COLORS.ink, "stroke-width": "2.2", "stroke-dasharray": "6,4"
+        }));
+        g.appendChild(svgEl("rect", {
+          x: pt.x - 28, y: pt.y - 47, width: 56, height: 16,
+          fill: COLORS.panel, stroke: COLORS.ink, "stroke-width": "2"
+        }));
+        g.appendChild(svgEl("text", {
+          x: pt.x, y: pt.y - 35,
+          "text-anchor": "middle",
+          "font-family": "ui-monospace, Consolas, monospace",
+          "font-size": "11",
+          "font-weight": "700",
+          fill: COLORS.ink
+        }, "target"));
+      }
+
+      g.appendChild(svgEl("circle", {
+        cx: pt.x, cy: pt.y, r: 22,
+        fill: isCurr ? COLORS.ink : (isVisited ? COLORS.visited : COLORS.panel),
+        stroke: isVisited ? COLORS.muted : COLORS.ink,
+        "stroke-width": isTarget ? "3.5" : "2"
+      }));
+
+      g.appendChild(svgEl("text", {
+        x: pt.x, y: pt.y + 6,
+        "text-anchor": "middle",
+        "font-family": "ui-monospace, Consolas, monospace",
+        "font-size": "18",
+        "font-weight": "700",
+        fill: isCurr ? COLORS.page : COLORS.ink
+      }, id));
+
+      if (isCurr) {
+        g.appendChild(svgEl("rect", {
+          x: pt.x - 30, y: pt.y + 26, width: 60, height: 16,
+          fill: COLORS.ink
+        }));
+        g.appendChild(svgEl("text", {
+          x: pt.x, y: pt.y + 38,
+          "text-anchor": "middle",
+          "font-family": "ui-monospace, Consolas, monospace",
+          "font-size": "11",
+          "font-weight": "700",
+          fill: COLORS.page
+        }, "current"));
+      }
+
+      walkSvg.appendChild(g);
+    }
+  }
+
+  function renderWalk() {
+    var activeEl = document.activeElement;
+    var tgt = currentTarget();
+    var curr = walkState.curr;
+    var fc = TREE[curr].firstChild;
+    var ns = TREE[curr].nextSibling;
+
+    walkTask.textContent = walkState.allThreeDone
+      ? "All 3 targets reached."
+      : "Target " + (walkState.targetIndex + 1) + " of " + TARGETS.length + ": reach " + tgt + " using only the two references.";
+
+    walkStatusTag.textContent = walkState.statusTag;
+    walkStatusInfo.textContent = walkState.statusInfo;
+    walkStatusInfo.hidden = walkState.statusInfo === "";
+    walkStatusAction.textContent = walkState.statusAction;
+    walkStatusAction.hidden = walkState.statusAction === "";
+    walkStatusBox.classList.toggle("is-alert", walkState.statusAlert);
+    tabPre.classList.toggle("cue", walkState.redrawSeen && !preState.visited);
+
+    recordHeader.textContent = "You are at " + curr;
+    valFirstChild.textContent = fc || "null";
+    valNextSibling.textContent = ns || "null";
+
+    btnFirstChild.disabled = walkState.success || walkState.deadEnd || fc === null;
+    btnNextSibling.disabled = walkState.success || walkState.deadEnd || ns === null;
+    btnFirstChild.classList.toggle("cue", !walkState.cueDone && !btnFirstChild.disabled);
+    btnNextSibling.classList.toggle("cue", !walkState.cueDone && !btnNextSibling.disabled);
+    btnFirstChild.setAttribute("aria-label", fc ? "Follow firstChild to " + fc : "firstChild is null");
+    btnNextSibling.setAttribute("aria-label", ns ? "Follow nextSibling to " + ns : "nextSibling is null");
+
+    walkRouteLine.textContent = "Route: " + routeSymbols();
+
+    btnWalkReset.classList.toggle("dead-end-reset", walkState.deadEnd);
+    btnWalkReset.textContent = walkState.deadEnd ? "Reset to A" : "Reset";
+
+    var nextIdx = (walkState.targetIndex + 1) % TARGETS.length;
+    var nextTgt = TARGETS[nextIdx];
+    btnNextTarget.hidden = !walkState.success;
+    if (walkState.allThreeDone) {
+      btnNextTarget.className = "";
+      btnNextTarget.textContent = "Practice again (" + nextTgt + ")";
+    } else {
+      btnNextTarget.className = "primary";
+      btnNextTarget.textContent = "Next target (" + nextTgt + ")";
+    }
+
+    btnRedrawBinary.hidden = !walkState.allThreeDone;
+    btnRedrawBinary.textContent = walkState.layoutMode === "org"
+      ? "Redraw as a binary tree"
+      : "Redraw as an org chart";
+
+    drawWalkSvg();
+
+    if ((activeEl === btnFirstChild && btnFirstChild.disabled) ||
+        (activeEl === btnNextSibling && btnNextSibling.disabled)) {
+      if (activeEl === btnFirstChild && !btnNextSibling.disabled) {
+        btnNextSibling.focus();
+      } else if (activeEl === btnNextSibling && !btnFirstChild.disabled) {
+        btnFirstChild.focus();
+      } else if (!btnNextTarget.hidden) {
+        btnNextTarget.focus();
+      } else {
+        btnWalkReset.focus();
+      }
+    }
+  }
+
+  btnFirstChild.addEventListener("click", function () { performWalkMove("firstChild"); });
+  btnNextSibling.addEventListener("click", function () { performWalkMove("nextSibling"); });
+  btnFirstChild.addEventListener("mouseenter", function () { setPreviewHighlight("firstChild"); });
+  btnFirstChild.addEventListener("mouseleave", function () { setPreviewHighlight(null); });
+  btnFirstChild.addEventListener("focus", function () { setPreviewHighlight("firstChild"); });
+  btnFirstChild.addEventListener("blur", function () { setPreviewHighlight(null); });
+  btnNextSibling.addEventListener("mouseenter", function () { setPreviewHighlight("nextSibling"); });
+  btnNextSibling.addEventListener("mouseleave", function () { setPreviewHighlight(null); });
+  btnNextSibling.addEventListener("focus", function () { setPreviewHighlight("nextSibling"); });
+  btnNextSibling.addEventListener("blur", function () { setPreviewHighlight(null); });
+  btnWalkReset.addEventListener("click", function () { resetWalk(true); });
+  btnNextTarget.addEventListener("click", function () {
+    if (walkState.allThreeDone) {
+      walkState.targetIndex = 0;
+      walkState.completedTargets = {};
+      walkState.allThreeDone = false;
+      walkState.redrawSeen = false;
+      resetWalk(false);
+    } else {
+      walkState.targetIndex = (walkState.targetIndex + 1) % TARGETS.length;
+      resetWalk(true);
+    }
+  });
+  btnRedrawBinary.addEventListener("click", toggleBinaryRedraw);
+
+  /* =========================================================================
+     STEP 2: PRE-ORDER
+     ========================================================================= */
+  var RULE_BY_POSITION = [
+    "Position 1: traversal begins at the root, so visit(A) prints A first.",
+    "Position 2: after visiting A, getLeftChild() goes to A's first child B.",
+    "Position 3: after visiting B you go to B's first child E before moving to C.",
+    "Position 4: E has no children, so getRightSibling() visits E's next sibling F before finishing B.",
+    "Position 5: after finishing B's subtree (E and F), the loop in A moves to B's next sibling C.",
+    "Position 6: C has no children, so the loop in A moves to C's next sibling D.",
+    "Position 7: after visiting D, getLeftChild() goes to D's first child G before any next sibling.",
+    "Position 8: G has no children, so getRightSibling() moves to G's next sibling H.",
+    "Position 9: H has no children, so getRightSibling() moves to H's next sibling I."
+  ];
+
+  function buildPreorderTrace() {
+    var trace = [];
+    var printed = [];
+    var stack = [];
+
+    function sim(node, caller) {
+      stack.push("preorder(" + node + ")");
+      printed.push(node);
+      trace.push({
+        line: 2,
+        n: node,
+        child: undefined,
+        caller: caller,
+        stack: stack.slice(),
+        printed: printed.slice(),
+        justPrinted: node,
+        statusTag: "Visit",
+        statusText: node === "A"
+          ? "visit(A): A is printed first."
+          : "visit(" + node + "): " + node + " is printed before its children."
+      });
+
+      var child = TREE[node].firstChild;
+      trace.push({
+        line: 3,
+        n: node,
+        child: child,
+        caller: caller,
+        stack: stack.slice(),
+        printed: printed.slice(),
+        justPrinted: null,
+        statusTag: "Child",
+        statusText: child
+          ? "child = " + child + ": " + child + " is " + node + "'s first child."
+          : "child = null: " + node + " has no first child."
+      });
+
+      while (true) {
+        trace.push({
+          line: 4,
+          n: node,
+          child: child,
+          caller: caller,
+          stack: stack.slice(),
+          printed: printed.slice(),
+          justPrinted: null,
+          statusTag: "Check",
+          statusText: child
+            ? "child = " + child + ", not null, so call preorder(" + child + ")."
+            : (caller
+              ? "child is null: no more siblings in preorder(" + node + "), return to preorder(" + caller + ")."
+              : "child is null: no more siblings, preorder(A) finishes.")
+        });
+
+        if (child === null) {
+          break;
+        }
+
+        trace.push({
+          line: 5,
+          n: node,
+          child: child,
+          caller: caller,
+          stack: stack.slice(),
+          printed: printed.slice(),
+          justPrinted: null,
+          statusTag: "Call",
+          statusText: "Calling preorder(" + child + ")."
+        });
+
+        sim(child, node);
+
+        var prevChild = child;
+        child = TREE[prevChild].nextSibling;
+        trace.push({
+          line: 6,
+          n: node,
+          child: child,
+          caller: caller,
+          stack: stack.slice(),
+          printed: printed.slice(),
+          justPrinted: null,
+          statusTag: "Sibling",
+          statusText: child
+            ? "Back in preorder(" + node + "): continuing its loop with child = " + child + " (" + prevChild + "'s next sibling)."
+            : "Back in preorder(" + node + "): " + prevChild + " has no next sibling, so child = null."
+        });
+      }
+
+      stack.pop();
+    }
+
+    sim("A", null);
+    return trace;
+  }
+
+  var PREORDER_TRACE = buildPreorderTrace();
+  var EXPECTED_ORDER = PREORDER_TRACE[PREORDER_TRACE.length - 1].printed.slice();
+
+  var preState = {
+    phase: "predict", // "predict" | "run" | "reveal" | "replay"
+    prediction: [],
+    traceIdx: -1,
+    replayTimer: null,
+    cueDone: false,
+    visited: false,
+    statusTag: "Predict",
+    statusInfo: "",
+    statusAction: "Read the code, then click the 9 nodes in the order it prints them.",
+    statusAlert: false
+  };
+
+  var preSvg = document.getElementById("pre-svg");
+  var nodePickerRow = document.getElementById("node-picker-row");
+  var stackBox = document.getElementById("stack-box");
+  var namingTrap = document.getElementById("naming-trap");
+  var preStatusBox = document.getElementById("pre-status");
+  var preStatusTag = document.getElementById("pre-status-tag");
+  var preStatusInfo = document.getElementById("pre-status-info");
+  var preStatusAction = document.getElementById("pre-status-action");
+  var callStackList = document.getElementById("call-stack-list");
+  var preControlsBar = document.getElementById("pre-controls-bar");
+  var btnPredUndo = document.getElementById("btn-pred-undo");
+  var btnPredLock = document.getElementById("btn-pred-lock");
+  var btnRunNextPrint = document.getElementById("btn-run-next-print");
+  var btnRunStep = document.getElementById("btn-run-step");
+  var predictionSlots = document.getElementById("prediction-slots");
+  var printedRow = document.getElementById("printed-row");
+  var printedSlots = document.getElementById("printed-slots");
+  var revealBox = document.getElementById("reveal-box");
+  var revealMsg = document.getElementById("reveal-msg");
+  var btnShowMismatch = document.getElementById("btn-show-mismatch");
+  var btnTryAgain = document.getElementById("btn-try-again");
+  var codeLineEls = document.querySelectorAll(".code-line");
+
+  var preSvgNodes = {};
+  var preSvgEdges = [];
+  var preSvgNullLayer = null;
+  var pickerButtons = {};
+
+  function initPreorderDom() {
+    preSvg.innerHTML = "";
+    preSvgEdges = [];
+    addArrowDefs(preSvg, "pre");
+
+    var edgeLayer = svgEl("g");
+    for (var i = 0; i < REF_EDGES.length; i++) {
+      var re = REF_EDGES[i];
+      var seg = shortenedLine(POS_PRE[re.from], POS_PRE[re.to], 23, 25);
+      var edgeLine = svgEl("line", {
+        x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2,
+        stroke: re.type === "child" ? COLORS.ink : COLORS.muted,
+        "stroke-width": "2",
+        "stroke-dasharray": re.type === "sibling" ? "6,4" : "none",
+        "marker-end": re.type === "child" ? "url(#pre-arrow-ink)" : "url(#pre-arrow-muted)"
+      });
+      edgeLayer.appendChild(edgeLine);
+      preSvgEdges.push({ line: edgeLine, from: re.from, to: re.to });
+    }
+    preSvg.appendChild(edgeLayer);
+
+    var nodesLayer = svgEl("g");
+    for (var n = 0; n < NODES.length; n++) {
+      (function (id) {
+        var pt = POS_PRE[id];
+        var g = svgEl("g", {
+          class: "svg-node-btn",
+          "data-node": id,
+          role: "button",
+          tabindex: "0",
+          "aria-label": "Node " + id + ", click to add to prediction"
+        });
+        g.addEventListener("click", function () { clickPredictNode(id); });
+        g.addEventListener("keydown", function (ev) {
+          if (ev.key === "Enter" || ev.key === " ") {
+            ev.preventDefault();
+            clickPredictNode(id);
+          }
+        });
+
+        var hitCircle = svgEl("circle", { cx: pt.x, cy: pt.y, r: 26, fill: "transparent" });
+        g.appendChild(hitCircle);
+
+        var cueRing = svgEl("circle", {
+          cx: pt.x, cy: pt.y, r: 26,
+          fill: "none", stroke: COLORS.action, "stroke-width": "2",
+          class: "svg-cue-ring",
+          display: "none"
+        });
+        g.appendChild(cueRing);
+
+        var hoverRing = svgEl("circle", {
+          cx: pt.x, cy: pt.y, r: 26,
+          fill: "none", stroke: COLORS.action, "stroke-width": "2",
+          class: "svg-hover-ring"
+        });
+        g.appendChild(hoverRing);
+
+        var childRing = svgEl("circle", {
+          cx: pt.x, cy: pt.y, r: 27,
+          fill: "none", stroke: COLORS.alert, "stroke-width": "3.5", "stroke-dasharray": "6,4",
+          display: "none"
+        });
+        g.appendChild(childRing);
+
+        var childRect = svgEl("rect", {
+          x: pt.x - 24, y: pt.y + 27, width: 48, height: 16,
+          fill: COLORS.panel, stroke: COLORS.alert, "stroke-width": "2",
+          display: "none"
+        });
+        g.appendChild(childRect);
+
+        var childText = svgEl("text", {
+          x: pt.x, y: pt.y + 39,
+          "text-anchor": "middle",
+          "font-family": "ui-monospace, Consolas, monospace",
+          "font-size": "11",
+          "font-weight": "700",
+          fill: COLORS.alert,
+          display: "none"
+        }, "child");
+        g.appendChild(childText);
+
+        var mainCircle = svgEl("circle", {
+          cx: pt.x, cy: pt.y, r: 21,
+          fill: COLORS.panel, stroke: COLORS.ink, "stroke-width": "2"
+        });
+        g.appendChild(mainCircle);
+
+        var letterText = svgEl("text", {
+          x: pt.x, y: pt.y + 6,
+          "text-anchor": "middle",
+          "font-family": "ui-monospace, Consolas, monospace",
+          "font-size": "17",
+          "font-weight": "700",
+          fill: COLORS.ink
+        }, id);
+        g.appendChild(letterText);
+
+        var nRect = svgEl("rect", {
+          x: pt.x - 13, y: pt.y - 39, width: 26, height: 15,
+          fill: COLORS.ink,
+          display: "none"
+        });
+        g.appendChild(nRect);
+
+        var nText = svgEl("text", {
+          x: pt.x, y: pt.y - 28,
+          "text-anchor": "middle",
+          "font-family": "ui-monospace, Consolas, monospace",
+          "font-size": "11",
+          "font-weight": "700",
+          fill: COLORS.page,
+          display: "none"
+        }, "n");
+        g.appendChild(nText);
+
+        var posRect = svgEl("rect", {
+          x: pt.x - 36, y: pt.y - 23, width: 19, height: 17,
+          fill: COLORS.panel, stroke: COLORS.ink, "stroke-width": "2",
+          display: "none"
+        });
+        g.appendChild(posRect);
+
+        var posText = svgEl("text", {
+          x: pt.x - 26.5, y: pt.y - 10.5,
+          "text-anchor": "middle",
+          "font-family": "ui-monospace, Consolas, monospace",
+          "font-size": "11",
+          "font-weight": "700",
+          fill: COLORS.ink,
+          display: "none"
+        }, "");
+        g.appendChild(posText);
+
+        nodesLayer.appendChild(g);
+        preSvgNodes[id] = {
+          g: g,
+          hitCircle: hitCircle,
+          cueRing: cueRing,
+          hoverRing: hoverRing,
+          childRing: childRing,
+          childRect: childRect,
+          childText: childText,
+          mainCircle: mainCircle,
+          letterText: letterText,
+          nRect: nRect,
+          nText: nText,
+          posRect: posRect,
+          posText: posText
+        };
+      })(NODES[n]);
+    }
+    preSvg.appendChild(nodesLayer);
+
+    preSvgNullLayer = svgEl("g");
+    var nullRect = svgEl("rect", {
+      x: 0, y: 0, width: 92, height: 19,
+      fill: COLORS.panel, stroke: COLORS.alert, "stroke-width": "2"
+    });
+    var nullText = svgEl("text", {
+      x: 46, y: 13,
+      "text-anchor": "middle",
+      "font-family": "ui-monospace, Consolas, monospace",
+      "font-size": "11",
+      "font-weight": "700",
+      fill: COLORS.alert
+    }, "child = null");
+    preSvgNullLayer.appendChild(nullRect);
+    preSvgNullLayer.appendChild(nullText);
+    preSvgNullLayer.setAttribute("display", "none");
+    preSvg.appendChild(preSvgNullLayer);
+    applyPreorderResponsiveLayout();
+
+    nodePickerRow.innerHTML = "";
+    for (var b = 0; b < NODES.length; b++) {
+      (function (id) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "node-picker-btn";
+        btn.setAttribute("data-node", id);
+
+        var lbl = document.createElement("span");
+        lbl.textContent = id;
+        var posBadge = document.createElement("span");
+        posBadge.className = "picker-pos";
+        posBadge.hidden = true;
+
+        btn.appendChild(lbl);
+        btn.appendChild(posBadge);
+        btn.addEventListener("click", function () { clickPredictNode(id); });
+
+        nodePickerRow.appendChild(btn);
+        pickerButtons[id] = { btn: btn, posBadge: posBadge };
+      })(NODES[b]);
+    }
+  }
+
+  function stopReplayTimer() {
+    if (preState.replayTimer) {
+      clearInterval(preState.replayTimer);
+      preState.replayTimer = null;
+    }
+  }
+
+  function resetPreorder(focusFirstNode) {
+    stopReplayTimer();
+    preState.phase = "predict";
+    preState.prediction = [];
+    preState.traceIdx = -1;
+    preState.statusTag = "Predict";
+    preState.statusInfo = "";
+    preState.statusAction = "Read the code, then click the 9 nodes in the order it prints them.";
+    preState.statusAlert = false;
+    btnRunNextPrint.textContent = "Jump to next print";
+    renderPreorder();
+    if (focusFirstNode && preSvgNodes.A) {
+      var pickerVisible = window.getComputedStyle(nodePickerRow).display !== "none";
+      if (pickerVisible && pickerButtons.A) {
+        pickerButtons.A.btn.focus();
+      } else {
+        preSvgNodes.A.g.focus();
+      }
+    }
+  }
+
+  function clickPredictNode(letter) {
+    if (preState.phase !== "predict") return;
+    var existingIdx = preState.prediction.indexOf(letter);
+    if (existingIdx !== -1) {
+      preState.statusTag = "Predict";
+      preState.statusInfo = letter + " is already at position " + (existingIdx + 1) + ".";
+      preState.statusAction = "Click an unchosen node.";
+      preState.statusAlert = false;
+      renderPreorder();
+      return;
+    }
+    if (preState.prediction.length >= 9) return;
+    preState.cueDone = true;
+    preState.prediction.push(letter);
+    var count = preState.prediction.length;
+    preState.statusTag = "Predict";
+    if (count < 9) {
+      preState.statusInfo = "Chose " + letter + " (" + count + " of 9).";
+      preState.statusAction = "Click " + (9 - count) + " more.";
+    } else {
+      preState.statusInfo = "All 9 chosen.";
+      preState.statusAction = "Press Lock in.";
+    }
+    preState.statusAlert = false;
+    renderPreorder();
+  }
+
+  function undoPredict() {
+    if (preState.phase !== "predict" || preState.prediction.length === 0) return;
+    var removed = preState.prediction.pop();
+    preState.statusTag = "Predict";
+    preState.statusInfo = "Removed " + removed + ".";
+    preState.statusAction = "Click " + (9 - preState.prediction.length) + " more.";
+    preState.statusAlert = false;
+    renderPreorder();
+  }
+
+  function lockInPrediction() {
+    if (preState.phase !== "predict" || preState.prediction.length !== 9) return;
+    preState.phase = "run";
+    preState.traceIdx = -1;
+    preState.statusTag = "Locked";
+    preState.statusInfo = "Locked in.";
+    preState.statusAction = "Press Jump to next print to see what prints first, or Step one line to follow the code.";
+    preState.statusAlert = false;
+    renderPreorder();
+    btnRunNextPrint.focus();
+  }
+
+  function stepPreorder() {
+    if (preState.phase !== "run") return;
+    if (preState.traceIdx < PREORDER_TRACE.length - 1) {
+      preState.traceIdx += 1;
+      var frame = PREORDER_TRACE[preState.traceIdx];
+      preState.statusTag = frame.statusTag;
+      preState.statusInfo = frame.statusText;
+      preState.statusAction = frame.printed.length === 9 ? "Press Finish and compare." : "";
+      preState.statusAlert = false;
+
+      if (preState.traceIdx === PREORDER_TRACE.length - 1) {
+        preState.phase = "reveal";
+      }
+      renderPreorder();
+    }
+  }
+
+  function nextPrintPreorder() {
+    if (preState.phase !== "run") return;
+
+    var nextVisitIdx = -1;
+    for (var i = preState.traceIdx + 1; i < PREORDER_TRACE.length; i++) {
+      if (PREORDER_TRACE[i].line === 2) {
+        nextVisitIdx = i;
+        break;
+      }
+    }
+
+    if (nextVisitIdx === -1) {
+      preState.traceIdx = PREORDER_TRACE.length - 1;
+      preState.phase = "reveal";
+      renderPreorder();
+      return;
+    }
+
+    var prevIdx = preState.traceIdx;
+    preState.traceIdx = nextVisitIdx;
+    var frame = PREORDER_TRACE[nextVisitIdx];
+    var node = frame.n;
+    preState.statusTag = "Print";
+    if (node === "A") {
+      preState.statusInfo = "Called preorder(A): visit(A) prints A first.";
+    } else if (prevIdx >= 0 && PREORDER_TRACE[prevIdx].n === frame.caller && PREORDER_TRACE[prevIdx].line === 5) {
+      preState.statusInfo = "Called preorder(" + node + "): visit(" + node + ") prints " + node + " before its children.";
+    } else if (frame.caller && TREE[frame.caller].firstChild === node) {
+      preState.statusInfo = "Called preorder(" + node + "): visit(" + node + ") prints " + node + " before its children.";
+    } else {
+      preState.statusInfo = "Returned to preorder(" + frame.caller + "), called preorder(" + node + "): visit(" + node + ") prints " + node + " before its children.";
+    }
+    preState.statusAction = frame.printed.length === 9 ? "Press Finish and compare." : "";
+    preState.statusAlert = false;
+    renderPreorder();
+  }
+
+  function firstDiffIndex(pred, actual) {
+    for (var i = 0; i < actual.length; i++) {
+      if (pred[i] !== actual[i]) return i;
+    }
+    return -1;
+  }
+
+  function diagnosePattern(pred) {
+    var s = pred.join(" ");
+    if (s === "A B C D E F G H I") {
+      return "That is level by level. Pre-order goes all the way down before moving across.";
+    }
+    if (s === "E F B C G H I D A") {
+      return "That is post-order. Here each node prints before its children, not after.";
+    }
+    return "";
+  }
+
+  function toggleMismatchReplay() {
+    var diffIdx = firstDiffIndex(preState.prediction, EXPECTED_ORDER);
+    if (diffIdx === -1) return;
+
+    if (preState.phase === "replay") {
+      stopReplayTimer();
+      preState.phase = "reveal";
+      preState.traceIdx = PREORDER_TRACE.length - 1;
+      renderPreorder();
+      return;
+    }
+
+    if (preState.phase !== "reveal") return;
+    var targetLetter = EXPECTED_ORDER[diffIdx];
+    var targetFrameIdx = -1;
+    for (var i = 0; i < PREORDER_TRACE.length; i++) {
+      if (PREORDER_TRACE[i].line === 2 && PREORDER_TRACE[i].justPrinted === targetLetter) {
+        targetFrameIdx = i;
+        break;
+      }
+    }
+    if (targetFrameIdx === -1) return;
+
+    stopReplayTimer();
+    preState.phase = "replay";
+    preState.traceIdx = 0;
+    preState.statusTag = "Replay " + (diffIdx + 1);
+    preState.statusInfo = targetFrameIdx === 0
+      ? "Paused at position 1 where A prints: " + RULE_BY_POSITION[0]
+      : "Replaying from start to position " + (diffIdx + 1) + "...";
+    preState.statusAction = "";
+    preState.statusAlert = true;
+    renderPreorder();
+
+    if (targetFrameIdx > 0) {
+      preState.replayTimer = setInterval(function () {
+        if (preState.phase !== "replay") {
+          stopReplayTimer();
+          return;
+        }
+        if (preState.traceIdx < targetFrameIdx) {
+          preState.traceIdx += 1;
+          var rf = PREORDER_TRACE[preState.traceIdx];
+          if (preState.traceIdx === targetFrameIdx) {
+            stopReplayTimer();
+            preState.statusInfo = "Paused at position " + (diffIdx + 1) + " where " + targetLetter + " prints: " + RULE_BY_POSITION[diffIdx];
+          } else {
+            preState.statusInfo = "Replaying (" + rf.statusText + ")";
+          }
+          renderPreorder();
+        } else {
+          stopReplayTimer();
+        }
+      }, 75);
+    }
+  }
+
+  var phoneQuery = window.matchMedia("(max-width: 520px)");
+
+  function applyPreorderResponsiveLayout() {
+    var isPhone = phoneQuery.matches;
+    preSvg.setAttribute("viewBox", "0 0 560 360");
+
+    var rStart = isPhone ? 29 : 23;
+    var rEnd = isPhone ? 31 : 25;
+    for (var e = 0; e < preSvgEdges.length; e++) {
+      var ed = preSvgEdges[e];
+      var seg = shortenedLine(POS_PRE[ed.from], POS_PRE[ed.to], rStart, rEnd);
+      ed.line.setAttribute("x1", String(seg.x1));
+      ed.line.setAttribute("y1", String(seg.y1));
+      ed.line.setAttribute("x2", String(seg.x2));
+      ed.line.setAttribute("y2", String(seg.y2));
+    }
+
+    for (var j = 0; j < NODES.length; j++) {
+      var nid = NODES[j];
+      var pt = POS_PRE[nid];
+      var ui = preSvgNodes[nid];
+      if (!ui) continue;
+      if (isPhone) {
+        ui.mainCircle.setAttribute("r", "27");
+        ui.hitCircle.setAttribute("r", "32");
+        ui.cueRing.setAttribute("r", "32");
+        ui.hoverRing.setAttribute("r", "32");
+        ui.childRing.setAttribute("r", "33");
+        ui.letterText.setAttribute("font-size", "24");
+        ui.letterText.setAttribute("y", String(pt.y + 8));
+
+        ui.posRect.setAttribute("x", String(pt.x - 47));
+        ui.posRect.setAttribute("y", String(pt.y - 49));
+        ui.posRect.setAttribute("width", "26");
+        ui.posRect.setAttribute("height", "24");
+        ui.posText.setAttribute("x", String(pt.x - 34));
+        ui.posText.setAttribute("y", String(pt.y - 31));
+        ui.posText.setAttribute("font-size", "18");
+
+        var nShiftX = nid === "E" ? -5 : 0;
+        ui.nRect.setAttribute("x", String(pt.x - 13 + nShiftX));
+        ui.nRect.setAttribute("y", String(pt.y - 51));
+        ui.nRect.setAttribute("width", "26");
+        ui.nRect.setAttribute("height", "22");
+        ui.nText.setAttribute("x", String(pt.x + nShiftX));
+        ui.nText.setAttribute("y", String(pt.y - 34));
+        ui.nText.setAttribute("font-size", "18");
+
+        ui.childRect.setAttribute("x", String(pt.x - 35));
+        ui.childRect.setAttribute("y", String(pt.y + 34));
+        ui.childRect.setAttribute("width", "70");
+        ui.childRect.setAttribute("height", "24");
+        ui.childText.setAttribute("y", String(pt.y + 52));
+        ui.childText.setAttribute("font-size", "18");
+      } else {
+        ui.mainCircle.setAttribute("r", "21");
+        ui.hitCircle.setAttribute("r", "26");
+        ui.cueRing.setAttribute("r", "26");
+        ui.hoverRing.setAttribute("r", "26");
+        ui.childRing.setAttribute("r", "27");
+        ui.letterText.setAttribute("font-size", "17");
+        ui.letterText.setAttribute("y", String(pt.y + 6));
+
+        ui.posRect.setAttribute("x", String(pt.x - 36));
+        ui.posRect.setAttribute("y", String(pt.y - 23));
+        ui.posRect.setAttribute("width", "19");
+        ui.posRect.setAttribute("height", "17");
+        ui.posText.setAttribute("x", String(pt.x - 26.5));
+        ui.posText.setAttribute("y", String(pt.y - 10.5));
+        ui.posText.setAttribute("font-size", "11");
+
+        ui.nRect.setAttribute("x", String(pt.x - 13));
+        ui.nRect.setAttribute("y", String(pt.y - 39));
+        ui.nRect.setAttribute("width", "26");
+        ui.nRect.setAttribute("height", "15");
+        ui.nText.setAttribute("x", String(pt.x));
+        ui.nText.setAttribute("y", String(pt.y - 28));
+        ui.nText.setAttribute("font-size", "11");
+
+        ui.childRect.setAttribute("x", String(pt.x - 24));
+        ui.childRect.setAttribute("y", String(pt.y + 27));
+        ui.childRect.setAttribute("width", "48");
+        ui.childRect.setAttribute("height", "16");
+        ui.childText.setAttribute("y", String(pt.y + 39));
+        ui.childText.setAttribute("font-size", "11");
+      }
+    }
+
+    if (preSvgNullLayer) {
+      var frame = preState.traceIdx >= 0 ? PREORDER_TRACE[preState.traceIdx] : null;
+      updatePreorderNullBadge(frame);
+    }
+  }
+
+  function updatePreorderNullBadge(frame) {
+    var isReveal = preState.phase === "reveal";
+    if (!isReveal && frame && frame.child === null && (frame.line === 3 || frame.line === 4 || frame.line === 6)) {
+      var isPhone = phoneQuery.matches;
+      var bPos = (isPhone ? NULL_BADGE_POS_PHONE : NULL_BADGE_POS)[frame.n];
+      var nullW = isPhone ? 138 : 92;
+      var nullH = isPhone ? 24 : 19;
+      var rect = preSvgNullLayer.childNodes[0];
+      var txt = preSvgNullLayer.childNodes[1];
+      rect.setAttribute("x", String(bPos.x - nullW / 2));
+      rect.setAttribute("y", String(bPos.y - nullH / 2));
+      rect.setAttribute("width", String(nullW));
+      rect.setAttribute("height", String(nullH));
+      txt.setAttribute("x", String(bPos.x));
+      txt.setAttribute("y", String(bPos.y + (isPhone ? 5.5 : 3.5)));
+      txt.setAttribute("font-size", isPhone ? "17" : "11");
+      preSvgNullLayer.setAttribute("display", "inline");
+    } else {
+      preSvgNullLayer.setAttribute("display", "none");
+    }
+  }
+
+  function updatePreorderSvg(frame) {
+    var printedSet = {};
+    if (frame) {
+      for (var p = 0; p < frame.printed.length; p++) {
+        printedSet[frame.printed[p]] = true;
+      }
+    }
+
+    var isPredict = preState.phase === "predict";
+    var isReveal = preState.phase === "reveal";
+
+    for (var n = 0; n < NODES.length; n++) {
+      var id = NODES[n];
+      var ui = preSvgNodes[id];
+      var predPos = preState.prediction.indexOf(id);
+      var isCurrN = !isReveal && frame && frame.n === id;
+      var isCurrChild = !isReveal && frame && frame.child === id;
+      var isPrinted = Boolean(printedSet[id]);
+      var isUnchosen = isPredict && predPos === -1;
+
+      ui.g.setAttribute("class", "svg-node-btn" + (isUnchosen ? " is-unchosen" : ""));
+      ui.cueRing.setAttribute("display", (!preState.cueDone && isUnchosen) ? "inline" : "none");
+      if (isPredict) {
+        ui.g.setAttribute("role", "button");
+        ui.g.setAttribute("tabindex", "0");
+        ui.g.setAttribute("aria-label", "Node " + id + (predPos !== -1 ? ", chosen at position " + (predPos + 1) : ", click to add to prediction"));
+      } else {
+        ui.g.removeAttribute("role");
+        ui.g.removeAttribute("tabindex");
+        ui.g.removeAttribute("aria-label");
+      }
+
+      var showChild = isCurrChild ? "inline" : "none";
+      ui.childRing.setAttribute("display", showChild);
+      ui.childRect.setAttribute("display", showChild);
+      ui.childText.setAttribute("display", showChild);
+
+      var isDoneFill = !isCurrN && (isPrinted || (isPredict && predPos !== -1));
+      var fillColor = COLORS.panel;
+      if (isCurrN) {
+        fillColor = COLORS.ink;
+      } else if (isDoneFill) {
+        fillColor = COLORS.visited;
+      }
+      ui.mainCircle.setAttribute("fill", fillColor);
+      ui.mainCircle.setAttribute("stroke", isDoneFill ? COLORS.muted : COLORS.ink);
+      ui.mainCircle.setAttribute("stroke-width", isCurrN ? "3" : "2");
+      ui.letterText.setAttribute("fill", isCurrN ? COLORS.page : COLORS.ink);
+
+      var showN = isCurrN ? "inline" : "none";
+      ui.nRect.setAttribute("display", showN);
+      ui.nText.setAttribute("display", showN);
+
+      if (predPos !== -1) {
+        ui.posRect.setAttribute("display", "inline");
+        ui.posText.setAttribute("display", "inline");
+        ui.posText.textContent = String(predPos + 1);
+      } else {
+        ui.posRect.setAttribute("display", "none");
+        ui.posText.setAttribute("display", "none");
+        ui.posText.textContent = "";
+      }
+
+      var pk = pickerButtons[id];
+      if (pk) {
+        pk.btn.disabled = !isPredict;
+        pk.btn.classList.toggle("is-chosen", predPos !== -1);
+        pk.btn.classList.toggle("cue", !preState.cueDone && isUnchosen);
+        pk.btn.setAttribute("aria-label", "Node " + id + (predPos !== -1 ? ", chosen at position " + (predPos + 1) : ", add to prediction"));
+        if (predPos !== -1) {
+          pk.posBadge.hidden = false;
+          pk.posBadge.textContent = String(predPos + 1);
+        } else {
+          pk.posBadge.hidden = true;
+          pk.posBadge.textContent = "";
+        }
+      }
+    }
+
+    updatePreorderNullBadge(frame);
+  }
+
+  function renderSlots(container, items, diffIdx, justPrintedLetter) {
+    container.innerHTML = "";
+    for (var i = 0; i < 9; i++) {
+      var val = items[i] || "";
+      var slot = document.createElement("div");
+      slot.className = "slot" + (val ? "" : " empty");
+      if (diffIdx === i) {
+        slot.classList.add("diff");
+      } else if (justPrintedLetter && val === justPrintedLetter && i === items.length - 1) {
+        slot.classList.add("just-printed");
+      }
+      var letterSpan = document.createElement("span");
+      letterSpan.textContent = val || String(i + 1);
+      slot.appendChild(letterSpan);
+
+      if (diffIdx === i) {
+        var mark = document.createElement("span");
+        mark.className = "diff-mark";
+        mark.textContent = "\u00D7 diff";
+        slot.appendChild(mark);
+      }
+      container.appendChild(slot);
+    }
+  }
+
+  function renderPreorder() {
+    var frame = preState.traceIdx >= 0 ? PREORDER_TRACE[preState.traceIdx] : null;
+    var isReveal = preState.phase === "reveal";
+    var activeLine = (!isReveal && frame) ? frame.line : 0;
+
+    for (var i = 0; i < codeLineEls.length; i++) {
+      var lineEl = codeLineEls[i];
+      var num = Number(lineEl.getAttribute("data-line"));
+      var isActive = num === activeLine;
+      lineEl.classList.toggle("is-active", isActive);
+      lineEl.querySelector(".gutter").textContent = isActive ? ">" : " ";
+    }
+
+    callStackList.innerHTML = "";
+    if (!isReveal && frame && frame.stack.length > 0) {
+      for (var s = 0; s < frame.stack.length; s++) {
+        if (s > 0) {
+          var sep = document.createElement("li");
+          sep.className = "stack-sep";
+          sep.setAttribute("aria-hidden", "true");
+          sep.textContent = "\u203A";
+          callStackList.appendChild(sep);
+        }
+        var li = document.createElement("li");
+        li.textContent = frame.stack[s];
+        if (s === frame.stack.length - 1) {
+          li.className = "top-frame";
+        }
+        callStackList.appendChild(li);
+      }
+    } else {
+      var emptyLi = document.createElement("li");
+      emptyLi.textContent = isReveal ? "(finished)" : "(empty)";
+      emptyLi.style.color = COLORS.muted;
+      callStackList.appendChild(emptyLi);
+    }
+
+    var isPredict = preState.phase === "predict";
+    var isRun = preState.phase === "run";
+
+    stackBox.hidden = isPredict;
+    namingTrap.hidden = isPredict;
+    printedRow.hidden = isPredict;
+
+    preControlsBar.hidden = !isPredict && !isRun;
+    btnPredUndo.hidden = !isPredict;
+    btnPredLock.hidden = !isPredict;
+    btnPredUndo.disabled = !isPredict || preState.prediction.length === 0;
+    btnPredLock.disabled = !isPredict || preState.prediction.length !== 9;
+
+    var printed = frame ? frame.printed : [];
+
+    btnRunNextPrint.hidden = !isRun;
+    btnRunStep.hidden = !isRun;
+    btnRunNextPrint.disabled = !isRun;
+    btnRunStep.disabled = !isRun;
+    btnRunNextPrint.textContent = (isRun && printed.length === 9)
+      ? "Finish and compare"
+      : "Jump to next print";
+
+    var diffIdx = (preState.phase === "reveal" || preState.phase === "replay")
+      ? firstDiffIndex(preState.prediction, EXPECTED_ORDER)
+      : -1;
+
+    if (preState.phase === "reveal") {
+      revealBox.hidden = false;
+      if (diffIdx === -1) {
+        revealBox.classList.remove("has-diff");
+        btnShowMismatch.hidden = true;
+        preState.statusTag = "Match";
+        preState.statusInfo = "Matches. Each node prints before its children, and the siblings are visited left to right.";
+        preState.statusAction = "";
+        preState.statusAlert = false;
+        revealMsg.textContent = preState.statusInfo;
+      } else {
+        revealBox.classList.add("has-diff");
+        btnShowMismatch.hidden = false;
+        btnShowMismatch.textContent = "Show me position " + (diffIdx + 1);
+        var diagnosis = diagnosePattern(preState.prediction);
+        preState.statusTag = "Mismatch";
+        preState.statusInfo = RULE_BY_POSITION[diffIdx];
+        preState.statusAction = "";
+        preState.statusAlert = true;
+        revealMsg.textContent = "First difference at position " + (diffIdx + 1) + ": you predicted " + preState.prediction[diffIdx] + ", actual is " + EXPECTED_ORDER[diffIdx] + ". " + RULE_BY_POSITION[diffIdx] + (diagnosis ? " " + diagnosis : "");
+      }
+    } else if (preState.phase === "replay") {
+      revealBox.hidden = false;
+      revealBox.classList.add("has-diff");
+      btnShowMismatch.hidden = false;
+      btnShowMismatch.textContent = "Continue";
+      revealMsg.textContent = "Paused at position " + (diffIdx + 1) + " where " + EXPECTED_ORDER[diffIdx] + " prints. " + RULE_BY_POSITION[diffIdx];
+    } else {
+      revealBox.hidden = true;
+      btnShowMismatch.hidden = true;
+    }
+
+    preStatusTag.textContent = preState.statusTag;
+    preStatusInfo.textContent = preState.statusInfo;
+    preStatusInfo.hidden = preState.statusInfo === "";
+    preStatusAction.textContent = preState.statusAction;
+    preStatusAction.hidden = preState.statusAction === "";
+    preStatusBox.classList.toggle("is-alert", preState.statusAlert);
+
+    renderSlots(predictionSlots, preState.prediction, diffIdx, null);
+    renderSlots(printedSlots, printed, diffIdx, frame ? frame.justPrinted : null);
+    updatePreorderSvg(frame);
+  }
+
+  btnPredUndo.addEventListener("click", undoPredict);
+  btnPredLock.addEventListener("click", lockInPrediction);
+  btnRunNextPrint.addEventListener("click", nextPrintPreorder);
+  btnRunStep.addEventListener("click", stepPreorder);
+  btnShowMismatch.addEventListener("click", toggleMismatchReplay);
+  btnTryAgain.addEventListener("click", function () { resetPreorder(true); });
+  if (phoneQuery.addEventListener) {
+    phoneQuery.addEventListener("change", applyPreorderResponsiveLayout);
+  } else if (phoneQuery.addListener) {
+    phoneQuery.addListener(applyPreorderResponsiveLayout);
+  }
+
+  initPreorderDom();
+  resetWalk(false);
+  resetPreorder(false);
+})();
+</script>
+</body>
+</html>
