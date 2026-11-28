@@ -1,0 +1,2879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bag — DSA I Interactive Widget</title>
+  <style>
+    :root {
+      --bg-paper: #F3E6CF;
+      --bg-card: #FBF4E6;
+      --border-card: #CDB894;
+      --ink: #1F4D3A;
+      --ink-muted: #5E6B5A;
+      --active: #F2B632;
+      --tomato: #D9472B;
+      --tomato-text: #C23E24;
+      --correct: #2E7D4F;
+      --apple: #8DB33A;
+      --banana: #E3CB6B;
+      --pear: #B39B45;
+      --kiwi: #8A6A3F;
+      --grape: #7A5C8E;
+      --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      margin: 0;
+      padding: 14px;
+      background-color: var(--bg-paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.45;
+      overflow-x: hidden;
+    }
+
+    .app {
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--active);
+      outline-offset: 2px;
+      box-shadow: 0 0 0 5px var(--ink);
+    }
+
+    /* Header */
+    .page-header {
+      background: var(--bg-card);
+      border: 2px solid var(--border-card);
+      border-radius: 14px;
+      padding: 14px 18px;
+    }
+
+    .page-header h1 {
+      margin: 0 0 4px 0;
+      font-size: 1.55rem;
+      line-height: 1.2;
+      color: var(--ink);
+    }
+
+    .idea-line {
+      margin: 0;
+      font-size: 1.02rem;
+      font-weight: 600;
+      color: var(--ink-muted);
+    }
+
+    /* Stepper */
+    .stepper {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .step-tab {
+      min-height: 44px;
+      min-width: 44px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 2px solid var(--border-card);
+      background: var(--bg-card);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 0.92rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-align: center;
+      transition: background-color 180ms ease, border-color 180ms ease;
+    }
+
+    .step-tab[aria-current="step"] {
+      background: var(--active);
+      border-color: var(--ink);
+      color: var(--ink);
+    }
+
+    .step-tab.completed:not([aria-current="step"]) {
+      border-color: var(--correct);
+    }
+
+    .step-tab:disabled {
+      opacity: 0.52;
+      cursor: not-allowed;
+    }
+
+    /* Main Card */
+    .card {
+      background: var(--bg-card);
+      border: 2px solid var(--border-card);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .step-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .step-title {
+      margin: 0;
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .instruction-line {
+      margin: 0;
+      font-weight: 700;
+      color: var(--ink);
+      font-size: 0.98rem;
+    }
+
+    .muted-note {
+      margin: 0;
+      color: var(--ink-muted);
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+
+    /* Buttons */
+    .btn {
+      min-height: 44px;
+      min-width: 44px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 2px solid var(--ink);
+      background: var(--bg-card);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 0.96rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: background-color 150ms ease, transform 120ms ease;
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn[aria-disabled="true"] {
+      opacity: 0.75;
+      cursor: wait;
+    }
+
+    .btn-primary {
+      background: var(--ink);
+      color: #FFFFFF;
+    }
+
+    .btn-active {
+      background: var(--active);
+      color: var(--ink);
+    }
+
+    .btn-secondary {
+      border-color: var(--border-card);
+      background: var(--bg-paper);
+      color: var(--ink);
+    }
+
+    .btn-small {
+      padding: 8px 12px;
+      font-size: 0.9rem;
+    }
+
+    /* Two-column layout */
+    .two-col {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      min-width: 0;
+    }
+
+    /* Containers (Set Jar, Bag Basket, Map Panel) */
+    .panel {
+      background: var(--bg-paper);
+      border: 2px solid var(--border-card);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .panel-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 1.02rem;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .count-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--ink);
+      color: #FFFFFF;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    /* Segmented Toggle */
+    .seg-toggle {
+      display: inline-flex;
+      border: 2px solid var(--ink);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--bg-card);
+    }
+
+    .seg-btn {
+      min-height: 44px;
+      min-width: 66px;
+      padding: 6px 12px;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .seg-btn + .seg-btn {
+      border-left: 2px solid var(--ink);
+    }
+
+    .seg-btn[aria-pressed="true"] {
+      background: var(--active);
+      color: var(--ink);
+    }
+
+    .pulse-ring {
+      animation: pulseRing 550ms ease 2;
+    }
+
+    @keyframes pulseRing {
+      0% { box-shadow: 0 0 0 0 rgba(242, 182, 50, 0.85); }
+      60% { box-shadow: 0 0 0 7px rgba(242, 182, 50, 0.35); }
+      100% { box-shadow: 0 0 0 0 rgba(242, 182, 50, 0); }
+    }
+
+    /* Jar and Basket visuals */
+    .jar-wrap,
+    .basket-wrap {
+      position: relative;
+      min-height: 142px;
+      background: var(--bg-card);
+      border: 2.5px solid var(--ink);
+      padding: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .jar-wrap {
+      border-radius: 8px 8px 22px 22px;
+      border-top-width: 6px;
+    }
+
+    .basket-wrap {
+      border-radius: 10px 10px 18px 18px;
+      background-image: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 22px,
+        rgba(205, 184, 148, 0.22) 22px,
+        rgba(205, 184, 148, 0.22) 24px
+      );
+    }
+
+    .empty-label {
+      color: var(--ink-muted);
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin: auto;
+    }
+
+    /* Fruit Tray */
+    .tray {
+      background: var(--bg-paper);
+      border: 2px solid var(--border-card);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tray-label {
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: var(--ink-muted);
+      margin-right: 4px;
+    }
+
+    .tray-item {
+      position: relative;
+      transition: opacity 260ms ease, transform 260ms ease;
+    }
+
+    .tray-item.is-active {
+      outline: 3px solid var(--active);
+      border-radius: 12px;
+    }
+
+    .tray-item.is-spent {
+      opacity: 0.35;
+    }
+
+    /* Fruit Token */
+    .fruit-token {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px;
+      border-radius: 12px;
+      transition: opacity 380ms ease, transform 380ms ease;
+    }
+
+    .fruit-token.pop-in {
+      animation: tokenLand 380ms ease forwards;
+    }
+
+    .fruit-token.fade-out {
+      opacity: 0;
+      transform: scale(0.75);
+    }
+
+    @keyframes tokenLand {
+      0% { opacity: 0; transform: translateY(-16px) scale(0.86); }
+      70% { opacity: 1; transform: translateY(2px) scale(1.03); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .fruit-svg {
+      display: block;
+      width: 74px;
+      height: 54px;
+      overflow: visible;
+    }
+
+    .count-badge {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      min-width: 28px;
+      height: 24px;
+      padding: 0 7px;
+      border-radius: 999px;
+      background: var(--ink);
+      color: #FFFFFF;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--bg-card);
+    }
+
+    /* Bounce tag in Set */
+    .bounce-notice {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--tomato-text);
+      color: #FFFFFF;
+      font-size: 0.84rem;
+      font-weight: 700;
+      animation: bounceAway 520ms ease forwards;
+    }
+
+    @keyframes bounceAway {
+      0% { opacity: 0; transform: translateY(-8px) scale(0.92); }
+      35% { opacity: 1; transform: translateY(0) scale(1.04); }
+      100% { opacity: 1; transform: translateX(8px) scale(1); }
+    }
+
+    /* Numeric Stepper */
+    .predict-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .predict-field {
+      background: var(--bg-paper);
+      border: 2px solid var(--border-card);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .predict-field.is-wrong {
+      border-color: var(--tomato);
+      box-shadow: 0 0 0 2px rgba(217, 71, 43, 0.25);
+    }
+
+    .predict-field.is-right {
+      border-color: var(--correct);
+    }
+
+    .predict-label {
+      font-weight: 700;
+      font-size: 0.94rem;
+      color: var(--ink);
+    }
+
+    .predict-label code {
+      font-family: var(--mono);
+      font-size: 0.92rem;
+    }
+
+    .num-stepper {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 100%;
+    }
+
+    .step-adj {
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      min-height: 44px;
+      border-radius: 10px;
+      border: 2px solid var(--ink);
+      background: var(--bg-card);
+      color: var(--ink);
+      font-size: 1.25rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .step-adj:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .num-input {
+      width: 54px;
+      min-width: 48px;
+      height: 44px;
+      min-height: 44px;
+      border-radius: 10px;
+      border: 2px solid var(--ink);
+      background: #FFFFFF;
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 1.08rem;
+      font-weight: 800;
+      text-align: center;
+      padding: 4px;
+    }
+
+    .num-input:disabled {
+      background: var(--bg-paper);
+      color: var(--ink-muted);
+    }
+
+    /* Choice buttons */
+    .choice-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .choice-btn {
+      min-height: 44px;
+      min-width: 68px;
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 2px solid var(--ink);
+      background: var(--bg-card);
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .choice-btn[aria-checked="true"] {
+      background: var(--active);
+      border-width: 3px;
+      color: var(--ink);
+    }
+
+    .choice-btn:disabled {
+      opacity: 0.48;
+      cursor: not-allowed;
+    }
+
+    /* Feedback Banners */
+    .feedback {
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-weight: 700;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .feedback-wrong {
+      background: var(--tomato-text);
+      color: #FFFFFF;
+    }
+
+    .feedback-wrong .btn-try {
+      background: var(--bg-card);
+      color: var(--ink);
+      border-color: #FFFFFF;
+    }
+
+    .feedback-ok {
+      background: rgba(46, 125, 79, 0.14);
+      border: 2px solid var(--correct);
+      color: var(--ink);
+    }
+
+    .feedback-note {
+      background: rgba(242, 182, 50, 0.22);
+      border: 2px solid var(--active);
+      color: var(--ink);
+    }
+
+    .feedback-text {
+      margin: 0;
+      flex: 1 1 200px;
+    }
+
+    .feedback-list {
+      margin: 0;
+      padding-left: 18px;
+      flex: 1 1 220px;
+    }
+
+    /* Step 2 Script Rows */
+    .script-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .script-row {
+      background: var(--bg-card);
+      border: 2px solid var(--border-card);
+      border-radius: 12px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .script-row.is-active {
+      background: rgba(242, 182, 50, 0.24);
+      border: 3px solid var(--active);
+      box-shadow: inset 0 0 0 1px var(--ink);
+    }
+
+    .script-row.is-done {
+      border-color: var(--correct);
+    }
+
+    .script-row.is-future {
+      background: var(--bg-paper);
+      border-style: dashed;
+    }
+
+    .script-row.is-active .row-prompt {
+      color: var(--ink);
+    }
+
+    .script-row-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .code-inline {
+      font-family: var(--mono);
+      font-size: 0.94rem;
+      font-weight: 700;
+      color: var(--ink);
+      overflow-wrap: anywhere;
+    }
+
+    .script-row-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .row-prompt {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+    }
+
+    .done-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--correct);
+      color: #FFFFFF;
+      font-family: var(--mono);
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    /* Step 3 Sub-steps, Map Table, Code Box */
+    .substep-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .sub-pill {
+      min-height: 36px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 2px solid var(--border-card);
+      background: var(--bg-paper);
+      color: var(--ink-muted);
+      font-size: 0.86rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .sub-pill.is-active {
+      background: var(--active);
+      border-color: var(--ink);
+      color: var(--ink);
+    }
+
+    .sub-pill.is-done {
+      border-color: var(--correct);
+      color: var(--ink);
+    }
+
+    .map-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg-card);
+      border: 2px solid var(--ink);
+      border-radius: 10px;
+      overflow: hidden;
+      font-family: var(--mono);
+      font-size: 0.94rem;
+    }
+
+    .map-table th,
+    .map-table td {
+      padding: 8px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-card);
+    }
+
+    .map-table th {
+      background: rgba(31, 77, 58, 0.08);
+      font-family: var(--sans);
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .map-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .map-row-changed td {
+      background: rgba(242, 182, 50, 0.3);
+      font-weight: 800;
+    }
+
+    .map-row-ghost {
+      outline: 3px solid var(--tomato);
+      outline-offset: -3px;
+      background: rgba(217, 71, 43, 0.14);
+    }
+
+    .ghost-tag,
+    .null-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: var(--tomato-text);
+      color: #FFFFFF;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      font-weight: 800;
+      margin-left: 6px;
+    }
+
+    .val-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: var(--active);
+      border: 2px solid var(--ink);
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      font-weight: 800;
+      margin-left: 6px;
+    }
+
+    .get-result-strip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: var(--bg-card);
+      border: 2px solid var(--border-card);
+      font-family: var(--mono);
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .get-result-strip .null-chip,
+    .get-result-strip .val-chip {
+      margin-left: 2px;
+    }
+
+    .code-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .code-args {
+      margin: 0;
+      font-family: var(--mono);
+      font-size: 0.86rem;
+      font-weight: 800;
+      color: var(--ink);
+      background: rgba(242, 182, 50, 0.2);
+      border: 1.5px solid var(--border-card);
+      border-radius: 8px;
+      padding: 4px 10px;
+      align-self: flex-start;
+    }
+
+    .code-box {
+      margin: 0;
+      background: var(--bg-card);
+      border: 2px solid var(--ink);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      line-height: 1.5;
+      color: var(--ink);
+      overflow-x: auto;
+      max-width: 100%;
+    }
+
+    .code-line {
+      display: block;
+      padding: 2px 6px;
+      border-radius: 6px;
+      white-space: pre;
+    }
+
+    .code-line.is-running {
+      background: var(--active);
+      color: var(--ink);
+      font-weight: 800;
+    }
+
+    .code-line.is-crash {
+      background: var(--tomato-text);
+      color: #FFFFFF;
+      font-weight: 800;
+    }
+
+    .line-tag {
+      display: inline-block;
+      margin-left: 10px;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: var(--ink);
+      color: #FFFFFF;
+      font-size: 0.78rem;
+      font-weight: 800;
+      vertical-align: middle;
+    }
+
+    .crash-panel {
+      background: var(--tomato-text);
+      color: #FFFFFF;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-weight: 800;
+      font-family: var(--mono);
+      font-size: 0.92rem;
+    }
+
+    /* Done Card */
+    .summary-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .summary-row {
+      background: var(--bg-paper);
+      border: 2px solid var(--border-card);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+
+    .summary-row strong {
+      color: var(--ink);
+    }
+
+    .summary-row code {
+      font-family: var(--mono);
+      font-weight: 700;
+    }
+
+    .closing-banner {
+      background: var(--active);
+      border: 2px solid var(--ink);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-weight: 800;
+      color: var(--ink);
+      text-align: center;
+    }
+
+    /* Footer Navigation */
+    .step-footer {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding-top: 6px;
+      border-top: 2px solid var(--border-card);
+    }
+
+    .footer-right {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Responsive Breakpoints */
+    @media (min-width: 540px) {
+      .stepper {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .two-col {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        align-items: start;
+      }
+
+      .two-col.step2-cols {
+        grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.22fr);
+      }
+    }
+
+    @media (max-width: 539px) {
+      body {
+        padding: 10px;
+      }
+
+      .card {
+        padding: 12px;
+      }
+
+      .fruit-svg {
+        width: 68px;
+        height: 50px;
+      }
+    }
+
+    @media (max-height: 420px) and (min-width: 540px) {
+      body {
+        padding: 8px;
+      }
+
+      .app {
+        gap: 8px;
+      }
+
+      .page-header {
+        padding: 10px 14px;
+      }
+
+      .card {
+        padding: 12px;
+        gap: 10px;
+      }
+
+      .jar-wrap,
+      .basket-wrap {
+        min-height: 110px;
+        padding: 8px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="page-header">
+      <h1>Bag</h1>
+      <p class="idea-line">A bag keeps duplicates, and often a count is all it needs to store.</p>
+    </header>
+
+    <nav class="stepper" id="stepper" aria-label="Lesson steps"></nav>
+
+    <main id="main-stage" class="card" tabindex="-1"></main>
+
+    <div id="live-region" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      const FRUITS = {
+        apple: { label: "apple", color: "#8DB33A" },
+        banana: { label: "banana", color: "#E3CB6B" },
+        pear: { label: "pear", color: "#B39B45" },
+        kiwi: { label: "kiwi", color: "#8A6A3F" },
+        grape: { label: "grape", color: "#7A5C8E" }
+      };
+
+      const STEP1_SEQUENCE = ["apple", "banana", "apple", "pear", "apple"];
+
+      const STEP2_SCRIPT = [
+        {
+          code: "bag.remove(apple, 2)",
+          prompt: "apples after this line",
+          answer: 2,
+          wrongReason: "remove(x, i) removes at most i: 4 \u2212 2 = 2.",
+          apply: (b) => ({ ...b, apple: Math.max(0, (b.apple || 0) - 2) })
+        },
+        {
+          code: "bag.remove(apple, 10)",
+          prompt: "apples after this line",
+          answer: 0,
+          wrongReason: "At most 10, but only 2 are there. It stops at 0, no error.",
+          apply: (b) => ({ ...b, apple: Math.max(0, (b.apple || 0) - 10) })
+        },
+        {
+          code: "bag.add(apple)",
+          prompt: "apples after this line",
+          answer: 1,
+          wrongReason: "add always adds one more copy.",
+          apply: (b) => ({ ...b, apple: (b.apple || 0) + 1 })
+        },
+        {
+          code: "bag.add(apple)",
+          prompt: "apples after this line",
+          answer: 2,
+          wrongReason: "add always adds one more copy.",
+          apply: (b) => ({ ...b, apple: (b.apple || 0) + 1 })
+        },
+        {
+          code: "bag.remove(apple)",
+          prompt: "apples after this line",
+          answer: 0,
+          wrongReason: "remove(x) with no number removes ALL copies.",
+          apply: (b) => ({ ...b, apple: 0 })
+        },
+        {
+          code: "bag.size() now?",
+          prompt: "total fruits in bag",
+          answer: 1,
+          wrongReason: "The apples are gone; the banana is still there.",
+          isFinalSize: true,
+          apply: (b) => ({ ...b })
+        }
+      ];
+
+      const SUBSTEPS = ["3a", "3b", "3c", "3d"];
+
+      const state = {
+        currentStep: 0,
+        maxUnlockedStep: 0,
+        runToken: 0,
+
+        step1: {
+          predSet: "",
+          predBag: "",
+          predDistinct: "",
+          bagView: "items", // "items" | "counts"
+          trayStep: -1,
+          setItems: [],
+          bagItems: [],
+          duplicateTagVisible: false,
+          running: false,
+          hasRevealed: false,
+          status: "idle", // "idle" | "wrong" | "ok"
+          wrongFields: {},
+          wrongMessages: [],
+          pulseToggle: false
+        },
+
+        step2: {
+          rowIndex: 0,
+          counts: { apple: 4, banana: 1 },
+          prediction: "",
+          running: false,
+          fadingApple: false,
+          status: "idle", // "idle" | "wrong" | "done"
+          wrongMessage: "",
+          completedRows: []
+        },
+
+        step3: {
+          subIndex: 0, // 0=3a, 1=3b, 2=3c, 3=3d
+          counts: { apple: 3, banana: 1 },
+          changedKey: null,
+          ghostKeyActive: false,
+          choicePred: "",
+          sizePred: "",
+          containsPred: "",
+          running: false,
+          activeLines: [],
+          crashLine: -1,
+          lineTag: null, // { line: number, text: string }
+          getResult: null, // { key: string, valueText: string, isNull: boolean }
+          status: "idle", // "idle" | "wrong" | "revealed" | "fixed"
+          wrongMessages: [],
+          showCrash: false,
+          showSideBySide: false,
+          showFixCode: false,
+          completedSubs: { 0: false, 1: false, 2: false, 3: false }
+        }
+      };
+
+      const stepperEl = document.getElementById("stepper");
+      const mainEl = document.getElementById("main-stage");
+      const liveEl = document.getElementById("live-region");
+
+      function prefersReducedMotion() {
+        return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      }
+
+      function focusByIdNoScroll(id) {
+        const el = document.getElementById(id);
+        if (el && !el.disabled) {
+          el.focus({ preventScroll: true });
+        }
+      }
+
+      function scrollSelfDocTo(targetTop) {
+        const se = document.scrollingElement || document.documentElement;
+        const maxScroll = Math.max(0, se.scrollHeight - window.innerHeight);
+        if (maxScroll <= 0) return;
+        const clampedTop = Math.max(0, Math.min(maxScroll, targetTop));
+        window.scrollTo({
+          top: clampedTop,
+          behavior: prefersReducedMotion() ? "auto" : "smooth"
+        });
+      }
+
+      function focusStepTitleAndScroll() {
+        const title = mainEl.querySelector("h2.step-title");
+        if (title) {
+          title.focus({ preventScroll: true });
+        }
+        const rect = stepperEl.getBoundingClientRect();
+        const vh = window.innerHeight || document.documentElement.clientHeight;
+        if (rect.top < 0 || rect.bottom > vh) {
+          const currentY = window.pageYOffset || (document.scrollingElement ? document.scrollingElement.scrollTop : 0);
+          scrollSelfDocTo(currentY + rect.top - 10);
+        }
+      }
+
+      function scrollElIntoViewIfNeeded(el) {
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const vh = window.innerHeight || document.documentElement.clientHeight;
+        if (rect.top < 0 || rect.bottom > vh) {
+          const currentY = window.pageYOffset || (document.scrollingElement ? document.scrollingElement.scrollTop : 0);
+          const targetTop = (rect.height > vh || rect.top < 0)
+            ? currentY + rect.top - 12
+            : currentY + rect.bottom - vh + 12;
+          scrollSelfDocTo(targetTop);
+        }
+      }
+
+      function announce(msg) {
+        liveEl.textContent = "";
+        window.setTimeout(() => {
+          liveEl.textContent = msg;
+        }, 20);
+      }
+
+      function cancelPendingAnimations() {
+        state.runToken += 1;
+      }
+
+      function waitMs(ms, token) {
+        return new Promise((resolve) => {
+          const actual = prefersReducedMotion() ? Math.min(ms, 20) : ms;
+          window.setTimeout(() => {
+            resolve(token === state.runToken);
+          }, actual);
+        });
+      }
+
+      function checkIconSvg() {
+        return `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5L6.5 12L13 4.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      }
+
+      function renderFruitToken(fruitKey, opts = {}) {
+        const info = FRUITS[fruitKey];
+        if (!info) return "";
+        const count = opts.count;
+        const extraClass = opts.extraClass ? ` ${opts.extraClass}` : "";
+        let shape = "";
+
+        if (fruitKey === "apple") {
+          shape = `
+            <path d="M37 8 C37 4, 41 2, 44 3" fill="none" stroke="#1F4D3A" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M39 7 C44 4, 49 6, 47 10 C43 11, 40 9, 39 7 Z" fill="#1F4D3A"/>
+            <rect x="6" y="10" width="62" height="39" rx="17" fill="${info.color}" stroke="#1F4D3A" stroke-width="2.5"/>
+          `;
+        } else if (fruitKey === "banana") {
+          shape = `
+            <rect x="6" y="10" width="62" height="39" rx="19" fill="${info.color}" stroke="#1F4D3A" stroke-width="2.5"/>
+            <path d="M13 18 C22 12, 52 12, 61 18" fill="none" stroke="#1F4D3A" stroke-width="2" stroke-linecap="round"/>
+          `;
+        } else if (fruitKey === "pear") {
+          shape = `
+            <path d="M37 8 L37 3" fill="none" stroke="#1F4D3A" stroke-width="2.5" stroke-linecap="round"/>
+            <rect x="8" y="9" width="58" height="40" rx="18" fill="${info.color}" stroke="#1F4D3A" stroke-width="2.5"/>
+          `;
+        } else if (fruitKey === "kiwi") {
+          shape = `
+            <ellipse cx="37" cy="29" rx="31" ry="20" fill="${info.color}" stroke="#1F4D3A" stroke-width="2.5"/>
+          `;
+        } else {
+          shape = `
+            <circle cx="15" cy="18" r="7" fill="${info.color}" stroke="#1F4D3A" stroke-width="2"/>
+            <circle cx="59" cy="18" r="7" fill="${info.color}" stroke="#1F4D3A" stroke-width="2"/>
+            <rect x="6" y="10" width="62" height="39" rx="18" fill="${info.color}" stroke="#1F4D3A" stroke-width="2.5"/>
+          `;
+        }
+
+        const badge = typeof count === "number"
+          ? `<span class="count-badge" aria-label="count ${count}">\u00d7${count}</span>`
+          : "";
+
+        return `
+          <span class="fruit-token${extraClass}" data-fruit="${fruitKey}">
+            <svg class="fruit-svg" viewBox="0 0 74 54" role="img" aria-label="${info.label}${typeof count === "number" ? " times " + count : ""}">
+              ${shape}
+              <rect x="11" y="20" width="52" height="19" rx="7" fill="#FBF4E6" stroke="#1F4D3A" stroke-width="1.5"/>
+              <text x="37" y="33.5" text-anchor="middle" fill="#1F4D3A" font-family="system-ui, -apple-system, sans-serif" font-size="11.5" font-weight="800">${info.label}</text>
+            </svg>
+            ${badge}
+          </span>
+        `;
+      }
+
+      function createNumberStepper({ id, labelHtml, value, disabled, statusClass, onChange, onEnter }) {
+        const wrap = document.createElement("div");
+        wrap.className = `predict-field${statusClass ? " " + statusClass : ""}`;
+
+        const label = document.createElement("label");
+        label.className = "predict-label";
+        label.htmlFor = id;
+        label.innerHTML = labelHtml;
+
+        const ctrl = document.createElement("div");
+        ctrl.className = "num-stepper";
+
+        const minusBtn = document.createElement("button");
+        minusBtn.type = "button";
+        minusBtn.className = "step-adj";
+        minusBtn.textContent = "\u2212";
+        minusBtn.setAttribute("aria-label", `Decrease ${label.textContent}`);
+        minusBtn.disabled = !!disabled;
+
+        const input = document.createElement("input");
+        input.id = id;
+        input.type = "text";
+        input.className = "num-input";
+        input.setAttribute("inputmode", "numeric");
+        input.setAttribute("pattern", "[0-9]*");
+        input.setAttribute("placeholder", "?");
+        input.value = value;
+        input.disabled = !!disabled;
+        input.setAttribute("aria-label", label.textContent);
+
+        const plusBtn = document.createElement("button");
+        plusBtn.type = "button";
+        plusBtn.className = "step-adj";
+        plusBtn.textContent = "+";
+        plusBtn.setAttribute("aria-label", `Increase ${label.textContent}`);
+        plusBtn.disabled = !!disabled;
+
+        minusBtn.addEventListener("click", () => {
+          if (disabled) return;
+          const cur = input.value.trim();
+          const next = cur === "" ? "0" : String(Math.max(0, parseInt(cur, 10) - 1));
+          input.value = next;
+          onChange(next);
+        });
+
+        plusBtn.addEventListener("click", () => {
+          if (disabled) return;
+          const cur = input.value.trim();
+          const next = cur === "" ? "1" : String(Math.min(99, parseInt(cur, 10) + 1));
+          input.value = next;
+          onChange(next);
+        });
+
+        input.addEventListener("input", () => {
+          const cleaned = input.value.replace(/[^0-9]/g, "").slice(0, 2);
+          if (input.value !== cleaned) input.value = cleaned;
+          onChange(cleaned);
+        });
+
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" && onEnter) {
+            e.preventDefault();
+            onEnter();
+          }
+        });
+
+        ctrl.appendChild(minusBtn);
+        ctrl.appendChild(input);
+        ctrl.appendChild(plusBtn);
+        wrap.appendChild(label);
+        wrap.appendChild(ctrl);
+        return wrap;
+      }
+
+      function createChoiceGroup({ groupId, labelText, options, selectedValue, disabled, onSelect }) {
+        const wrap = document.createElement("div");
+        wrap.className = "predict-field";
+
+        const label = document.createElement("div");
+        label.className = "predict-label";
+        label.textContent = labelText;
+
+        const group = document.createElement("div");
+        group.className = "choice-group";
+        group.setAttribute("role", "radiogroup");
+        group.setAttribute("aria-label", labelText);
+        if (groupId) group.dataset.group = groupId;
+
+        const selectedIdx = options.indexOf(selectedValue);
+        const initialFocusIdx = selectedIdx >= 0 ? selectedIdx : 0;
+
+        function selectIndexInPlace(targetIdx) {
+          const opt = options[targetIdx];
+          Array.from(group.children).forEach((b, i) => {
+            b.setAttribute("aria-checked", i === targetIdx ? "true" : "false");
+            b.tabIndex = i === targetIdx ? 0 : -1;
+          });
+          onSelect(opt);
+        }
+
+        options.forEach((opt, idx) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "choice-btn";
+          btn.setAttribute("role", "radio");
+          btn.setAttribute("aria-checked", selectedValue === opt ? "true" : "false");
+          btn.tabIndex = idx === initialFocusIdx ? 0 : -1;
+          btn.textContent = opt;
+          btn.disabled = !!disabled;
+
+          btn.addEventListener("click", () => {
+            if (!disabled) {
+              selectIndexInPlace(idx);
+            }
+          });
+
+          btn.addEventListener("keydown", (e) => {
+            if (disabled) return;
+            if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+              e.preventDefault();
+              const nextIdx = (idx + 1) % options.length;
+              selectIndexInPlace(nextIdx);
+              group.children[nextIdx].focus();
+            } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+              e.preventDefault();
+              const prevIdx = (idx - 1 + options.length) % options.length;
+              selectIndexInPlace(prevIdx);
+              group.children[prevIdx].focus();
+            } else if (e.key === " " || e.key === "Enter") {
+              e.preventDefault();
+              selectIndexInPlace(idx);
+            }
+          });
+
+          group.appendChild(btn);
+        });
+
+        wrap.appendChild(label);
+        wrap.appendChild(group);
+        return wrap;
+      }
+
+      function renderStepper() {
+        const steps = [
+          { idx: 0, label: "1 Set vs bag" },
+          { idx: 1, label: "2 Predict the script" },
+          { idx: 2, label: "3 Two views" },
+          { idx: 3, label: "Done" }
+        ];
+
+        stepperEl.innerHTML = "";
+        steps.forEach((s) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "step-tab";
+          const isCurrent = state.currentStep === s.idx;
+          const isUnlocked = s.idx <= state.maxUnlockedStep;
+          const isCompleted = s.idx < state.maxUnlockedStep;
+
+          if (isCurrent) btn.setAttribute("aria-current", "step");
+          if (isCompleted) btn.classList.add("completed");
+          btn.disabled = !isUnlocked;
+
+          btn.innerHTML = `${isCompleted ? checkIconSvg() : ""}<span>${s.label}</span>`;
+          btn.addEventListener("click", () => {
+            if (isUnlocked && state.currentStep !== s.idx) {
+              goToStep(s.idx);
+            }
+          });
+          stepperEl.appendChild(btn);
+        });
+      }
+
+      function goToStep(idx) {
+        cancelPendingAnimations();
+        if (state.currentStep === 0 && state.step1.running) state.step1.running = false;
+        if (state.currentStep === 1 && state.step2.running) state.step2.running = false;
+        if (state.currentStep === 2 && state.step3.running) state.step3.running = false;
+        state.currentStep = idx;
+        render();
+        focusStepTitleAndScroll();
+        const names = ["Step 1: Same fruit, two containers", "Step 2: Predict the script", "Step 3: Two views of one bag", "Done: Java has no Bag class"];
+        announce(names[idx]);
+      }
+
+      /* ---------------- STEP 1 ---------------- */
+      function resetStep1() {
+        cancelPendingAnimations();
+        state.step1 = {
+          predSet: "",
+          predBag: "",
+          predDistinct: "",
+          bagView: state.step1.bagView,
+          trayStep: -1,
+          setItems: [],
+          bagItems: [],
+          duplicateTagVisible: false,
+          running: false,
+          hasRevealed: false,
+          status: "idle",
+          wrongFields: {},
+          wrongMessages: [],
+          pulseToggle: false
+        };
+        render();
+        announce("Step 1 reset.");
+      }
+
+      function countByFruit(arr) {
+        const map = {};
+        arr.forEach((f) => {
+          map[f] = (map[f] || 0) + 1;
+        });
+        return map;
+      }
+
+      async function runStep1() {
+        const s1 = state.step1;
+        if (s1.running || s1.status === "ok" || s1.status === "wrong") return;
+        if (s1.predSet === "" || s1.predBag === "" || s1.predDistinct === "") return;
+
+        cancelPendingAnimations();
+        const token = state.runToken;
+        s1.running = true;
+        s1.status = "idle";
+        s1.wrongFields = {};
+        s1.wrongMessages = [];
+        s1.setItems = [];
+        s1.bagItems = [];
+        s1.trayStep = -1;
+        s1.duplicateTagVisible = false;
+        s1.pulseToggle = false;
+        render();
+        focusByIdNoScroll("step1-run-btn");
+        scrollElIntoViewIfNeeded(document.getElementById("step1-containers"));
+
+        for (let i = 0; i < STEP1_SEQUENCE.length; i++) {
+          s1.trayStep = i;
+          const fruit = STEP1_SEQUENCE[i];
+          const isDupInSet = s1.setItems.includes(fruit);
+          if (!isDupInSet) {
+            s1.setItems.push(fruit);
+            s1.duplicateTagVisible = false;
+          } else {
+            s1.duplicateTagVisible = true;
+          }
+          s1.bagItems.push(fruit);
+          render();
+          focusByIdNoScroll("step1-run-btn");
+
+          const ok = await waitMs(380, token);
+          if (!ok) return;
+        }
+
+        s1.trayStep = STEP1_SEQUENCE.length;
+        s1.duplicateTagVisible = false;
+        s1.running = false;
+        s1.hasRevealed = true;
+
+        const pSet = parseInt(s1.predSet, 10);
+        const pBag = parseInt(s1.predBag, 10);
+        const pDist = parseInt(s1.predDistinct, 10);
+
+        const wrongFields = {};
+        const wrongMsgs = [];
+        if (pSet !== 3) {
+          wrongFields.set = true;
+          wrongMsgs.push("A set keeps only one of each equal element.");
+        }
+        if (pBag !== 5) {
+          wrongFields.bag = true;
+          wrongMsgs.push("A bag keeps every copy: count them all.");
+        }
+        if (pDist !== 3) {
+          wrongFields.distinct = true;
+          wrongMsgs.push("Different fruits: apple, banana, pear.");
+        }
+
+        if (wrongMsgs.length > 0) {
+          s1.status = "wrong";
+          s1.wrongFields = wrongFields;
+          s1.wrongMessages = wrongMsgs;
+          render();
+          focusByIdNoScroll("step1-try-btn");
+          announce(wrongMsgs.join(" "));
+        } else {
+          s1.status = "ok";
+          s1.pulseToggle = true;
+          if (state.maxUnlockedStep < 1) state.maxUnlockedStep = 1;
+          render();
+          focusByIdNoScroll("step1-next-btn");
+          announce("Correct. Three equal apples? Store one apple and the number 3. Next is unlocked.");
+        }
+      }
+
+      function step1SuccessText() {
+        return state.step1.bagView === "counts"
+          ? "Three equal apples? Store one apple and the number 3."
+          : "Three equal apples? Store one apple and the number 3. Tap Counts.";
+      }
+
+      function renderStep1BasketContents(basketEl) {
+        const s1 = state.step1;
+        basketEl.innerHTML = "";
+        if (s1.bagItems.length === 0) {
+          basketEl.innerHTML = `<span class="empty-label">Empty basket</span>`;
+        } else if (s1.bagView === "items") {
+          s1.bagItems.forEach((f, idx) => {
+            const isNewest = s1.running && idx === s1.bagItems.length - 1;
+            basketEl.insertAdjacentHTML("beforeend", renderFruitToken(f, { extraClass: isNewest ? "pop-in" : "" }));
+          });
+        } else {
+          const map = countByFruit(s1.bagItems);
+          Object.keys(map).forEach((f) => {
+            basketEl.insertAdjacentHTML("beforeend", renderFruitToken(f, { count: map[f] }));
+          });
+        }
+      }
+
+      function renderStep1() {
+        const s1 = state.step1;
+        const allFilled = s1.predSet !== "" && s1.predBag !== "" && s1.predDistinct !== "";
+        const lockedInputs = s1.running || s1.status === "ok" || s1.status === "wrong";
+
+        const header = document.createElement("div");
+        header.className = "step-header";
+        header.innerHTML = `<h2 class="step-title" tabindex="-1">Same fruit, two containers</h2>`;
+        const resetBtn = document.createElement("button");
+        resetBtn.type = "button";
+        resetBtn.className = "btn btn-secondary btn-small";
+        resetBtn.textContent = "Reset";
+        resetBtn.addEventListener("click", resetStep1);
+        header.appendChild(resetBtn);
+        mainEl.appendChild(header);
+
+        // Fruit Tray
+        const tray = document.createElement("div");
+        tray.className = "tray";
+        tray.innerHTML = `<span class="tray-label">Fruit order:</span>`;
+        STEP1_SEQUENCE.forEach((fruit, idx) => {
+          const item = document.createElement("span");
+          let cls = "tray-item";
+          if (s1.running && s1.trayStep === idx) cls += " is-active";
+          else if (s1.trayStep > idx) cls += " is-spent";
+          item.className = cls;
+          item.innerHTML = renderFruitToken(fruit);
+          tray.appendChild(item);
+        });
+        mainEl.appendChild(tray);
+
+        // Prediction instruction & inputs (before containers on phones/all sizes)
+        const instr = document.createElement("p");
+        instr.className = "instruction-line";
+        instr.textContent = "Predict all three counts, then tap Run.";
+        mainEl.appendChild(instr);
+
+        const grid = document.createElement("div");
+        grid.className = "predict-grid";
+
+        const updateRunBtnState = () => {
+          const runBtn = document.getElementById("step1-run-btn");
+          if (runBtn) {
+            runBtn.disabled = s1.running || s1.status === "ok" || s1.status === "wrong" || s1.predSet === "" || s1.predBag === "" || s1.predDistinct === "";
+          }
+        };
+
+        grid.appendChild(createNumberStepper({
+          id: "s1-set-size",
+          labelHtml: "<code>set.size()</code>",
+          value: s1.predSet,
+          disabled: lockedInputs,
+          statusClass: s1.status === "wrong" && s1.wrongFields.set ? "is-wrong" : (s1.status === "ok" ? "is-right" : ""),
+          onChange: (v) => { s1.predSet = v; updateRunBtnState(); },
+          onEnter: runStep1
+        }));
+
+        grid.appendChild(createNumberStepper({
+          id: "s1-bag-size",
+          labelHtml: "<code>bag.size()</code>",
+          value: s1.predBag,
+          disabled: lockedInputs,
+          statusClass: s1.status === "wrong" && s1.wrongFields.bag ? "is-wrong" : (s1.status === "ok" ? "is-right" : ""),
+          onChange: (v) => { s1.predBag = v; updateRunBtnState(); },
+          onEnter: runStep1
+        }));
+
+        grid.appendChild(createNumberStepper({
+          id: "s1-distinct",
+          labelHtml: "different fruits in the bag",
+          value: s1.predDistinct,
+          disabled: lockedInputs,
+          statusClass: s1.status === "wrong" && s1.wrongFields.distinct ? "is-wrong" : (s1.status === "ok" ? "is-right" : ""),
+          onChange: (v) => { s1.predDistinct = v; updateRunBtnState(); },
+          onEnter: runStep1
+        }));
+
+        mainEl.appendChild(grid);
+
+        // Action row
+        const actRow = document.createElement("div");
+        actRow.className = "action-row";
+        const runBtn = document.createElement("button");
+        runBtn.type = "button";
+        runBtn.id = "step1-run-btn";
+        runBtn.className = "btn btn-primary";
+        runBtn.textContent = s1.running ? "Running..." : "Run";
+        if (s1.running) {
+          runBtn.setAttribute("aria-disabled", "true");
+        } else {
+          runBtn.disabled = !allFilled || lockedInputs;
+        }
+        runBtn.addEventListener("click", runStep1);
+        actRow.appendChild(runBtn);
+        mainEl.appendChild(actRow);
+
+        // Two Panels: Set & Bag
+        const cols = document.createElement("div");
+        cols.className = "two-col";
+        cols.id = "step1-containers";
+
+        // Set panel
+        const setPanel = document.createElement("section");
+        setPanel.className = "panel";
+        setPanel.setAttribute("aria-label", "Set container");
+        const setHead = document.createElement("div");
+        setHead.className = "panel-head";
+        setHead.innerHTML = `<h3 class="panel-title">Set</h3><span class="count-pill">size: ${s1.setItems.length}</span>`;
+        setPanel.appendChild(setHead);
+
+        const jar = document.createElement("div");
+        jar.className = "jar-wrap";
+        if (s1.setItems.length === 0) {
+          jar.innerHTML = `<span class="empty-label">Empty jar</span>`;
+        } else {
+          s1.setItems.forEach((f, idx) => {
+            const isNewest = s1.running && idx === s1.setItems.length - 1 && !s1.duplicateTagVisible;
+            jar.insertAdjacentHTML("beforeend", renderFruitToken(f, { extraClass: isNewest ? "pop-in" : "" }));
+          });
+        }
+        if (s1.duplicateTagVisible) {
+          jar.insertAdjacentHTML("beforeend", `<span class="bounce-notice">apple: already here</span>`);
+        }
+        setPanel.appendChild(jar);
+        cols.appendChild(setPanel);
+
+        // Bag panel
+        const bagPanel = document.createElement("section");
+        bagPanel.className = "panel";
+        bagPanel.setAttribute("aria-label", "Bag container");
+        const bagHead = document.createElement("div");
+        bagHead.className = "panel-head";
+        bagHead.innerHTML = `<h3 class="panel-title">Bag</h3>`;
+
+        const toggle = document.createElement("div");
+        toggle.className = `seg-toggle${s1.pulseToggle ? " pulse-ring" : ""}`;
+        toggle.setAttribute("role", "group");
+        toggle.setAttribute("aria-label", "Bag view mode");
+
+        const itemsBtn = document.createElement("button");
+        itemsBtn.type = "button";
+        itemsBtn.className = "seg-btn";
+        itemsBtn.textContent = "Items";
+        itemsBtn.setAttribute("aria-pressed", s1.bagView === "items" ? "true" : "false");
+
+        const countsBtn = document.createElement("button");
+        countsBtn.type = "button";
+        countsBtn.className = "seg-btn";
+        countsBtn.textContent = "Counts";
+        countsBtn.setAttribute("aria-pressed", s1.bagView === "counts" ? "true" : "false");
+
+        const basket = document.createElement("div");
+        basket.className = "basket-wrap";
+        basket.id = "step1-bag-basket";
+        renderStep1BasketContents(basket);
+
+        function updateBagViewInPlace(viewMode) {
+          s1.bagView = viewMode;
+          s1.pulseToggle = false;
+          toggle.classList.remove("pulse-ring");
+          itemsBtn.setAttribute("aria-pressed", viewMode === "items" ? "true" : "false");
+          countsBtn.setAttribute("aria-pressed", viewMode === "counts" ? "true" : "false");
+          renderStep1BasketContents(basket);
+          const successTextEl = document.getElementById("step1-success-text");
+          if (successTextEl) successTextEl.textContent = step1SuccessText();
+          announce(viewMode === "items" ? "Showing individual items in bag." : "Showing fruit counts in bag.");
+        }
+
+        itemsBtn.addEventListener("click", () => updateBagViewInPlace("items"));
+        countsBtn.addEventListener("click", () => updateBagViewInPlace("counts"));
+
+        toggle.appendChild(itemsBtn);
+        toggle.appendChild(countsBtn);
+        bagHead.appendChild(toggle);
+        bagPanel.appendChild(bagHead);
+        bagPanel.appendChild(basket);
+        cols.appendChild(bagPanel);
+        mainEl.appendChild(cols);
+
+        // Feedback directly under the panels
+        if (s1.status === "wrong") {
+          const fb = document.createElement("div");
+          fb.className = "feedback feedback-wrong";
+          const ul = document.createElement("ul");
+          ul.className = "feedback-list";
+          s1.wrongMessages.forEach((m) => {
+            const li = document.createElement("li");
+            li.textContent = m;
+            ul.appendChild(li);
+          });
+          fb.appendChild(ul);
+
+          const tryBtn = document.createElement("button");
+          tryBtn.type = "button";
+          tryBtn.id = "step1-try-btn";
+          tryBtn.className = "btn btn-try";
+          tryBtn.textContent = "Try again";
+          tryBtn.addEventListener("click", () => {
+            if (s1.wrongFields.set) s1.predSet = "";
+            if (s1.wrongFields.bag) s1.predBag = "";
+            if (s1.wrongFields.distinct) s1.predDistinct = "";
+            s1.setItems = [];
+            s1.bagItems = [];
+            s1.trayStep = -1;
+            s1.status = "idle";
+            s1.wrongMessages = [];
+            const firstWrongId = s1.wrongFields.set ? "s1-set-size" : (s1.wrongFields.bag ? "s1-bag-size" : "s1-distinct");
+            s1.wrongFields = {};
+            render();
+            const target = document.getElementById(firstWrongId);
+            if (target) target.focus({ preventScroll: true });
+          });
+          fb.appendChild(tryBtn);
+          mainEl.appendChild(fb);
+        } else if (s1.status === "ok") {
+          const fb = document.createElement("div");
+          fb.className = "feedback feedback-ok";
+          fb.innerHTML = `<p class="feedback-text" id="step1-success-text">${step1SuccessText()}</p>`;
+          mainEl.appendChild(fb);
+        }
+
+        // Footer nav
+        const footer = document.createElement("div");
+        footer.className = "step-footer";
+        const rightBtns = document.createElement("div");
+        rightBtns.className = "footer-right";
+        const nextBtn = document.createElement("button");
+        nextBtn.type = "button";
+        nextBtn.id = "step1-next-btn";
+        nextBtn.className = "btn btn-active";
+        nextBtn.textContent = "Next \u2192";
+        nextBtn.disabled = state.maxUnlockedStep < 1;
+        nextBtn.addEventListener("click", () => goToStep(1));
+        rightBtns.appendChild(nextBtn);
+        footer.appendChild(rightBtns);
+        mainEl.appendChild(footer);
+      }
+
+      /* ---------------- STEP 2 ---------------- */
+      function resetStep2() {
+        cancelPendingAnimations();
+        state.step2 = {
+          rowIndex: 0,
+          counts: { apple: 4, banana: 1 },
+          prediction: "",
+          running: false,
+          fadingApple: false,
+          status: "idle",
+          wrongMessage: "",
+          completedRows: []
+        };
+        render();
+        announce("Step 2 reset.");
+      }
+
+      async function runStep2Row() {
+        const s2 = state.step2;
+        if (s2.running || s2.prediction === "" || s2.status === "done" || s2.status === "wrong") return;
+
+        const row = STEP2_SCRIPT[s2.rowIndex];
+        const prevCounts = { ...s2.counts };
+        const nextCounts = row.apply(prevCounts);
+
+        cancelPendingAnimations();
+        const token = state.runToken;
+        s2.running = true;
+        render();
+        focusByIdNoScroll("s2-run-btn");
+
+        if (!row.isFinalSize) {
+          if (prevCounts.apple > 0 && nextCounts.apple === 0) {
+            s2.fadingApple = true;
+            render();
+            focusByIdNoScroll("s2-run-btn");
+            const ok = await waitMs(390, token);
+            if (!ok) return;
+            s2.fadingApple = false;
+            s2.counts = nextCounts;
+            render();
+            focusByIdNoScroll("s2-run-btn");
+          } else {
+            s2.counts = nextCounts;
+            render();
+            focusByIdNoScroll("s2-run-btn");
+            const ok = await waitMs(340, token);
+            if (!ok) return;
+          }
+        } else {
+          const ok = await waitMs(220, token);
+          if (!ok) return;
+        }
+
+        s2.running = false;
+        const val = parseInt(s2.prediction, 10);
+
+        if (val !== row.answer) {
+          s2.status = "wrong";
+          s2.wrongMessage = row.wrongReason;
+          // Store previous counts so Try again restores cleanly
+          s2.prevCountsForRetry = prevCounts;
+          render();
+          focusByIdNoScroll("step2-try-btn");
+          announce(row.wrongReason);
+          return;
+        }
+
+        s2.completedRows.push({ index: s2.rowIndex, answer: row.answer });
+        s2.prediction = "";
+
+        if (s2.rowIndex < STEP2_SCRIPT.length - 1) {
+          s2.rowIndex += 1;
+          s2.status = "idle";
+          render();
+          const nextRow = STEP2_SCRIPT[s2.rowIndex];
+          announce(`Confirmed. Next line: ${nextRow.code}`);
+          const inp = document.getElementById("s2-active-input");
+          if (inp) inp.focus({ preventScroll: true });
+        } else {
+          s2.status = "done";
+          if (state.maxUnlockedStep < 2) state.maxUnlockedStep = 2;
+          render();
+          focusByIdNoScroll("step2-next-btn");
+          announce("Confirmed: bag size is 1. Next step is unlocked.");
+        }
+      }
+
+      function renderStep2() {
+        const s2 = state.step2;
+
+        const header = document.createElement("div");
+        header.className = "step-header";
+        header.innerHTML = `<h2 class="step-title" tabindex="-1">Predict the script</h2>`;
+        const resetBtn = document.createElement("button");
+        resetBtn.type = "button";
+        resetBtn.className = "btn btn-secondary btn-small";
+        resetBtn.textContent = "Reset";
+        resetBtn.addEventListener("click", resetStep2);
+        header.appendChild(resetBtn);
+        mainEl.appendChild(header);
+
+        const cols = document.createElement("div");
+        cols.className = "two-col step2-cols";
+
+        // Left: Bag (Counts view)
+        const bagPanel = document.createElement("section");
+        bagPanel.className = "panel";
+        bagPanel.setAttribute("aria-label", "Bag counts view");
+        const bagHead = document.createElement("div");
+        bagHead.className = "panel-head";
+        const totalSize = (s2.counts.apple || 0) + (s2.counts.banana || 0);
+        const sizeBadge = s2.status === "done"
+          ? `<span class="count-pill">bag.size() = ${totalSize}</span>`
+          : `<span class="count-pill">Counts view</span>`;
+        bagHead.innerHTML = `<h3 class="panel-title">Bag</h3>${sizeBadge}`;
+        bagPanel.appendChild(bagHead);
+
+        const startCaption = document.createElement("p");
+        startCaption.className = "muted-note";
+        startCaption.textContent = "Start: apple \u00d74, banana \u00d71";
+        bagPanel.appendChild(startCaption);
+
+        const basket = document.createElement("div");
+        basket.className = "basket-wrap";
+        let hasItems = false;
+        if (s2.counts.apple > 0 || s2.fadingApple) {
+          hasItems = true;
+          const displayCount = s2.fadingApple ? 0 : s2.counts.apple;
+          basket.insertAdjacentHTML(
+            "beforeend",
+            renderFruitToken("apple", {
+              count: displayCount,
+              extraClass: s2.fadingApple ? "fade-out" : ""
+            })
+          );
+        }
+        if (s2.counts.banana > 0) {
+          hasItems = true;
+          basket.insertAdjacentHTML("beforeend", renderFruitToken("banana", { count: s2.counts.banana }));
+        }
+        if (!hasItems) {
+          basket.innerHTML = `<span class="empty-label">Empty basket</span>`;
+        }
+        bagPanel.appendChild(basket);
+        cols.appendChild(bagPanel);
+
+        // Right: Script rows
+        const scriptPanel = document.createElement("section");
+        scriptPanel.className = "panel";
+        scriptPanel.setAttribute("aria-label", "Bag operations script");
+
+        const instr = document.createElement("p");
+        instr.className = "instruction-line";
+        if (s2.status === "done") {
+          instr.textContent = "All lines complete.";
+        } else if (STEP2_SCRIPT[s2.rowIndex].isFinalSize) {
+          instr.textContent = "Predict the total bag size now, then tap Check.";
+        } else {
+          instr.textContent = "Predict apples after the highlighted line, then tap Run line.";
+        }
+        scriptPanel.appendChild(instr);
+
+        const list = document.createElement("div");
+        list.className = "script-list";
+
+        STEP2_SCRIPT.forEach((row, idx) => {
+          const isDone = s2.completedRows.some((c) => c.index === idx);
+          const isActive = s2.status !== "done" && idx === s2.rowIndex;
+          const rowEl = document.createElement("div");
+          rowEl.className = `script-row ${isActive ? "is-active" : (isDone ? "is-done" : "is-future")}`;
+
+          const top = document.createElement("div");
+          top.className = "script-row-top";
+          top.innerHTML = `<code class="code-inline">${idx < 5 ? `${idx + 1}. ` : ""}${row.code}</code>`;
+
+          if (isDone) {
+            const label = row.isFinalSize ? `size: ${row.answer}` : `apples: ${row.answer}`;
+            top.insertAdjacentHTML("beforeend", `<span class="done-pill">${checkIconSvg()} ${label}</span>`);
+            rowEl.appendChild(top);
+          } else if (isActive) {
+            rowEl.appendChild(top);
+            const ctrls = document.createElement("div");
+            ctrls.className = "script-row-controls";
+
+            const stepper = createNumberStepper({
+              id: "s2-active-input",
+              labelHtml: `<span class="row-prompt">${row.prompt}:</span>`,
+              value: s2.prediction,
+              disabled: s2.running || s2.status === "wrong",
+              statusClass: s2.status === "wrong" ? "is-wrong" : "",
+              onChange: (v) => {
+                s2.prediction = v;
+                const btn = document.getElementById("s2-run-btn");
+                if (btn) btn.disabled = v === "" || s2.running || s2.status === "wrong";
+              },
+              onEnter: runStep2Row
+            });
+            stepper.style.flex = "1 1 200px";
+            ctrls.appendChild(stepper);
+
+            const runBtn = document.createElement("button");
+            runBtn.type = "button";
+            runBtn.id = "s2-run-btn";
+            runBtn.className = "btn btn-primary";
+            runBtn.textContent = s2.running ? "Running..." : (row.isFinalSize ? "Check" : "Run line");
+            if (s2.running) {
+              runBtn.setAttribute("aria-disabled", "true");
+            } else {
+              runBtn.disabled = s2.prediction === "" || s2.status === "wrong";
+            }
+            runBtn.addEventListener("click", runStep2Row);
+            ctrls.appendChild(runBtn);
+
+            rowEl.appendChild(ctrls);
+          } else {
+            top.insertAdjacentHTML("beforeend", `<span class="row-prompt">${row.prompt}</span>`);
+            rowEl.appendChild(top);
+          }
+
+          list.appendChild(rowEl);
+        });
+
+        scriptPanel.appendChild(list);
+        cols.appendChild(scriptPanel);
+        mainEl.appendChild(cols);
+
+        if (s2.status === "wrong") {
+          const fb = document.createElement("div");
+          fb.className = "feedback feedback-wrong";
+          fb.innerHTML = `<p class="feedback-text">${s2.wrongMessage}</p>`;
+          const tryBtn = document.createElement("button");
+          tryBtn.type = "button";
+          tryBtn.id = "step2-try-btn";
+          tryBtn.className = "btn btn-try";
+          tryBtn.textContent = "Try again";
+          tryBtn.addEventListener("click", () => {
+            s2.counts = { ...(s2.prevCountsForRetry || s2.counts) };
+            s2.prediction = "";
+            s2.status = "idle";
+            s2.wrongMessage = "";
+            render();
+            const inp = document.getElementById("s2-active-input");
+            if (inp) inp.focus({ preventScroll: true });
+          });
+          fb.appendChild(tryBtn);
+          mainEl.appendChild(fb);
+        } else if (s2.status === "done") {
+          const fb = document.createElement("div");
+          fb.className = "feedback feedback-ok";
+          fb.innerHTML = `<p class="feedback-text">Confirmed: apple dropped to 0 and left the bag, leaving 1 banana.</p>`;
+          mainEl.appendChild(fb);
+        }
+
+        // Footer
+        const footer = document.createElement("div");
+        footer.className = "step-footer";
+        const backBtn = document.createElement("button");
+        backBtn.type = "button";
+        backBtn.className = "btn btn-secondary";
+        backBtn.textContent = "\u2190 Back";
+        backBtn.addEventListener("click", () => goToStep(0));
+        footer.appendChild(backBtn);
+
+        const rightBtns = document.createElement("div");
+        rightBtns.className = "footer-right";
+        const nextBtn = document.createElement("button");
+        nextBtn.type = "button";
+        nextBtn.id = "step2-next-btn";
+        nextBtn.className = "btn btn-active";
+        nextBtn.textContent = "Next \u2192";
+        nextBtn.disabled = state.maxUnlockedStep < 2;
+        nextBtn.addEventListener("click", () => goToStep(2));
+        rightBtns.appendChild(nextBtn);
+        footer.appendChild(rightBtns);
+        mainEl.appendChild(footer);
+      }
+
+      /* ---------------- STEP 3 ---------------- */
+      function initSubStep(subIdx) {
+        cancelPendingAnimations();
+        const s3 = state.step3;
+        s3.subIndex = subIdx;
+        s3.changedKey = null;
+        s3.ghostKeyActive = false;
+        s3.choicePred = "";
+        s3.sizePred = "";
+        s3.containsPred = "";
+        s3.running = false;
+        s3.activeLines = [];
+        s3.crashLine = -1;
+        s3.lineTag = null;
+        s3.getResult = null;
+        s3.status = "idle";
+        s3.wrongMessages = [];
+        s3.showCrash = false;
+        s3.showSideBySide = false;
+        s3.showFixCode = false;
+
+        if (subIdx === 0) {
+          s3.counts = { apple: 3, banana: 1 };
+        } else if (subIdx === 1) {
+          s3.counts = { apple: 4, banana: 1 };
+        } else if (subIdx === 2) {
+          s3.counts = { apple: 4, banana: 1, kiwi: 1 };
+        } else if (subIdx === 3) {
+          // Retain live banana/kiwi from earlier substeps and set apple down to 1
+          s3.counts = { apple: 1, banana: 1, kiwi: 1 };
+        }
+      }
+
+      function resetStep3() {
+        state.step3.completedSubs = { 0: false, 1: false, 2: false, 3: false };
+        initSubStep(0);
+        render();
+        announce("Step 3 reset to 3a.");
+      }
+
+      function computeBuggy3dMap(baseCounts) {
+        return { ...baseCounts, apple: (baseCounts.apple || 1) - 1 };
+      }
+
+      function updateStep3RunBtn() {
+        const s3 = state.step3;
+        const btn = document.getElementById("s3-run-btn");
+        if (!btn) return;
+        const locked = s3.running || s3.status === "revealed" || s3.status === "fixed" || s3.status === "wrong";
+        const ready = s3.subIndex < 3
+          ? s3.choicePred !== ""
+          : (s3.sizePred !== "" && s3.containsPred !== "");
+        btn.disabled = !ready || locked;
+      }
+
+      async function runStep3Action() {
+        const s3 = state.step3;
+        if (s3.running || s3.status === "revealed" || s3.status === "fixed" || s3.status === "wrong") return;
+        if (s3.subIndex < 3) {
+          if (s3.choicePred === "") return;
+        } else {
+          if (s3.sizePred === "") return;
+          if (s3.containsPred === "") {
+            const grpBtn = mainEl.querySelector('[data-group="s3d-contains"] [tabindex="0"]');
+            if (grpBtn) grpBtn.focus();
+            return;
+          }
+        }
+
+        cancelPendingAnimations();
+        const token = state.runToken;
+        s3.running = true;
+        s3.wrongMessages = [];
+        s3.lineTag = null;
+        s3.getResult = null;
+        render();
+        focusByIdNoScroll("s3-run-btn");
+
+        if (s3.subIndex === 0) {
+          // 3a: add(apple)
+          s3.activeLines = [0];
+          s3.getResult = { key: "apple", valueText: "3", isNull: false };
+          render();
+          focusByIdNoScroll("s3-run-btn");
+          if (!(await waitMs(420, token))) return;
+
+          s3.activeLines = [1];
+          s3.lineTag = { line: 1, text: "false" };
+          render();
+          focusByIdNoScroll("s3-run-btn");
+          if (!(await waitMs(400, token))) return;
+
+          s3.activeLines = [2];
+          s3.lineTag = null;
+          s3.getResult = null;
+          s3.counts = { ...s3.counts, apple: 4 };
+          s3.changedKey = "apple";
+          render();
+          focusByIdNoScroll("s3-run-btn");
+          if (!(await waitMs(380, token))) return;
+
+          s3.running = false;
+          if (s3.choicePred === "3") {
+            s3.status = "revealed";
+            s3.completedSubs[0] = true;
+            render();
+            focusByIdNoScroll("step3-next-btn");
+            announce("Confirmed: counts.get(apple) returns 3, then put updates apple to 4 in both views.");
+          } else {
+            s3.status = "wrong";
+            s3.wrongMessages = ["apple is already a key in the map with value 3, so counts.get(apple) returns 3."];
+            render();
+            focusByIdNoScroll("step3-try-btn");
+            announce(s3.wrongMessages[0]);
+          }
+        } else if (s3.subIndex === 1) {
+          // 3b: add(kiwi)
+          s3.activeLines = [0];
+          s3.getResult = { key: "kiwi", valueText: "null", isNull: true };
+          render();
+          focusByIdNoScroll("s3-run-btn");
+          if (!(await waitMs(440, token))) return;
+
+          s3.activeLines = [1];
+          s3.lineTag = { line: 1, text: "true" };
+          render();
+          focusByIdNoScroll("s3-run-btn");
+          if (!(await waitMs(400, token))) return;
+
+          s3.activeLines = [1];
+          s3.lineTag = null;
+          s3.getResult = null;
+          s3.counts = { ...s3.counts, kiwi: 1 };
+          s3.changedKey = "kiwi";
+          render();
+          focusByIdNoScroll("s3-run-btn");
+          if (!(await waitMs(380, token))) return;
+
+          s3.running = false;
+          if (s3.choicePred === "null") {
+            s3.status = "revealed";
+            s3.completedSubs[1] = true;
+            render();
+            focusByIdNoScroll("step3-next-btn");
+            announce("Confirmed: counts.get(kiwi) returns null, so the if-branch puts kiwi = 1.");
+          } else {
+            s3.status = "wrong";
+            s3.wrongMessages = ["kiwi is not in the map yet, so counts.get(kiwi) returns null."];
+            render();
+            focusByIdNoScroll("step3-try-btn");
+            announce(s3.wrongMessages[0]);
+          }
+        } else if (s3.subIndex === 2) {
+          // 3c: Spot the bug with grape
+          s3.crashLine = 0;
+          s3.getResult = { key: "grape", valueText: "null", isNull: true };
+          render();
+          focusByIdNoScroll("s3-run-btn");
+          if (!(await waitMs(420, token))) return;
+
+          s3.showCrash = true;
+          s3.running = false;
+          if (s3.choicePred === "crash") {
+            s3.status = "revealed";
+            s3.showSideBySide = true;
+            s3.completedSubs[2] = true;
+            render();
+            focusByIdNoScroll("step3-next-btn");
+            announce("Confirmed: NullPointerException. get(grape) is null, and null plus 1 is not a number.");
+          } else {
+            s3.status = "wrong";
+            s3.wrongMessages = ["counts.get(grape) returns null, and Java crashes trying to compute null + 1."];
+            render();
+            focusByIdNoScroll("step3-try-btn");
+            announce(s3.wrongMessages[0]);
+          }
+        } else if (s3.subIndex === 3) {
+          // 3d: Back to zero (buggy subtract)
+          const baseSnapshot = { ...s3.counts };
+          const postBuggyMap = computeBuggy3dMap(baseSnapshot);
+          const expectedSize = Object.keys(postBuggyMap).length;
+          const expectedContains = Object.prototype.hasOwnProperty.call(postBuggyMap, "apple") ? "true" : "false";
+
+          s3.activeLines = [0];
+          s3.getResult = { key: "apple", valueText: String(baseSnapshot.apple || 1), isNull: false };
+          render();
+          focusByIdNoScroll("s3-run-btn");
+          if (!(await waitMs(380, token))) return;
+
+          s3.getResult = null;
+          s3.counts = postBuggyMap;
+          s3.ghostKeyActive = true;
+          s3.changedKey = "apple";
+          render();
+          focusByIdNoScroll("s3-run-btn");
+          if (!(await waitMs(360, token))) return;
+
+          s3.running = false;
+
+          const wrongs = [];
+          if (parseInt(s3.sizePred, 10) !== expectedSize) {
+            wrongs.push(`counts.size() is ${expectedSize}: apple = 0 is still a key in the map.`);
+          }
+          if (s3.containsPred !== expectedContains) {
+            wrongs.push(`counts.containsKey(apple) is ${expectedContains}: putting 0 leaves the apple key in the map.`);
+          }
+
+          if (wrongs.length > 0) {
+            s3.status = "wrong";
+            s3.wrongMessages = wrongs;
+            render();
+            focusByIdNoScroll("step3-try-btn");
+            announce(wrongs.join(" "));
+          } else {
+            s3.status = "revealed";
+            s3.showFixCode = true;
+            render();
+            focusByIdNoScroll("s3-fix-btn");
+            announce("Confirmed: the bag shows no apple, but the map keeps an apple = 0 ghost key.");
+          }
+        }
+      }
+
+      async function runStep3Fix() {
+        const s3 = state.step3;
+        if (s3.running || s3.subIndex !== 3 || s3.status !== "revealed") return;
+
+        cancelPendingAnimations();
+        const token = state.runToken;
+        s3.running = true;
+        // Restore apple: 1 briefly before showing the fixed removal
+        s3.counts = { ...s3.counts, apple: 1 };
+        s3.ghostKeyActive = false;
+        s3.changedKey = null;
+        s3.activeLines = [0];
+        s3.lineTag = null;
+        s3.getResult = { key: "apple", valueText: "1", isNull: false };
+        render();
+        focusByIdNoScroll("s3-fix-btn");
+        if (!(await waitMs(380, token))) return;
+
+        s3.activeLines = [1];
+        s3.lineTag = { line: 1, text: "false" };
+        render();
+        focusByIdNoScroll("s3-fix-btn");
+        if (!(await waitMs(380, token))) return;
+
+        s3.activeLines = [2];
+        s3.lineTag = { line: 2, text: "true" };
+        render();
+        focusByIdNoScroll("s3-fix-btn");
+        if (!(await waitMs(380, token))) return;
+
+        const fixedMap = { ...s3.counts };
+        delete fixedMap.apple;
+        s3.counts = fixedMap;
+        s3.lineTag = null;
+        s3.getResult = null;
+        s3.changedKey = null;
+        s3.running = false;
+        s3.status = "fixed";
+        s3.completedSubs[3] = true;
+        if (state.maxUnlockedStep < 3) state.maxUnlockedStep = 3;
+        render();
+        focusByIdNoScroll("step3-next-btn");
+        announce("Fixed: counts.remove(apple) removes the key completely so Bag and Map agree. Done is unlocked.");
+      }
+
+      function renderStep3Code(lines, activeLines, crashLine, argsLabel, lineTag) {
+        const wrap = document.createElement("div");
+        wrap.className = "code-wrap";
+
+        if (argsLabel) {
+          const args = document.createElement("p");
+          args.className = "code-args";
+          args.textContent = argsLabel;
+          wrap.appendChild(args);
+        }
+
+        const pre = document.createElement("pre");
+        pre.className = "code-box";
+        lines.forEach((txt, i) => {
+          const span = document.createElement("span");
+          let cls = "code-line";
+          if (crashLine === i) cls += " is-crash";
+          else if (activeLines.includes(i)) cls += " is-running";
+          span.className = cls;
+          span.textContent = txt;
+          if (lineTag && lineTag.line === i) {
+            const tag = document.createElement("span");
+            tag.className = "line-tag";
+            tag.textContent = lineTag.text;
+            span.appendChild(tag);
+          }
+          pre.appendChild(span);
+        });
+        wrap.appendChild(pre);
+        return wrap;
+      }
+
+      function renderStep3Views(parent) {
+        const s3 = state.step3;
+        const cols = document.createElement("div");
+        cols.className = "two-col";
+
+        // Left: Bag (Counts view)
+        const bagPanel = document.createElement("section");
+        bagPanel.className = "panel";
+        bagPanel.setAttribute("aria-label", "Bag counts view");
+        const bagEntries = Object.entries(s3.counts).filter(([, v]) => v > 0);
+        const totalBag = bagEntries.reduce((acc, [, v]) => acc + v, 0);
+        bagPanel.innerHTML = `
+          <div class="panel-head">
+            <h3 class="panel-title">Bag (Counts)</h3>
+            <span class="count-pill">size: ${totalBag}</span>
+          </div>
+        `;
+        const basket = document.createElement("div");
+        basket.className = "basket-wrap";
+        if (bagEntries.length === 0) {
+          basket.innerHTML = `<span class="empty-label">Empty basket</span>`;
+        } else {
+          bagEntries.forEach(([k, v]) => {
+            basket.insertAdjacentHTML(
+              "beforeend",
+              renderFruitToken(k, {
+                count: v,
+                extraClass: s3.changedKey === k ? "pop-in" : ""
+              })
+            );
+          });
+        }
+        bagPanel.appendChild(basket);
+        cols.appendChild(bagPanel);
+
+        // Right: Map<String,Integer> counts
+        const mapPanel = document.createElement("section");
+        mapPanel.className = "panel";
+        mapPanel.setAttribute("aria-label", "Map key-count table");
+        const mapEntries = Object.entries(s3.counts);
+        mapPanel.innerHTML = `
+          <div class="panel-head">
+            <h3 class="panel-title"><code>Map&lt;String,Integer&gt; counts</code></h3>
+            <span class="count-pill">size: ${mapEntries.length}</span>
+          </div>
+        `;
+
+        const table = document.createElement("table");
+        table.className = "map-table";
+        table.innerHTML = `<thead><tr><th scope="col">key</th><th scope="col">count</th></tr></thead>`;
+        const tbody = document.createElement("tbody");
+
+        mapEntries.forEach(([k, v]) => {
+          const tr = document.createElement("tr");
+          const isGhost = s3.ghostKeyActive && k === "apple" && v === 0;
+          if (isGhost) tr.className = "map-row-ghost";
+          else if (s3.changedKey === k) tr.className = "map-row-changed";
+
+          const extraChip = isGhost ? `<span class="ghost-tag">ghost key</span>` : "";
+          tr.innerHTML = `<td>${k}${extraChip}</td><td>${v}</td>`;
+          tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+        mapPanel.appendChild(table);
+
+        if (s3.getResult) {
+          const strip = document.createElement("div");
+          strip.className = "get-result-strip";
+          const chipCls = s3.getResult.isNull ? "null-chip" : "val-chip";
+          strip.innerHTML = `<code>counts.get(${s3.getResult.key}) \u2192</code> <span class="${chipCls}">${s3.getResult.valueText}</span>`;
+          mapPanel.appendChild(strip);
+        }
+
+        cols.appendChild(mapPanel);
+        parent.appendChild(cols);
+      }
+
+      function renderStep3() {
+        const s3 = state.step3;
+
+        const header = document.createElement("div");
+        header.className = "step-header";
+        header.innerHTML = `<h2 class="step-title" tabindex="-1">Two views of one bag</h2>`;
+        const resetBtn = document.createElement("button");
+        resetBtn.type = "button";
+        resetBtn.className = "btn btn-secondary btn-small";
+        resetBtn.textContent = "Reset";
+        resetBtn.addEventListener("click", resetStep3);
+        header.appendChild(resetBtn);
+        mainEl.appendChild(header);
+
+        // Sub-step pills
+        const subBar = document.createElement("div");
+        subBar.className = "substep-bar";
+        const subTitles = [
+          "3a Add existing",
+          "3b Add new",
+          "3c Spot the bug",
+          "3d Back to zero"
+        ];
+        SUBSTEPS.forEach((_, idx) => {
+          const pill = document.createElement("span");
+          let cls = "sub-pill";
+          if (idx === s3.subIndex) cls += " is-active";
+          else if (s3.completedSubs[idx]) cls += " is-done";
+          pill.className = cls;
+          pill.innerHTML = `${s3.completedSubs[idx] ? checkIconSvg() : ""}<span>${subTitles[idx]}</span>`;
+          subBar.appendChild(pill);
+        });
+        mainEl.appendChild(subBar);
+
+        const subHeading = document.createElement("p");
+        subHeading.className = "instruction-line";
+        if (s3.subIndex === 0) subHeading.textContent = "3a \u2014 Add a fruit that is already there";
+        else if (s3.subIndex === 1) subHeading.textContent = "3b \u2014 Add a brand-new fruit";
+        else if (s3.subIndex === 2) subHeading.textContent = "3c \u2014 Spot the bug";
+        else subHeading.textContent = "3d \u2014 Back to zero (Now apple is down to 1.)";
+        mainEl.appendChild(subHeading);
+
+        // Linked Bag + Map panels
+        renderStep3Views(mainEl);
+
+        const SAFE_ADD_LINES = [
+          "Integer c = counts.get(x);",
+          "if (c == null) counts.put(x, 1);",
+          "else counts.put(x, c + 1);"
+        ];
+
+        const argsLabels = ["x = apple", "x = kiwi", "x = grape", "x = apple, i = 1"];
+
+        // Code box
+        if (s3.subIndex === 0 || s3.subIndex === 1) {
+          mainEl.appendChild(renderStep3Code(SAFE_ADD_LINES, s3.activeLines, -1, argsLabels[s3.subIndex], s3.lineTag));
+        } else if (s3.subIndex === 2) {
+          mainEl.appendChild(renderStep3Code(["counts.put(x, counts.get(x) + 1);"], s3.activeLines, s3.crashLine, argsLabels[2], null));
+        } else {
+          if (!s3.showFixCode) {
+            mainEl.appendChild(renderStep3Code(["counts.put(x, counts.get(x) - i);"], s3.activeLines, -1, argsLabels[3], null));
+          }
+        }
+
+        // Crash panel & side-by-side in 3c
+        if (s3.subIndex === 2 && s3.showCrash) {
+          const crash = document.createElement("div");
+          crash.className = "crash-panel";
+          crash.textContent = "NullPointerException: get(grape) is null, and null + 1 is not a number.";
+          mainEl.appendChild(crash);
+        }
+
+        if (s3.subIndex === 2 && s3.showSideBySide) {
+          const comp = document.createElement("div");
+          comp.className = "two-col";
+
+          const bugCol = document.createElement("div");
+          bugCol.className = "panel";
+          bugCol.innerHTML = `<h3 class="panel-title">Buggy</h3>`;
+          bugCol.appendChild(renderStep3Code(["counts.put(x, counts.get(x) + 1);"], [], 0, null, null));
+
+          const fixCol = document.createElement("div");
+          fixCol.className = "panel";
+          fixCol.innerHTML = `<h3 class="panel-title">Correct</h3>`;
+          fixCol.appendChild(renderStep3Code(SAFE_ADD_LINES, [], -1, null, null));
+
+          comp.appendChild(bugCol);
+          comp.appendChild(fixCol);
+          mainEl.appendChild(comp);
+        }
+
+        // 3b note
+        if (s3.subIndex === 1 && s3.status === "revealed") {
+          const note = document.createElement("div");
+          note.className = "feedback feedback-note";
+          note.innerHTML = `<p class="feedback-text">Same as on the Map ADT page: get returns null for a missing key.</p>`;
+          mainEl.appendChild(note);
+        }
+
+        // 3d fix code
+        if (s3.subIndex === 3 && s3.showFixCode) {
+          const fixNote = document.createElement("div");
+          fixNote.className = "feedback feedback-note";
+          fixNote.innerHTML = `<p class="feedback-text">The bag has no apple, but the map kept apple = 0 as a ghost key. Fix remove(x, i) below:</p>`;
+          mainEl.appendChild(fixNote);
+
+          const FIX_LINES = [
+            "Integer c = counts.get(x);",
+            "if (c == null) return;",
+            "if (c <= i) counts.remove(x);",
+            "else counts.put(x, c - i);"
+          ];
+          const fixActiveLines = (s3.running || s3.status === "fixed") ? s3.activeLines : [];
+          mainEl.appendChild(renderStep3Code(FIX_LINES, fixActiveLines, -1, argsLabels[3], s3.lineTag));
+
+          const remNote = document.createElement("p");
+          remNote.className = "muted-note";
+          remNote.innerHTML = `And <code>remove(x)</code> is simply: <code>counts.remove(x);</code>`;
+          mainEl.appendChild(remNote);
+        }
+
+        // Prediction controls per sub-step
+        const locked = s3.running || s3.status === "revealed" || s3.status === "fixed" || s3.status === "wrong";
+
+        if (s3.subIndex === 0) {
+          mainEl.appendChild(createChoiceGroup({
+            groupId: "s3a-choice",
+            labelText: "What does counts.get(apple) return?",
+            options: ["3", "null", "0"],
+            selectedValue: s3.choicePred,
+            disabled: locked,
+            onSelect: (opt) => {
+              s3.choicePred = opt;
+              updateStep3RunBtn();
+            }
+          }));
+        } else if (s3.subIndex === 1) {
+          mainEl.appendChild(createChoiceGroup({
+            groupId: "s3b-choice",
+            labelText: "What does counts.get(kiwi) return?",
+            options: ["1", "null", "0"],
+            selectedValue: s3.choicePred,
+            disabled: locked,
+            onSelect: (opt) => {
+              s3.choicePred = opt;
+              updateStep3RunBtn();
+            }
+          }));
+        } else if (s3.subIndex === 2) {
+          mainEl.appendChild(createChoiceGroup({
+            groupId: "s3c-choice",
+            labelText: "Run this with grape. What happens?",
+            options: ["grape \u00d71", "grape \u00d70", "crash"],
+            selectedValue: s3.choicePred,
+            disabled: locked,
+            onSelect: (opt) => {
+              s3.choicePred = opt;
+              updateStep3RunBtn();
+            }
+          }));
+        } else if (s3.subIndex === 3 && !s3.showFixCode) {
+          const grid = document.createElement("div");
+          grid.className = "predict-grid";
+          grid.appendChild(createNumberStepper({
+            id: "s3d-size-pred",
+            labelHtml: "<code>counts.size()?</code>",
+            value: s3.sizePred,
+            disabled: locked,
+            onChange: (v) => {
+              s3.sizePred = v;
+              updateStep3RunBtn();
+            },
+            onEnter: runStep3Action
+          }));
+          grid.appendChild(createChoiceGroup({
+            groupId: "s3d-contains",
+            labelText: "counts.containsKey(apple)?",
+            options: ["true", "false"],
+            selectedValue: s3.containsPred,
+            disabled: locked,
+            onSelect: (opt) => {
+              s3.containsPred = opt;
+              updateStep3RunBtn();
+            }
+          }));
+          mainEl.appendChild(grid);
+        }
+
+        // Action button
+        const actRow = document.createElement("div");
+        actRow.className = "action-row";
+
+        if (s3.subIndex < 3 || !s3.showFixCode) {
+          const btnLabels = ["add(apple)", "add(kiwi)", "Run add(grape)", "Run remove(apple, 1)"];
+          const ready = s3.subIndex < 3
+            ? s3.choicePred !== ""
+            : (s3.sizePred !== "" && s3.containsPred !== "");
+
+          const runBtn = document.createElement("button");
+          runBtn.type = "button";
+          runBtn.id = "s3-run-btn";
+          runBtn.className = "btn btn-primary";
+          runBtn.textContent = s3.running ? "Running..." : btnLabels[s3.subIndex];
+          if (s3.running) {
+            runBtn.setAttribute("aria-disabled", "true");
+          } else {
+            runBtn.disabled = !ready || locked;
+          }
+          runBtn.addEventListener("click", runStep3Action);
+          actRow.appendChild(runBtn);
+        } else if (s3.subIndex === 3 && s3.status === "revealed") {
+          const fixBtn = document.createElement("button");
+          fixBtn.type = "button";
+          fixBtn.id = "s3-fix-btn";
+          fixBtn.className = "btn btn-primary";
+          fixBtn.textContent = s3.running ? "Running..." : "Re-run with fix: remove(apple, 1)";
+          if (s3.running) {
+            fixBtn.setAttribute("aria-disabled", "true");
+          }
+          fixBtn.addEventListener("click", runStep3Fix);
+          actRow.appendChild(fixBtn);
+        }
+
+        if (actRow.children.length > 0) mainEl.appendChild(actRow);
+
+        // Feedback
+        if (s3.status === "wrong") {
+          const fb = document.createElement("div");
+          fb.className = "feedback feedback-wrong";
+          const ul = document.createElement("ul");
+          ul.className = "feedback-list";
+          s3.wrongMessages.forEach((m) => {
+            const li = document.createElement("li");
+            li.textContent = m;
+            ul.appendChild(li);
+          });
+          fb.appendChild(ul);
+
+          const tryBtn = document.createElement("button");
+          tryBtn.type = "button";
+          tryBtn.id = "step3-try-btn";
+          tryBtn.className = "btn btn-try";
+          tryBtn.textContent = "Try again";
+          tryBtn.addEventListener("click", () => {
+            initSubStep(s3.subIndex);
+            render();
+            const target = document.getElementById("s3d-size-pred") || mainEl.querySelector('[data-group] [tabindex="0"]');
+            if (target) target.focus({ preventScroll: true });
+          });
+          fb.appendChild(tryBtn);
+          mainEl.appendChild(fb);
+        } else if (s3.status === "revealed" && s3.subIndex < 3) {
+          const fb = document.createElement("div");
+          fb.className = "feedback feedback-ok";
+          const msgs = [
+            "Confirmed: apple increased from 3 to 4 in both Bag and Map.",
+            "Confirmed: null triggered the if-branch and added kiwi = 1 to both views.",
+            "Confirmed: checking for null prevents the crash."
+          ];
+          fb.innerHTML = `<p class="feedback-text">${msgs[s3.subIndex]}</p>`;
+          mainEl.appendChild(fb);
+        } else if (s3.status === "fixed") {
+          const fb = document.createElement("div");
+          fb.className = "feedback feedback-ok";
+          fb.innerHTML = `<p class="feedback-text">Confirmed: counts.remove(apple) removes the zero key, so Bag and Map agree.</p>`;
+          mainEl.appendChild(fb);
+        }
+
+        // Footer
+        const footer = document.createElement("div");
+        footer.className = "step-footer";
+
+        const backBtn = document.createElement("button");
+        backBtn.type = "button";
+        backBtn.className = "btn btn-secondary";
+        backBtn.textContent = s3.subIndex === 0 ? "\u2190 Back" : `\u2190 ${SUBSTEPS[s3.subIndex - 1]}`;
+        backBtn.addEventListener("click", () => {
+          if (s3.subIndex === 0) {
+            goToStep(1);
+          } else {
+            initSubStep(s3.subIndex - 1);
+            render();
+            focusStepTitleAndScroll();
+            announce(`Moved back to ${SUBSTEPS[s3.subIndex]}.`);
+          }
+        });
+        footer.appendChild(backBtn);
+
+        const rightBtns = document.createElement("div");
+        rightBtns.className = "footer-right";
+        const nextBtn = document.createElement("button");
+        nextBtn.type = "button";
+        nextBtn.id = "step3-next-btn";
+        nextBtn.className = "btn btn-active";
+        if (s3.subIndex < 3) {
+          nextBtn.textContent = `Next: ${SUBSTEPS[s3.subIndex + 1]} \u2192`;
+          nextBtn.disabled = s3.status !== "revealed";
+          nextBtn.addEventListener("click", () => {
+            initSubStep(s3.subIndex + 1);
+            render();
+            focusStepTitleAndScroll();
+            announce(`Starting ${SUBSTEPS[s3.subIndex]}.`);
+          });
+        } else {
+          nextBtn.textContent = "Next: Done \u2192";
+          nextBtn.disabled = state.maxUnlockedStep < 3;
+          nextBtn.addEventListener("click", () => goToStep(3));
+        }
+        rightBtns.appendChild(nextBtn);
+        footer.appendChild(rightBtns);
+        mainEl.appendChild(footer);
+      }
+
+      /* ---------------- DONE CARD ---------------- */
+      function renderDone() {
+        const header = document.createElement("div");
+        header.className = "step-header";
+        header.innerHTML = `<h2 class="step-title" tabindex="-1">Java has no Bag class</h2>`;
+        mainEl.appendChild(header);
+
+        const list = document.createElement("div");
+        list.className = "summary-list";
+        list.innerHTML = `
+          <div class="summary-row">
+            <strong>1. Count map:</strong> <code>Map&lt;E,Integer&gt;</code>. Works when equal elements are truly identical (no need to keep separate objects).
+          </div>
+          <div class="summary-row">
+            <strong>2. Library:</strong> <code>org.apache.commons.collections4.Bag</code>; its <code>remove(x)</code> removes all copies, like our bag.
+          </div>
+          <div class="summary-row">
+            <strong>3. Set with a suitable <code>compareTo()</code>:</strong> equal elements stored next to each other in a fixed order; the <code>...All()</code> operations won't work, though.
+          </div>
+        `;
+        mainEl.appendChild(list);
+
+        const closing = document.createElement("div");
+        closing.className = "closing-banner";
+        closing.textContent = "Duplicates allowed? Use a bag. Only counting? A map of counts is enough.";
+        mainEl.appendChild(closing);
+
+        const footer = document.createElement("div");
+        footer.className = "step-footer";
+        const backBtn = document.createElement("button");
+        backBtn.type = "button";
+        backBtn.className = "btn btn-secondary";
+        backBtn.textContent = "\u2190 Back";
+        backBtn.addEventListener("click", () => goToStep(2));
+        footer.appendChild(backBtn);
+
+        const rightBtns = document.createElement("div");
+        rightBtns.className = "footer-right";
+        const restartBtn = document.createElement("button");
+        restartBtn.type = "button";
+        restartBtn.className = "btn btn-active";
+        restartBtn.textContent = "Start from Step 1";
+        restartBtn.addEventListener("click", () => goToStep(0));
+        rightBtns.appendChild(restartBtn);
+        footer.appendChild(rightBtns);
+        mainEl.appendChild(footer);
+      }
+
+      function render() {
+        renderStepper();
+        mainEl.innerHTML = "";
+        if (state.currentStep === 0) renderStep1();
+        else if (state.currentStep === 1) renderStep2();
+        else if (state.currentStep === 2) renderStep3();
+        else renderDone();
+      }
+
+      render();
+    })();
+  </script>
+</body>
+</html>
