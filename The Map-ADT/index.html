@@ -1,0 +1,2568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>The Map ADT</title>
+<style>
+  :root {
+    color-scheme: light only;
+    --manila: #F3E6C4;
+    --card: #FBF5E6;
+    --ink: #1F3D2B;
+    --muted: #5C7A66;
+    --brass: #B8892B;
+    --brass-soft: rgba(184, 137, 43, 0.22);
+    --brick: #A63D2F;
+    --brick-soft: rgba(166, 61, 47, 0.14);
+    --correct: #2E6B45;
+    --correct-soft: rgba(46, 107, 69, 0.14);
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "Consolas", "SFMono-Regular", Menlo, monospace;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--manila);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.45;
+    overflow-x: hidden;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .widget-shell {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+
+  /* Focus ring (brass outline) */
+  button:focus-visible,
+  select:focus-visible,
+  input:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 3px solid var(--brass);
+    outline-offset: 2px;
+  }
+
+  /* Step bar */
+  .step-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+    align-items: center;
+  }
+
+  .step-tab {
+    flex: 1 1 auto;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px 12px;
+    background: var(--card);
+    color: var(--ink);
+    border: 2px solid var(--muted);
+    border-radius: 10px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+  }
+
+  .step-tab[aria-selected="true"] {
+    border-color: var(--brass);
+    background: var(--brass-soft);
+    box-shadow: inset 0 -3px 0 var(--brass);
+  }
+
+  .step-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--muted);
+    background: transparent;
+    flex-shrink: 0;
+  }
+
+  .step-tab.done .step-dot {
+    background: var(--correct);
+    border-color: var(--correct);
+  }
+
+  .step-tab[aria-selected="true"] .step-dot {
+    border-color: var(--ink);
+  }
+
+  /* Header strip */
+  .step-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+  }
+
+  .step-instruction {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  /* Buttons */
+  button {
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 700;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: 2px solid var(--ink);
+    background: var(--card);
+    color: var(--ink);
+    transition: background-color 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+  }
+
+  button:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--brass);
+    color: var(--ink);
+    border-color: var(--ink);
+  }
+
+  .btn-secondary {
+    background: var(--card);
+    color: var(--ink);
+    border-color: var(--muted);
+  }
+
+  /* Main layout: Wide >= 800px side-by-side */
+  .workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+  }
+
+  @media (min-width: 800px) {
+    .workspace {
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    }
+  }
+
+  .workspace.summary-mode {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workspace.summary-mode .control-panel {
+    background: transparent;
+    border: 0;
+    padding: 0;
+  }
+
+  /* Board card */
+  .board-panel {
+    background: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: 14px;
+    padding: 14px;
+    position: relative;
+    min-width: 0;
+  }
+
+  .board-stage {
+    position: relative;
+  }
+
+  .board-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .slot {
+    position: relative;
+    min-height: 82px;
+    border-radius: 10px;
+    border: 2px dashed var(--muted);
+    background: var(--manila);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    text-align: center;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  }
+
+  .slot.filled {
+    border-style: solid;
+    border-color: var(--ink);
+    background: var(--card);
+  }
+
+  .slot.active {
+    border-style: solid;
+    border-color: var(--brass);
+    box-shadow: 0 0 0 3px var(--brass-soft);
+  }
+
+  .slot.dup-flash {
+    border-style: solid;
+    border-color: var(--brick);
+    box-shadow: 0 0 0 3px var(--brick-soft);
+    background: var(--brick-soft);
+  }
+
+  .slot.scan-flash {
+    border-color: var(--brass);
+    background: var(--brass-soft);
+  }
+
+  .slot-id {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--muted);
+    line-height: 1.2;
+    padding: 2px 4px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  .slot-id.key-lit {
+    background: var(--brass);
+    color: var(--ink);
+  }
+
+  .slot-val {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+    min-height: 24px;
+    line-height: 24px;
+    display: block;
+    width: 100%;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .slot.empty .slot-val {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .before-note {
+    margin-top: 4px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--brick);
+    background: var(--brick-soft);
+    border: 1px solid var(--brick);
+    border-radius: 6px;
+    padding: 2px 6px;
+    line-height: 1.2;
+  }
+
+  @media (max-width: 479px) {
+    .widget-shell {
+      padding: 10px;
+    }
+    .board-panel {
+      padding: 10px;
+    }
+    .board-grid {
+      gap: 6px;
+    }
+    .slot {
+      min-height: 60px;
+      padding: 4px 2px;
+    }
+    .slot-id {
+      font-size: 12px;
+      padding: 1px 3px;
+    }
+    .slot-val {
+      font-size: clamp(14px, 3.8vw, 16px);
+    }
+    .slot.empty .slot-val {
+      font-size: 14px;
+    }
+    .before-note {
+      font-size: 12px;
+      padding: 2px 3px;
+      white-space: normal;
+      word-break: break-word;
+    }
+  }
+
+  /* Returned tray */
+  .tray-strip {
+    margin-top: 14px;
+    border: 2px solid var(--brick);
+    border-radius: 10px;
+    background: var(--card);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 54px;
+  }
+
+  .tray-label {
+    font-size: 14px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--brick);
+  }
+
+  .tray-content {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: 34px;
+    flex: 1 1 auto;
+  }
+
+  .pill-null {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    background: var(--brick);
+    color: var(--card);
+    padding: 4px 12px;
+    border-radius: 8px;
+  }
+
+  .pill-val {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    background: var(--brick-soft);
+    color: var(--brick);
+    border: 2px solid var(--brick);
+    padding: 3px 12px;
+    border-radius: 8px;
+  }
+
+  .pill-bool {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    background: var(--manila);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    padding: 3px 12px;
+    border-radius: 8px;
+  }
+
+  .tray-empty {
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  /* Animation overlay inside board-stage */
+  .probe-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 4;
+    overflow: visible;
+  }
+
+  .fly-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .fly-card {
+    position: absolute;
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 15px;
+    background: var(--card);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    box-shadow: 0 4px 10px rgba(31, 61, 43, 0.22);
+    transform: translate(-50%, -50%);
+    transition: left 0.65s ease, top 0.65s ease, opacity 0.25s ease;
+    white-space: nowrap;
+  }
+
+  .fly-card.is-null {
+    font-family: var(--mono);
+    background: var(--brick);
+    color: var(--card);
+    border-color: var(--ink);
+  }
+
+  .fly-card.is-returned {
+    border-color: var(--brick);
+    color: var(--brick);
+  }
+
+  /* Board footer captions */
+  .board-caption {
+    margin: 10px 0 0;
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  /* Control / Code panel */
+  .control-panel {
+    background: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .code-box {
+    font-family: var(--mono);
+    font-size: 14px;
+    background: var(--manila);
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--ink);
+    overflow-x: auto;
+    white-space: pre;
+    max-width: 100%;
+  }
+
+  .code-line {
+    display: block;
+    padding: 2px 6px;
+    border-left: 4px solid transparent;
+    border-radius: 4px;
+  }
+
+  .code-line.active-line {
+    background: var(--brass-soft);
+    border-left-color: var(--brass);
+    font-weight: 700;
+  }
+
+  .call-line {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    background: var(--manila);
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+  }
+
+  .call-result {
+    color: var(--brick);
+  }
+
+  .chip-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  @media (max-width: 380px) {
+    .chip-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .chip {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    min-height: 44px;
+    padding: 8px 10px;
+    background: var(--manila);
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    color: var(--ink);
+  }
+
+  .chip.is-null-chip {
+    color: var(--brick);
+  }
+
+  .chip.selected-correct,
+  .chip.reveal-correct {
+    border-color: var(--correct);
+    background: var(--correct-soft);
+    color: var(--correct);
+  }
+
+  .chip.selected-wrong {
+    border-color: var(--brick);
+    background: var(--brick-soft);
+    color: var(--brick);
+  }
+
+  .feedback-box {
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 15px;
+    font-weight: 600;
+    border: 2px solid var(--ink);
+    background: var(--manila);
+  }
+
+  .feedback-box.ok {
+    border-color: var(--correct);
+    background: var(--correct-soft);
+    color: var(--ink);
+  }
+
+  .feedback-box.bad {
+    border-color: var(--brick);
+    background: var(--brick-soft);
+    color: var(--ink);
+  }
+
+  .action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .meta-line {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  .takeaway-box {
+    background: var(--manila);
+    border: 2px solid var(--brass);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .takeaway-box p {
+    margin: 4px 0;
+  }
+
+  /* Free play */
+  .free-play {
+    border-top: 2px dashed var(--muted);
+    padding-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .free-play-title {
+    font-size: 15px;
+    font-weight: 800;
+    margin: 0;
+  }
+
+  .dropdown-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .dropdown-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 110px;
+  }
+
+  .dropdown-group label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  select {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 6px 10px;
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    background: var(--manila);
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+  }
+
+  /* Step 2: Walk */
+  .sub-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .sub-tab {
+    flex: 1 1 140px;
+    background: var(--manila);
+    border: 2px solid var(--muted);
+    color: var(--ink);
+  }
+
+  .sub-tab[aria-selected="true"] {
+    background: var(--brass-soft);
+    border-color: var(--brass);
+    box-shadow: inset 0 -3px 0 var(--brass);
+  }
+
+  .entry-card {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    background: var(--manila);
+    border: 2px solid var(--brass);
+    border-radius: 10px;
+    padding: 8px;
+  }
+
+  .pocket {
+    flex: 1 1 0;
+    background: var(--card);
+    border: 2px solid var(--muted);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+  }
+
+  .pocket.lit {
+    border-color: var(--brass);
+    background: var(--brass-soft);
+  }
+
+  .console-box {
+    background: var(--manila);
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 14px;
+    min-height: 80px;
+    overflow-x: auto;
+  }
+
+  .console-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 4px;
+    font-family: var(--sans);
+  }
+
+  .console-line {
+    margin: 2px 0;
+  }
+
+  .console-line.flag {
+    color: var(--brick);
+    font-weight: 700;
+  }
+
+  .stats-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  /* Step 3: Cost */
+  .counter-pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    background: var(--manila);
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    padding: 6px 12px;
+  }
+
+  .scale-box {
+    border-top: 2px dashed var(--muted);
+    padding-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .slider-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  input[type="range"] {
+    flex: 1 1 160px;
+    min-height: 44px;
+    accent-color: var(--brass);
+    cursor: pointer;
+  }
+
+  .bar-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .bar-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .bar-label {
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .bar-track {
+    width: 100%;
+    height: 18px;
+    background: var(--manila);
+    border: 2px solid var(--ink);
+    border-radius: 9px;
+    overflow: hidden;
+  }
+
+  .bar-fill-key {
+    height: 100%;
+    width: 16px;
+    background: var(--brass);
+  }
+
+  .bar-fill-val {
+    height: 100%;
+    background: var(--brick);
+    transition: width 0.15s ease;
+  }
+
+  /* Step 4: Use it */
+  .queue-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .queue-item {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border: 2px solid var(--muted);
+    border-radius: 8px;
+    background: var(--manila);
+  }
+
+  .queue-item.current {
+    border-color: var(--brass);
+    background: var(--brass-soft);
+  }
+
+  .queue-item.done {
+    opacity: 0.65;
+  }
+
+  .queue-item.dup {
+    border-color: var(--brick);
+    color: var(--brick);
+    background: var(--brick-soft);
+  }
+
+  .blank-pill {
+    display: inline-block;
+    padding: 1px 8px;
+    border: 2px solid var(--brass);
+    border-radius: 6px;
+    background: var(--brass-soft);
+    font-weight: 700;
+  }
+
+  /* Summary table & narrow stacked cards */
+  .summary-card {
+    background: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  .summary-title {
+    margin: 0 0 12px;
+    font-size: 18px;
+    font-weight: 800;
+  }
+
+  .summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+  }
+
+  .summary-table th,
+  .summary-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 2px solid var(--manila);
+    vertical-align: top;
+  }
+
+  .summary-table th {
+    background: var(--manila);
+    font-size: 14px;
+    font-weight: 800;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .summary-table td:first-child {
+    font-family: var(--mono);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .brick-text {
+    color: var(--brick);
+    font-weight: 700;
+  }
+
+  .summary-cards {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .method-card {
+    background: var(--manila);
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 15px;
+  }
+
+  .method-card-title {
+    font-family: var(--mono);
+    font-size: 16px;
+    font-weight: 800;
+  }
+
+  @media (max-width: 600px) {
+    .summary-table {
+      display: none;
+    }
+    .summary-cards {
+      display: flex;
+    }
+  }
+
+  /* Footer nav */
+  .footer-nav {
+    margin-top: 14px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  /* Phone landscape compact side-by-side */
+  @media (max-height: 500px) and (min-width: 560px) {
+    .widget-shell {
+      padding: 8px 10px;
+    }
+    .step-bar {
+      margin-bottom: 6px;
+    }
+    .step-header {
+      padding: 6px 10px;
+      margin-bottom: 8px;
+    }
+    .workspace {
+      grid-template-columns: minmax(0, 1.18fr) minmax(0, 1fr);
+      gap: 8px;
+    }
+    .board-panel, .control-panel {
+      padding: 8px;
+      gap: 8px;
+    }
+    .board-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 5px;
+    }
+    .slot {
+      min-height: 54px;
+      padding: 4px 2px;
+    }
+    .slot-val {
+      font-size: 14px;
+    }
+    .tray-strip {
+      margin-top: 8px;
+      min-height: 44px;
+      padding: 6px 10px;
+    }
+    .footer-nav {
+      margin-top: 8px;
+    }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+    .fly-card {
+      transition: opacity 0.12s linear !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="widget-shell">
+  <div id="live-status" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <nav class="step-bar" role="tablist" aria-label="Map ADT steps">
+    <button class="step-tab" role="tab" id="tab-0" aria-selected="true" data-step="0">
+      <span class="step-dot" aria-hidden="true"></span>Predict
+    </button>
+    <button class="step-tab" role="tab" id="tab-1" aria-selected="false" data-step="1">
+      <span class="step-dot" aria-hidden="true"></span>Walk
+    </button>
+    <button class="step-tab" role="tab" id="tab-2" aria-selected="false" data-step="2">
+      <span class="step-dot" aria-hidden="true"></span>Cost
+    </button>
+    <button class="step-tab" role="tab" id="tab-3" aria-selected="false" data-step="3">
+      <span class="step-dot" aria-hidden="true"></span>Use it
+    </button>
+    <button class="step-tab" role="tab" id="tab-4" aria-selected="false" data-step="4">
+      <span class="step-dot" aria-hidden="true"></span>Summary
+    </button>
+  </nav>
+
+  <header class="step-header">
+    <p class="step-instruction" id="step-instruction"></p>
+    <button type="button" class="btn-secondary" id="btn-reset">Reset</button>
+  </header>
+
+  <main class="workspace" id="workspace">
+    <section class="board-panel" id="board-panel" aria-label="Map key-value board">
+      <div class="board-stage" id="board-stage">
+        <div class="board-grid" id="board-grid"></div>
+        <svg class="probe-svg" id="probe-svg" aria-hidden="true">
+          <defs>
+            <marker id="brass-arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+              <path d="M0,1 L7,4 L0,7 Z" fill="#B8892B"></path>
+            </marker>
+          </defs>
+        </svg>
+        <div class="fly-layer" id="fly-layer" aria-hidden="true"></div>
+      </div>
+
+      <div class="tray-strip" id="tray-strip">
+        <span class="tray-label">returned</span>
+        <div class="tray-content" id="tray-content">
+          <span class="tray-empty">nothing yet</span>
+        </div>
+      </div>
+
+      <p class="board-caption" id="board-caption"></p>
+    </section>
+
+    <section class="control-panel" id="control-panel"></section>
+  </main>
+
+  <footer class="footer-nav">
+    <button type="button" class="btn-secondary" id="btn-back">Back</button>
+    <button type="button" class="btn-primary" id="btn-next">Next</button>
+  </footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const NAMES = ["Maija", "Pekka", "Aino", "Ville", "Liisa", "Anna"];
+  const CHIPS = [
+    { label: "null", value: null, isNull: true },
+    { label: '"Maija"', value: "Maija" },
+    { label: '"Pekka"', value: "Pekka" },
+    { label: '"Aino"', value: "Aino" },
+    { label: "true", value: true },
+    { label: "false", value: false }
+  ];
+
+  const PREDICT_SCRIPT = [
+    { method: "put", key: 2, value: "Maija", expected: null },
+    { method: "put", key: 5, value: "Aino", expected: null },
+    { method: "get", key: 2, value: null, expected: "Maija" },
+    { method: "put", key: 2, value: "Pekka", expected: "Maija" },
+    { method: "get", key: 7, value: null, expected: null },
+    { method: "containsKey", key: 5, value: null, expected: true },
+    { method: "remove", key: 2, value: null, expected: "Pekka" },
+    { method: "get", key: 2, value: null, expected: null }
+  ];
+
+  const WALK_INIT = { 1: "Aino", 3: "Maija", 4: "Pekka", 6: "Ville", 8: "Liisa" };
+  const COST_INIT = {
+    1: "Aino", 2: "Maija", 3: "Pekka", 4: "Ville",
+    5: "Liisa", 6: "Anna", 7: "Aino", 8: "Pekka"
+  };
+  const REG_QUEUE = [
+    [3, "Aino"],
+    [5, "Ville"],
+    [3, "Anna"],
+    [7, "Liisa"],
+    [5, "Ville"]
+  ];
+
+  const INSTRUCTIONS = [
+    "Before each call runs, pick what it will return.",
+    "Step through the loop and watch which slots it visits.",
+    "Ask the map two questions and count the checks.",
+    "Spot repeated registrations using only what put returns.",
+    "Quick reference for java.util.Map methods."
+  ];
+
+  const state = {
+    step: 0,
+    completed: [false, false, false, false, false],
+    board: {},
+    activeSlot: null,
+    dupSlot: null,
+    litKeySlot: null,
+    scanSlot: null,
+    beforeNote: null, // { key, text }
+    tray: undefined, // undefined = empty, null, string, boolean
+    animGen: 0,
+    busy: false,
+
+    // Step 1
+    s1Index: 0,
+    s1Score: 0,
+    s1Answered: false,
+    s1PickedIdx: null,
+    s1LastFeedback: null,
+    s1Done: false,
+    s1CallResult: undefined,
+    freeCallText: "",
+    freeCallResult: undefined,
+    fpMethod: "put",
+    fpKey: 1,
+    fpVal: "Maija",
+
+    // Step 2
+    s2Mode: "keySet", // "keySet" | "entrySet"
+    s2Keys: [1, 3, 4, 6, 8],
+    s2EntryIdx: 0,
+    s2Line: 0,
+    s2Visits: 0,
+    s2Output: [],
+    s2EntryCard: null, // { key, val, lit: 'none'|'key'|'val' }
+    s2Finished: { keySet: false, entrySet: false },
+
+    // Step 3
+    s3Checked: 0,
+    s3LastAnswer: null,
+    s3AskedKey: false,
+    s3AskedVal: false,
+    s3ScaleN: 100,
+
+    // Step 4
+    s4Op: null, // "== null" | "!= null"
+    s4Running: false,
+    s4QueueIdx: -1,
+    s4Output: [],
+    s4DupQueueIndices: [],
+    s4Feedback: null,
+    s4Done: false
+  };
+
+  const els = {
+    live: document.getElementById("live-status"),
+    tabs: Array.from(document.querySelectorAll(".step-tab")),
+    instruction: document.getElementById("step-instruction"),
+    btnReset: document.getElementById("btn-reset"),
+    workspace: document.getElementById("workspace"),
+    boardPanel: document.getElementById("board-panel"),
+    boardStage: document.getElementById("board-stage"),
+    boardGrid: document.getElementById("board-grid"),
+    probeSvg: document.getElementById("probe-svg"),
+    flyLayer: document.getElementById("fly-layer"),
+    trayStrip: document.getElementById("tray-strip"),
+    trayContent: document.getElementById("tray-content"),
+    boardCaption: document.getElementById("board-caption"),
+    controlPanel: document.getElementById("control-panel"),
+    btnBack: document.getElementById("btn-back"),
+    btnNext: document.getElementById("btn-next")
+  };
+
+  function reducedMotion() {
+    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function sleep(ms, gen) {
+    const wait = reducedMotion() ? Math.min(ms, 120) : ms;
+    return new Promise((resolve) => {
+      setTimeout(() => resolve(gen === state.animGen), wait);
+    });
+  }
+
+  function announce(msg) {
+    els.live.textContent = "";
+    requestAnimationFrame(() => {
+      els.live.textContent = msg;
+    });
+  }
+
+  function clearVisualEffects() {
+    els.flyLayer.innerHTML = "";
+    const defs = els.probeSvg.querySelector("defs");
+    els.probeSvg.innerHTML = "";
+    if (defs) els.probeSvg.appendChild(defs);
+  }
+
+  function formatCall(c) {
+    if (c.method === "put") return `map.put(${c.key}, "${c.value}")`;
+    if (c.method === "containsValue") return `map.containsValue("${c.value}")`;
+    return `map.${c.method}(${c.key})`;
+  }
+
+  function formatReturn(val) {
+    if (val === null) return "null";
+    if (typeof val === "boolean") return String(val);
+    return `"${val}"`;
+  }
+
+  function getSlotEl(key) {
+    return els.boardGrid.querySelector(`[data-slot="${key}"]`);
+  }
+
+  function stageRelativeCenter(el) {
+    if (el && typeof el.x === "number" && typeof el.y === "number") {
+      return el;
+    }
+    const stageRect = els.boardStage.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    return {
+      x: r.left - stageRect.left + r.width / 2,
+      y: r.top - stageRect.top + r.height / 2
+    };
+  }
+
+  function isElementInViewport(el) {
+    if (!el) return true;
+    const r = el.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    return r.top >= 0 && r.bottom <= vh;
+  }
+
+  async function ensureBoardVisible(gen) {
+    const stageOk = isElementInViewport(els.boardStage);
+    const trayVisible = els.trayStrip.style.display !== "none";
+    const trayOk = !trayVisible || isElementInViewport(els.trayStrip);
+    if (!stageOk || !trayOk) {
+      try {
+        els.boardPanel.scrollIntoView({
+          block: "start",
+          behavior: reducedMotion() ? "auto" : "smooth"
+        });
+      } catch (_) {}
+      if (!reducedMotion()) {
+        return await sleep(300, gen);
+      }
+    }
+    return gen === state.animGen;
+  }
+
+  function scrollNearest(el) {
+    if (!el) return;
+    try {
+      el.scrollIntoView({
+        block: "nearest",
+        behavior: reducedMotion() ? "auto" : "smooth"
+      });
+    } catch (_) {}
+  }
+
+  function getDropStartAboveSlot(slotEl) {
+    const stageRect = els.boardStage.getBoundingClientRect();
+    const slotRect = slotEl.getBoundingClientRect();
+    return {
+      x: slotRect.left - stageRect.left + slotRect.width / 2,
+      y: Math.max(8, slotRect.top - stageRect.top - 40)
+    };
+  }
+
+  function drawProbeArrowToSlot(key) {
+    const slotEl = getSlotEl(key);
+    if (!slotEl) return;
+    const stageRect = els.boardStage.getBoundingClientRect();
+    const target = stageRelativeCenter(slotEl);
+    const startX = stageRect.width / 2;
+    const startY = stageRect.height + 10;
+
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", String(startX));
+    line.setAttribute("y1", String(startY));
+    line.setAttribute("x2", String(target.x));
+    line.setAttribute("y2", String(target.y + 18));
+    line.setAttribute("stroke", "#B8892B");
+    line.setAttribute("stroke-width", "4");
+    line.setAttribute("marker-end", "url(#brass-arrowhead)");
+    els.probeSvg.appendChild(line);
+  }
+
+  async function flyCard(fromEl, toEl, label, opts, gen) {
+    if (!fromEl || !toEl) return true;
+    const fromPt = stageRelativeCenter(fromEl);
+    const toPt = stageRelativeCenter(toEl);
+    const card = document.createElement("div");
+    card.className = "fly-card" + (opts.isNull ? " is-null" : "") + (opts.isReturned ? " is-returned" : "");
+    card.textContent = label;
+    card.style.left = (reducedMotion() ? toPt.x : fromPt.x) + "px";
+    card.style.top = (reducedMotion() ? toPt.y : fromPt.y) + "px";
+    if (reducedMotion() || opts.fadeIn) card.style.opacity = "0";
+    els.flyLayer.appendChild(card);
+
+    // Force layout
+    card.getBoundingClientRect();
+    if (reducedMotion()) {
+      card.style.opacity = "1";
+      const ok = await sleep(120, gen);
+      card.remove();
+      return ok;
+    }
+
+    if (opts.fadeIn) card.style.opacity = "1";
+    card.style.left = toPt.x + "px";
+    card.style.top = toPt.y + "px";
+    const ok = await sleep(opts.duration || 760, gen);
+    card.remove();
+    return ok;
+  }
+
+  async function animateMapCall(call, gen, options = {}) {
+    const { method, key, value } = call;
+    const slotEl = key != null ? getSlotEl(key) : null;
+    const trayEl = els.trayContent;
+
+    if (method === "put") {
+      state.activeSlot = key;
+      renderBoard();
+      const hadOld = Object.prototype.hasOwnProperty.call(state.board, key);
+      const oldVal = hadOld ? state.board[key] : null;
+
+      if (hadOld) {
+        // Key moment: old card slides out to returned tray (~0.8 s), then new card drops in (~0.8 s)
+        const oldCardLabel = oldVal;
+        delete state.board[key];
+        if (options.flashDupOnReturn) state.dupSlot = key;
+        renderBoard();
+        if (!(await flyCard(getSlotEl(key), trayEl, oldCardLabel, { isReturned: true, duration: 780 }, gen))) return null;
+        state.tray = oldVal;
+        renderTray();
+        if (!(await sleep(140, gen))) return null;
+
+        const targetSlot = getSlotEl(key);
+        const dropStart = getDropStartAboveSlot(targetSlot);
+        if (!(await flyCard(dropStart, targetSlot, value, { duration: 780, fadeIn: true }, gen))) return null;
+        state.board[key] = value;
+        renderBoard();
+        return oldVal;
+      } else {
+        const targetSlot = getSlotEl(key);
+        const dropStart = getDropStartAboveSlot(targetSlot);
+        if (!(await flyCard(dropStart, targetSlot, value, { duration: 700, fadeIn: true }, gen))) return null;
+        state.board[key] = value;
+        renderBoard();
+        if (!(await flyCard(getSlotEl(key), trayEl, "null", { isNull: true, duration: 680 }, gen))) return null;
+        state.tray = null;
+        renderTray();
+        return null;
+      }
+    }
+
+    if (method === "get") {
+      state.activeSlot = key;
+      renderBoard();
+      drawProbeArrowToSlot(key);
+      if (!(await sleep(520, gen))) return null;
+      const found = Object.prototype.hasOwnProperty.call(state.board, key) ? state.board[key] : null;
+      if (found === null) {
+        if (!(await flyCard(slotEl, trayEl, "null", { isNull: true, duration: 680 }, gen))) return null;
+      } else {
+        if (!(await flyCard(slotEl, trayEl, found, { isReturned: true, duration: 680 }, gen))) return null;
+      }
+      clearVisualEffects();
+      state.tray = found;
+      renderTray();
+      return found;
+    }
+
+    if (method === "remove") {
+      state.activeSlot = key;
+      renderBoard();
+      const had = Object.prototype.hasOwnProperty.call(state.board, key);
+      const oldVal = had ? state.board[key] : null;
+      if (had) {
+        delete state.board[key];
+        renderBoard();
+        if (!(await flyCard(getSlotEl(key), trayEl, oldVal, { isReturned: true, duration: 760 }, gen))) return null;
+      } else {
+        if (!(await flyCard(getSlotEl(key), trayEl, "null", { isNull: true, duration: 680 }, gen))) return null;
+      }
+      state.tray = oldVal;
+      renderTray();
+      return oldVal;
+    }
+
+    if (method === "containsKey") {
+      state.activeSlot = key;
+      renderBoard();
+      drawProbeArrowToSlot(key);
+      if (!(await sleep(520, gen))) return null;
+      const res = Object.prototype.hasOwnProperty.call(state.board, key);
+      clearVisualEffects();
+      state.tray = res;
+      renderTray();
+      return res;
+    }
+
+    if (method === "containsValue") {
+      const keys = Object.keys(state.board).map(Number).sort((a, b) => a - b);
+      if (keys.length === 0) {
+        state.tray = false;
+        renderTray();
+        return false;
+      }
+      let found = false;
+      for (const k of keys) {
+        state.scanSlot = k;
+        renderBoard();
+        if (!(await sleep(240, gen))) return null;
+        if (state.board[k] === value) {
+          found = true;
+          break;
+        }
+      }
+      state.scanSlot = null;
+      renderBoard();
+      state.tray = found;
+      renderTray();
+      return found;
+    }
+
+    return null;
+  }
+
+  function renderBoard() {
+    els.boardGrid.innerHTML = "";
+    for (let k = 1; k <= 8; k++) {
+      const hasVal = Object.prototype.hasOwnProperty.call(state.board, k);
+      const slot = document.createElement("div");
+      const classes = ["slot", hasVal ? "filled" : "empty"];
+      if (state.activeSlot === k) classes.push("active");
+      if (state.dupSlot === k) classes.push("dup-flash");
+      if (state.scanSlot === k) classes.push("scan-flash");
+      slot.className = classes.join(" ");
+      slot.dataset.slot = String(k);
+
+      const idEl = document.createElement("div");
+      idEl.className = "slot-id" + (state.litKeySlot === k ? " key-lit" : "");
+      idEl.textContent = `id ${k}`;
+
+      const valEl = document.createElement("div");
+      valEl.className = "slot-val";
+      valEl.textContent = hasVal ? state.board[k] : "empty";
+
+      slot.appendChild(idEl);
+      slot.appendChild(valEl);
+
+      if (state.beforeNote && state.beforeNote.key === k) {
+        const note = document.createElement("div");
+        note.className = "before-note";
+        note.textContent = state.beforeNote.text;
+        slot.appendChild(note);
+      }
+
+      els.boardGrid.appendChild(slot);
+    }
+  }
+
+  function renderTray() {
+    els.trayContent.innerHTML = "";
+    if (state.tray === undefined) {
+      const sp = document.createElement("span");
+      sp.className = "tray-empty";
+      sp.textContent = "nothing yet";
+      els.trayContent.appendChild(sp);
+      return;
+    }
+    const pill = document.createElement("span");
+    if (state.tray === null) {
+      pill.className = "pill-null";
+      pill.textContent = "null";
+    } else if (typeof state.tray === "boolean") {
+      pill.className = "pill-bool";
+      pill.textContent = String(state.tray);
+    } else {
+      pill.className = "pill-val";
+      pill.textContent = `"${state.tray}"`;
+    }
+    els.trayContent.appendChild(pill);
+  }
+
+  function renderTopNav() {
+    els.instruction.textContent = INSTRUCTIONS[state.step];
+    els.tabs.forEach((tab, idx) => {
+      tab.setAttribute("aria-selected", String(idx === state.step));
+      tab.classList.toggle("done", state.completed[idx]);
+    });
+    els.btnBack.disabled = state.step === 0;
+    const isDone = state.completed[state.step];
+    els.btnNext.className = isDone ? "btn-primary" : "btn-secondary";
+    els.btnNext.disabled = state.step === 4;
+    els.btnReset.style.display = state.step === 4 ? "none" : "inline-flex";
+    els.workspace.classList.toggle("summary-mode", state.step === 4);
+    els.boardPanel.style.display = state.step === 4 ? "none" : "block";
+    els.trayStrip.style.display = state.step === 1 ? "none" : "flex";
+  }
+
+  function renderCaption() {
+    if (state.step === 0) {
+      els.boardCaption.textContent =
+        "A map is like a dictionary: you find a whole entry by knowing one part of it, the key.";
+    } else if (state.step === 1) {
+      els.boardCaption.textContent =
+        "TreeMap walks keys in sorted order. A HashMap promises no order.";
+    } else if (state.step === 3 && state.s4QueueIdx === REG_QUEUE.length) {
+      els.boardCaption.textContent =
+        "Notice: put still replaced Aino with Anna. To keep the first name, check containsKey before putting.";
+    } else {
+      els.boardCaption.textContent = "";
+    }
+    els.boardCaption.style.display = els.boardCaption.textContent ? "block" : "none";
+  }
+
+  function renderPanel() {
+    const p = els.controlPanel;
+    p.innerHTML = "";
+    if (state.step === 0) renderStep1(p);
+    else if (state.step === 1) renderStep2(p);
+    else if (state.step === 2) renderStep3(p);
+    else if (state.step === 3) renderStep4(p);
+    else renderSummary(p);
+  }
+
+  // ------------------------------------------------------------------
+  // STEP 1: Predict
+  // ------------------------------------------------------------------
+  function renderStep1(p) {
+    const headerCode = document.createElement("div");
+    headerCode.className = "code-box";
+    headerCode.textContent = "Map<Integer, String> map = new TreeMap<>();";
+    p.appendChild(headerCode);
+
+    if (!state.s1Done) {
+      const cur = PREDICT_SCRIPT[state.s1Index];
+      const prog = document.createElement("div");
+      prog.className = "meta-line";
+      prog.textContent = `Call ${state.s1Index + 1} of ${PREDICT_SCRIPT.length} · Score: ${state.s1Score}`;
+      p.appendChild(prog);
+
+      const callLine = document.createElement("div");
+      callLine.className = "call-line";
+      const callSpan = document.createElement("span");
+      callSpan.textContent = formatCall(cur);
+      callLine.appendChild(callSpan);
+      if (state.s1Answered) {
+        const resSpan = document.createElement("span");
+        resSpan.className = "call-result";
+        resSpan.textContent = `→ ${formatReturn(state.s1CallResult)}`;
+        callLine.appendChild(resSpan);
+      }
+      p.appendChild(callLine);
+
+      const chipsDiv = document.createElement("div");
+      chipsDiv.className = "chip-grid";
+      CHIPS.forEach((chip, idx) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "chip" + (chip.isNull ? " is-null-chip" : "");
+        btn.textContent = chip.label;
+        btn.disabled = state.s1Answered || state.busy;
+        if (state.s1Answered) {
+          if (chip.value === cur.expected) {
+            btn.classList.add(state.s1PickedIdx === idx ? "selected-correct" : "reveal-correct");
+          } else if (state.s1PickedIdx === idx) {
+            btn.classList.add("selected-wrong");
+          }
+        }
+        btn.addEventListener("click", () => handleStep1Pick(idx));
+        chipsDiv.appendChild(btn);
+      });
+      p.appendChild(chipsDiv);
+
+      if (state.s1LastFeedback) {
+        const fb = document.createElement("div");
+        fb.className = "feedback-box " + (state.s1LastFeedback.ok ? "ok" : "bad");
+        fb.textContent = state.s1LastFeedback.text;
+        p.appendChild(fb);
+      }
+
+      const row = document.createElement("div");
+      row.className = "action-row";
+      const nextBtn = document.createElement("button");
+      nextBtn.type = "button";
+      nextBtn.className = "btn-primary";
+      nextBtn.textContent = state.s1Index === PREDICT_SCRIPT.length - 1 ? "Finish script" : "Next call";
+      nextBtn.disabled = !state.s1Answered || state.busy;
+      nextBtn.addEventListener("click", advanceStep1);
+      row.appendChild(nextBtn);
+      p.appendChild(row);
+    } else {
+      const scoreEl = document.createElement("div");
+      scoreEl.className = "meta-line";
+      scoreEl.textContent = `${state.s1Score} / ${PREDICT_SCRIPT.length} predicted`;
+      p.appendChild(scoreEl);
+
+      const tk = document.createElement("div");
+      tk.className = "takeaway-box";
+      tk.innerHTML = "<p>put returns the old value, or null if the key was new.</p><p>get returns null when the key is missing.</p>";
+      p.appendChild(tk);
+
+      renderFreePlay(p);
+    }
+  }
+
+  function step1Reason(call, actual, wasCorrect) {
+    if (call.method === "put") {
+      if (actual === null) {
+        return wasCorrect
+          ? "Right: the key was new, so put stored it and returned null."
+          : `Key ${call.key} was empty, so put stored "${call.value}" and returned null.`;
+      }
+      return wasCorrect
+        ? "Right: the key was already there, so put handed back the old value."
+        : `Key ${call.key} already held "${actual}", so put replaced it and returned "${actual}".`;
+    }
+    if (call.method === "get") {
+      if (actual === null) {
+        return wasCorrect
+          ? "Right: the key is missing, so get returns null."
+          : `No pair uses key ${call.key}, so get returns null.`;
+      }
+      return wasCorrect
+        ? "Right: get returns the value stored at that key."
+        : `Key ${call.key} holds "${actual}", so get returns "${actual}".`;
+    }
+    if (call.method === "containsKey") {
+      return wasCorrect
+        ? "Right: containsKey checks whether that key is present."
+        : `Key ${call.key} is present in the map, so containsKey returns true.`;
+    }
+    if (call.method === "remove") {
+      return wasCorrect
+        ? "Right: remove deletes the pair and returns its old value."
+        : `Key ${call.key} held "${actual}", so remove deleted it and returned "${actual}".`;
+    }
+    return "";
+  }
+
+  async function handleStep1Pick(idx) {
+    if (state.busy || state.s1Answered) return;
+    const gen = state.animGen;
+    state.busy = true;
+    const cur = PREDICT_SCRIPT[state.s1Index];
+    const picked = CHIPS[idx].value;
+    const hadBefore = Object.prototype.hasOwnProperty.call(state.board, cur.key);
+    const valBefore = hadBefore ? state.board[cur.key] : null;
+    const isRight = picked === cur.expected;
+
+    if (!isRight) {
+      state.beforeNote = {
+        key: cur.key,
+        text: hadBefore ? `before: ${cur.key} = ${valBefore}` : `before: ${cur.key} empty`
+      };
+    } else {
+      state.beforeNote = null;
+      state.s1Score += 1;
+    }
+
+    renderPanel();
+    renderBoard();
+
+    if (!(await ensureBoardVisible(gen))) return;
+    const actual = await animateMapCall(cur, gen);
+    if (gen !== state.animGen) return;
+
+    state.s1Answered = true;
+    state.s1PickedIdx = idx;
+    state.s1CallResult = actual;
+    state.s1LastFeedback = { ok: isRight, text: step1Reason(cur, actual, isRight) };
+    state.busy = false;
+    renderBoard();
+    renderPanel();
+    scrollNearest(els.controlPanel.querySelector(".feedback-box"));
+    announce(`${formatCall(cur)} returned ${formatReturn(actual)}. ${state.s1LastFeedback.text}`);
+  }
+
+  function advanceStep1() {
+    if (state.busy || !state.s1Answered) return;
+    state.beforeNote = null;
+    if (state.s1Index < PREDICT_SCRIPT.length - 1) {
+      state.s1Index += 1;
+      state.s1Answered = false;
+      state.s1PickedIdx = null;
+      state.s1LastFeedback = null;
+      state.s1CallResult = undefined;
+      state.activeSlot = PREDICT_SCRIPT[state.s1Index].key;
+    } else {
+      state.s1Done = true;
+      state.completed[0] = true;
+      state.activeSlot = null;
+    }
+    renderTopNav();
+    renderCaption();
+    renderBoard();
+    renderPanel();
+    scrollNearest(els.controlPanel.querySelector(".feedback-box"));
+  }
+
+  function renderFreePlay(p) {
+    const box = document.createElement("div");
+    box.className = "free-play";
+    const h = document.createElement("p");
+    h.className = "free-play-title";
+    h.textContent = "Free play";
+    box.appendChild(h);
+
+    const row = document.createElement("div");
+    row.className = "dropdown-row";
+
+    const gMethod = document.createElement("div");
+    gMethod.className = "dropdown-group";
+    const lMethod = document.createElement("label");
+    lMethod.htmlFor = "fp-method";
+    lMethod.textContent = "method";
+    const sMethod = document.createElement("select");
+    sMethod.id = "fp-method";
+    ["put", "get", "remove", "containsKey", "containsValue"].forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m;
+      opt.textContent = m;
+      sMethod.appendChild(opt);
+    });
+    gMethod.appendChild(lMethod);
+    gMethod.appendChild(sMethod);
+
+    const gKey = document.createElement("div");
+    gKey.className = "dropdown-group";
+    const lKey = document.createElement("label");
+    lKey.htmlFor = "fp-key";
+    lKey.textContent = "key";
+    const sKey = document.createElement("select");
+    sKey.id = "fp-key";
+    for (let k = 1; k <= 8; k++) {
+      const opt = document.createElement("option");
+      opt.value = String(k);
+      opt.textContent = String(k);
+      sKey.appendChild(opt);
+    }
+    gKey.appendChild(lKey);
+    gKey.appendChild(sKey);
+
+    const gVal = document.createElement("div");
+    gVal.className = "dropdown-group";
+    const lVal = document.createElement("label");
+    lVal.htmlFor = "fp-val";
+    lVal.textContent = "value";
+    const sVal = document.createElement("select");
+    sVal.id = "fp-val";
+    NAMES.forEach((n) => {
+      const opt = document.createElement("option");
+      opt.value = n;
+      opt.textContent = n;
+      sVal.appendChild(opt);
+    });
+    gVal.appendChild(lVal);
+    gVal.appendChild(sVal);
+
+    function syncVisibility() {
+      const m = sMethod.value;
+      gKey.style.display = m === "containsValue" ? "none" : "flex";
+      gVal.style.display = m === "put" || m === "containsValue" ? "flex" : "none";
+    }
+    sMethod.value = state.fpMethod;
+    sKey.value = String(state.fpKey);
+    sVal.value = state.fpVal;
+    syncVisibility();
+
+    sMethod.addEventListener("change", () => {
+      state.fpMethod = sMethod.value;
+      syncVisibility();
+    });
+    sKey.addEventListener("change", () => {
+      state.fpKey = Number(sKey.value);
+    });
+    sVal.addEventListener("change", () => {
+      state.fpVal = sVal.value;
+    });
+
+    row.appendChild(gMethod);
+    row.appendChild(gKey);
+    row.appendChild(gVal);
+    box.appendChild(row);
+
+    const runRow = document.createElement("div");
+    runRow.className = "action-row";
+    const runBtn = document.createElement("button");
+    runBtn.type = "button";
+    runBtn.className = "btn-primary";
+    runBtn.id = "fp-run";
+    runBtn.textContent = "Run";
+    runBtn.disabled = state.busy;
+    runBtn.addEventListener("click", async () => {
+      if (state.busy) return;
+      const gen = state.animGen;
+      state.busy = true;
+      const call = {
+        method: state.fpMethod,
+        key: state.fpMethod === "containsValue" ? null : state.fpKey,
+        value: state.fpMethod === "put" || state.fpMethod === "containsValue" ? state.fpVal : null
+      };
+      state.freeCallText = formatCall(call);
+      state.freeCallResult = undefined;
+      runBtn.disabled = true;
+      if (!(await ensureBoardVisible(gen))) return;
+      const res = await animateMapCall(call, gen);
+      if (gen !== state.animGen) return;
+      state.freeCallResult = res;
+      state.busy = false;
+      renderBoard();
+      renderPanel();
+      scrollNearest(els.controlPanel.querySelector(".free-play .call-line"));
+      announce(`${state.freeCallText} returned ${formatReturn(res)}`);
+    });
+    runRow.appendChild(runBtn);
+    box.appendChild(runRow);
+
+    if (state.freeCallText) {
+      const cl = document.createElement("div");
+      cl.className = "call-line";
+      cl.innerHTML = `<span>${state.freeCallText}</span>` +
+        (state.freeCallResult !== undefined ? `<span class="call-result">→ ${formatReturn(state.freeCallResult)}</span>` : "");
+      box.appendChild(cl);
+    }
+
+    p.appendChild(box);
+  }
+
+  // ------------------------------------------------------------------
+  // STEP 2: Walk
+  // ------------------------------------------------------------------
+  function renderStep2(p) {
+    const subTabs = document.createElement("div");
+    subTabs.className = "sub-tabs";
+    subTabs.setAttribute("role", "tablist");
+    [
+      { id: "keySet", label: "Loop over keySet()" },
+      { id: "entrySet", label: "Loop over entrySet()" }
+    ].forEach((t) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "sub-tab";
+      btn.setAttribute("role", "tab");
+      btn.setAttribute("aria-selected", String(state.s2Mode === t.id));
+      btn.textContent = t.label;
+      btn.addEventListener("click", () => {
+        if (state.s2Mode === t.id) return;
+        state.animGen += 1;
+        state.busy = false;
+        clearVisualEffects();
+        state.s2Mode = t.id;
+        state.s2EntryIdx = 0;
+        state.s2Line = 0;
+        state.s2Visits = 0;
+        state.s2Output = [];
+        state.s2EntryCard = null;
+        state.activeSlot = null;
+        state.litKeySlot = null;
+        renderBoard();
+        renderPanel();
+      });
+      subTabs.appendChild(btn);
+    });
+    p.appendChild(subTabs);
+
+    const lines = state.s2Mode === "keySet"
+      ? [
+          "for (Integer id : map.keySet()) {",
+          "    String name = map.get(id);",
+          '    System.out.println(id + " " + name);',
+          "}"
+        ]
+      : [
+          "for (Map.Entry<Integer, String> e : map.entrySet()) {",
+          '    System.out.println(e.getKey() + " " + e.getValue());',
+          "}"
+        ];
+
+    const codeBox = document.createElement("div");
+    codeBox.className = "code-box";
+    lines.forEach((ln, idx) => {
+      const sp = document.createElement("span");
+      const lineActive = state.s2Mode === "keySet"
+        ? state.s2Line === idx + 1
+        : (state.s2Line === 1 && idx === 0) || ((state.s2Line === 2 || state.s2Line === 3) && idx === 1);
+      sp.className = "code-line" + (lineActive ? " active-line" : "");
+      sp.textContent = ln;
+      codeBox.appendChild(sp);
+    });
+    p.appendChild(codeBox);
+
+    if (state.s2Mode === "entrySet" && state.s2EntryCard) {
+      const ec = document.createElement("div");
+      ec.className = "entry-card";
+      const pk = document.createElement("div");
+      pk.className = "pocket" + (state.s2EntryCard.lit === "key" || state.s2EntryCard.lit === "both" ? " lit" : "");
+      pk.textContent = `getKey() → ${state.s2EntryCard.key}`;
+      const pv = document.createElement("div");
+      pv.className = "pocket" + (state.s2EntryCard.lit === "val" || state.s2EntryCard.lit === "both" ? " lit" : "");
+      pv.textContent = `getValue() → "${state.s2EntryCard.val}"`;
+      ec.appendChild(pk);
+      ec.appendChild(pv);
+      p.appendChild(ec);
+    }
+
+    const doneThisTab = state.s2EntryIdx >= state.s2Keys.length;
+    const actionRow = document.createElement("div");
+    actionRow.className = "action-row";
+    const nextLineBtn = document.createElement("button");
+    nextLineBtn.type = "button";
+    nextLineBtn.className = "btn-primary";
+    nextLineBtn.id = "walk-next";
+    nextLineBtn.textContent = doneThisTab ? "Loop complete" : "Next line";
+    nextLineBtn.disabled = doneThisTab || state.busy;
+    nextLineBtn.addEventListener("click", handleWalkStep);
+    actionRow.appendChild(nextLineBtn);
+
+    const visitsEl = document.createElement("span");
+    visitsEl.className = "counter-pill";
+    visitsEl.id = "walk-visits";
+    visitsEl.textContent = `visits: ${state.s2Visits}`;
+    actionRow.appendChild(visitsEl);
+    p.appendChild(actionRow);
+
+    const con = document.createElement("div");
+    con.className = "console-box";
+    const ct = document.createElement("div");
+    ct.className = "console-title";
+    ct.textContent = "output";
+    con.appendChild(ct);
+    if (state.s2Output.length === 0) {
+      const emp = document.createElement("div");
+      emp.className = "console-line";
+      emp.style.color = "var(--muted)";
+      emp.textContent = "(waiting)";
+      con.appendChild(emp);
+    } else {
+      state.s2Output.forEach((line) => {
+        const d = document.createElement("div");
+        d.className = "console-line";
+        d.textContent = line;
+        con.appendChild(d);
+      });
+    }
+    p.appendChild(con);
+
+    if (doneThisTab) {
+      const tk = document.createElement("div");
+      tk.className = "takeaway-box";
+      if (state.s2Finished.keySet && state.s2Finished.entrySet) {
+        tk.innerHTML =
+          `<p>keySet + get: 10 visits · entrySet: 5 visits</p>` +
+          `<p>Need both key and value? Loop over entrySet().</p>`;
+      } else {
+        const msg = document.createElement("p");
+        msg.textContent = `This loop made ${state.s2Visits} visits. Now try the other loop.`;
+        tk.appendChild(msg);
+        const otherBtn = document.createElement("button");
+        otherBtn.type = "button";
+        otherBtn.className = "btn-secondary";
+        otherBtn.id = "walk-other-loop";
+        otherBtn.textContent = "Try the other loop";
+        otherBtn.addEventListener("click", () => {
+          const nextMode = state.s2Mode === "keySet" ? "entrySet" : "keySet";
+          state.animGen += 1;
+          state.busy = false;
+          clearVisualEffects();
+          state.s2Mode = nextMode;
+          state.s2EntryIdx = 0;
+          state.s2Line = 0;
+          state.s2Visits = 0;
+          state.s2Output = [];
+          state.s2EntryCard = null;
+          state.activeSlot = null;
+          state.litKeySlot = null;
+          renderBoard();
+          renderPanel();
+        });
+        tk.appendChild(otherBtn);
+      }
+      p.appendChild(tk);
+    }
+  }
+
+  async function handleWalkStep() {
+    if (state.busy || state.s2EntryIdx >= state.s2Keys.length) return;
+    const gen = state.animGen;
+    state.busy = true;
+    if (!(await ensureBoardVisible(gen))) return;
+    state.busy = false;
+
+    const key = state.s2Keys[state.s2EntryIdx];
+    const val = state.board[key];
+
+    if (state.s2Mode === "keySet") {
+      if (state.s2Line === 0 || state.s2Line === 3) {
+        clearVisualEffects();
+        state.s2Line = 1;
+        state.activeSlot = key;
+        state.litKeySlot = key;
+        state.s2Visits += 1;
+        renderBoard();
+        renderPanel();
+        announce(`keySet step: id ${key}, visits ${state.s2Visits}`);
+      } else if (state.s2Line === 1) {
+        state.s2Line = 2;
+        state.litKeySlot = null;
+        state.s2Visits += 1;
+        renderBoard();
+        drawProbeArrowToSlot(key);
+        renderPanel();
+        announce(`map.get(${key}) returned "${val}", visits ${state.s2Visits}`);
+      } else if (state.s2Line === 2) {
+        clearVisualEffects();
+        state.s2Line = 3;
+        state.s2Output.push(`${key} ${val}`);
+        state.s2EntryIdx += 1;
+        if (state.s2EntryIdx >= state.s2Keys.length) {
+          state.s2Finished.keySet = true;
+          state.completed[1] = Boolean(state.s2Finished.keySet && state.s2Finished.entrySet);
+          state.activeSlot = null;
+        }
+        renderTopNav();
+        renderBoard();
+        renderPanel();
+        announce(`Printed ${key} ${val}`);
+      }
+    } else {
+      if (state.s2Line === 0 || state.s2Line === 3) {
+        state.s2Line = 1;
+        state.activeSlot = key;
+        state.s2Visits += 1;
+        state.s2EntryCard = { key, val, lit: "none" };
+        renderBoard();
+        renderPanel();
+        announce(`entrySet entry ${key} and "${val}", visits ${state.s2Visits}`);
+      } else if (state.s2Line === 1) {
+        state.s2Line = 2;
+        state.s2EntryCard = { key, val, lit: "key" };
+        renderPanel();
+        announce(`e.getKey() is ${key}`);
+      } else if (state.s2Line === 2) {
+        state.s2Line = 3;
+        state.s2EntryCard = { key, val, lit: "both" };
+        state.s2Output.push(`${key} ${val}`);
+        state.s2EntryIdx += 1;
+        if (state.s2EntryIdx >= state.s2Keys.length) {
+          state.s2Finished.entrySet = true;
+          state.completed[1] = Boolean(state.s2Finished.keySet && state.s2Finished.entrySet);
+          state.activeSlot = null;
+        }
+        renderTopNav();
+        renderBoard();
+        renderPanel();
+        announce(`e.getValue() is "${val}". Printed ${key} ${val}`);
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // STEP 3: Cost
+  // ------------------------------------------------------------------
+  function renderStep3(p) {
+    const btns = document.createElement("div");
+    btns.className = "action-row";
+
+    const btnKey = document.createElement("button");
+    btnKey.type = "button";
+    btnKey.className = "btn-primary";
+    btnKey.id = "cost-key-btn";
+    btnKey.textContent = "Is id 6 here?";
+    btnKey.disabled = state.busy;
+    btnKey.addEventListener("click", runCostKey);
+
+    const btnVal = document.createElement("button");
+    btnVal.type = "button";
+    btnVal.className = "btn-primary";
+    btnVal.id = "cost-val-btn";
+    btnVal.textContent = 'Does anyone have the value "Juha"?';
+    btnVal.disabled = state.busy;
+    btnVal.addEventListener("click", runCostVal);
+
+    btns.appendChild(btnKey);
+    btns.appendChild(btnVal);
+    p.appendChild(btns);
+
+    const stats = document.createElement("div");
+    stats.className = "stats-row";
+    const chk = document.createElement("span");
+    chk.className = "counter-pill";
+    chk.id = "cost-checked";
+    chk.textContent = `checked: ${state.s3Checked}`;
+    stats.appendChild(chk);
+
+    if (state.s3LastAnswer) {
+      const cl = document.createElement("div");
+      cl.className = "call-line";
+      cl.innerHTML = `<span>${state.s3LastAnswer.call}</span><span class="call-result">→ ${state.s3LastAnswer.res}</span>`;
+      p.appendChild(stats);
+      p.appendChild(cl);
+    } else {
+      p.appendChild(stats);
+    }
+
+    if (state.s3AskedKey && state.s3AskedVal) {
+      const scale = document.createElement("div");
+      scale.className = "scale-box";
+
+      const slRow = document.createElement("div");
+      slRow.className = "slider-row";
+      const slLabel = document.createElement("label");
+      slLabel.htmlFor = "scale-slider";
+      slLabel.style.fontWeight = "700";
+      slLabel.textContent = `Scale it up: n = ${state.s3ScaleN} pairs`;
+      const sl = document.createElement("input");
+      sl.id = "scale-slider";
+      sl.type = "range";
+      sl.min = "8";
+      sl.max = "1000";
+      sl.value = String(state.s3ScaleN);
+      sl.addEventListener("input", () => {
+        state.s3ScaleN = Number(sl.value);
+        slLabel.textContent = `Scale it up: n = ${state.s3ScaleN} pairs`;
+        valLabelCount.textContent = `checks every pair: ${state.s3ScaleN}`;
+        const pct = (state.s3ScaleN / 1000) * 100;
+        valFill.style.width = `max(32px, ${pct}%)`;
+      });
+      slRow.appendChild(slLabel);
+      slRow.appendChild(sl);
+      scale.appendChild(slRow);
+
+      const bars = document.createElement("div");
+      bars.className = "bar-group";
+
+      // containsKey bar
+      const rKey = document.createElement("div");
+      rKey.className = "bar-row";
+      rKey.innerHTML =
+        `<div class="bar-label"><span>containsKey</span><span>goes straight to the key</span></div>` +
+        `<div class="bar-track"><div class="bar-fill-key"></div></div>`;
+
+      // containsValue bar
+      const rVal = document.createElement("div");
+      rVal.className = "bar-row";
+      const lVal = document.createElement("div");
+      lVal.className = "bar-label";
+      const lLeft = document.createElement("span");
+      lLeft.textContent = "containsValue";
+      const valLabelCount = document.createElement("span");
+      valLabelCount.className = "brick-text";
+      valLabelCount.id = "scale-val-label";
+      valLabelCount.textContent = `checks every pair: ${state.s3ScaleN}`;
+      lVal.appendChild(lLeft);
+      lVal.appendChild(valLabelCount);
+
+      const valTrack = document.createElement("div");
+      valTrack.className = "bar-track";
+      const valFill = document.createElement("div");
+      valFill.className = "bar-fill-val";
+      valFill.style.width = `max(32px, ${(state.s3ScaleN / 1000) * 100}%)`;
+      valTrack.appendChild(valFill);
+      rVal.appendChild(lVal);
+      rVal.appendChild(valTrack);
+
+      bars.appendChild(rKey);
+      bars.appendChild(rVal);
+      scale.appendChild(bars);
+
+      const tk = document.createElement("div");
+      tk.className = "takeaway-box";
+      tk.innerHTML = "<p>A map is fast in one direction: key → value. Searching by value means checking everything.</p>";
+      scale.appendChild(tk);
+      p.appendChild(scale);
+    }
+  }
+
+  async function runCostKey() {
+    if (state.busy) return;
+    const gen = state.animGen;
+    state.busy = true;
+    clearVisualEffects();
+    state.scanSlot = null;
+    state.activeSlot = 6;
+    state.s3Checked = 1;
+    state.tray = undefined;
+    renderBoard();
+    renderTray();
+    renderPanel();
+    if (!(await ensureBoardVisible(gen))) return;
+    drawProbeArrowToSlot(6);
+    if (!(await sleep(560, gen))) return;
+    clearVisualEffects();
+    state.tray = true;
+    state.s3LastAnswer = { call: "map.containsKey(6)", res: "true" };
+    state.s3AskedKey = true;
+    if (state.s3AskedKey && state.s3AskedVal) state.completed[2] = true;
+    state.busy = false;
+    renderTopNav();
+    renderTray();
+    renderPanel();
+    scrollNearest(els.controlPanel.querySelector(".call-line"));
+    announce("containsKey(6) checked 1 slot and returned true.");
+  }
+
+  async function runCostVal() {
+    if (state.busy) return;
+    const gen = state.animGen;
+    state.busy = true;
+    clearVisualEffects();
+    state.activeSlot = null;
+    state.s3Checked = 0;
+    state.tray = undefined;
+    state.s3LastAnswer = { call: 'map.containsValue("Juha")', res: "..." };
+    renderBoard();
+    renderTray();
+    renderPanel();
+    if (!(await ensureBoardVisible(gen))) return;
+
+    for (let k = 1; k <= 8; k++) {
+      state.scanSlot = k;
+      state.s3Checked = k;
+      renderBoard();
+      const chkEl = document.getElementById("cost-checked");
+      if (chkEl) chkEl.textContent = `checked: ${k}`;
+      if (!(await sleep(250, gen))) return;
+    }
+
+    state.scanSlot = null;
+    state.tray = false;
+    state.s3LastAnswer = { call: 'map.containsValue("Juha")', res: "false" };
+    state.s3AskedVal = true;
+    if (state.s3AskedKey && state.s3AskedVal) state.completed[2] = true;
+    state.busy = false;
+    renderTopNav();
+    renderBoard();
+    renderTray();
+    renderPanel();
+    scrollNearest(els.controlPanel.querySelector(".scale-box") || els.controlPanel.querySelector(".call-line"));
+    announce('containsValue("Juha") checked 8 slots and returned false.');
+  }
+
+  // ------------------------------------------------------------------
+  // STEP 4: Use it
+  // ------------------------------------------------------------------
+  function renderStep4(p) {
+    const codeBox = document.createElement("div");
+    codeBox.className = "code-box";
+    const blankDisplay = state.s4Op ? state.s4Op : "____";
+    codeBox.innerHTML =
+      `Map&lt;Integer, String&gt; reg = new TreeMap&lt;&gt;();\n` +
+      `for (each registration (id, name)) {\n` +
+      `    if (reg.put(id, name) <span class="blank-pill">${blankDisplay}</span> null) {\n` +
+      `        System.out.println("id " + id + " registered twice");\n` +
+      `    }\n` +
+      `}`;
+    p.appendChild(codeBox);
+
+    const pickRow = document.createElement("div");
+    pickRow.className = "action-row";
+    ["== null", "!= null"].forEach((op) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip";
+      btn.textContent = op;
+      btn.disabled = state.s4Running;
+      const opVal = op.replace(" null", "");
+      if (state.s4Op === opVal) {
+        btn.style.borderColor = "var(--brass)";
+        btn.style.background = "var(--brass-soft)";
+      }
+      btn.addEventListener("click", () => {
+        if (state.s4Running) return;
+        state.s4Op = opVal;
+        renderPanel();
+      });
+      pickRow.appendChild(btn);
+    });
+
+    const runBtn = document.createElement("button");
+    runBtn.type = "button";
+    runBtn.className = "btn-primary";
+    runBtn.id = "useit-run";
+    runBtn.textContent = state.s4Feedback && !state.s4Feedback.ok ? "Try again" : "Run";
+    runBtn.disabled = !state.s4Op || state.s4Running;
+    runBtn.addEventListener("click", () => {
+      if (state.s4Feedback && !state.s4Feedback.ok) {
+        resetCurrentStep();
+      } else {
+        runStep4Queue();
+      }
+    });
+    pickRow.appendChild(runBtn);
+    p.appendChild(pickRow);
+
+    const qRow = document.createElement("div");
+    qRow.className = "queue-row";
+    REG_QUEUE.forEach(([id, name], idx) => {
+      const qi = document.createElement("span");
+      const cls = ["queue-item"];
+      if (state.s4QueueIdx === idx) cls.push("current");
+      else if (state.s4QueueIdx > idx) cls.push("done");
+      if (state.s4DupQueueIndices.includes(idx)) cls.push("dup");
+      qi.className = cls.join(" ");
+      qi.textContent = `(${id}, "${name}")`;
+      qRow.appendChild(qi);
+    });
+    p.appendChild(qRow);
+
+    const con = document.createElement("div");
+    con.className = "console-box";
+    const ct = document.createElement("div");
+    ct.className = "console-title";
+    ct.textContent = "output";
+    con.appendChild(ct);
+    if (state.s4Output.length === 0) {
+      const emp = document.createElement("div");
+      emp.className = "console-line";
+      emp.style.color = "var(--muted)";
+      emp.textContent = "(waiting)";
+      con.appendChild(emp);
+    } else {
+      state.s4Output.forEach((ln) => {
+        const d = document.createElement("div");
+        d.className = "console-line flag";
+        d.textContent = ln;
+        con.appendChild(d);
+      });
+    }
+    p.appendChild(con);
+
+    if (state.s4Feedback) {
+      const fb = document.createElement("div");
+      fb.className = "feedback-box " + (state.s4Feedback.ok ? "ok" : "bad");
+      fb.textContent = state.s4Feedback.text;
+      p.appendChild(fb);
+    }
+  }
+
+  async function runStep4Queue() {
+    if (state.s4Running || !state.s4Op) return;
+    const gen = state.animGen;
+    state.s4Running = true;
+    state.busy = true;
+    state.board = {};
+    state.tray = undefined;
+    state.activeSlot = null;
+    state.dupSlot = null;
+    state.s4QueueIdx = -1;
+    state.s4Output = [];
+    state.s4DupQueueIndices = [];
+    state.s4Feedback = null;
+    renderCaption();
+    renderBoard();
+    renderTray();
+    renderPanel();
+    if (!(await ensureBoardVisible(gen))) return;
+
+    for (let i = 0; i < REG_QUEUE.length; i++) {
+      const [id, name] = REG_QUEUE[i];
+      state.s4QueueIdx = i;
+      state.dupSlot = null;
+      renderPanel();
+
+      const ret = await animateMapCall(
+        { method: "put", key: id, value: name },
+        gen,
+        { flashDupOnReturn: state.s4Op === "!=" }
+      );
+      if (gen !== state.animGen) return;
+
+      const flagged = state.s4Op === "!=" ? ret !== null : ret === null;
+      if (flagged) {
+        state.dupSlot = id;
+        state.s4DupQueueIndices.push(i);
+        state.s4Output.push(`id ${id} registered twice`);
+      }
+      renderBoard();
+      renderPanel();
+      if (!(await sleep(360, gen))) return;
+    }
+
+    state.s4QueueIdx = REG_QUEUE.length;
+    state.activeSlot = null;
+    state.dupSlot = null;
+    state.s4Running = false;
+    state.busy = false;
+
+    if (state.s4Op === "!=") {
+      state.s4Done = true;
+      state.completed[3] = true;
+      state.s4Feedback = {
+        ok: true,
+        text: "put told you there was already a value, so no extra containsKey needed."
+      };
+      announce("Flagged id 3 and id 5. put told you there was already a value.");
+    } else {
+      state.s4Feedback = {
+        ok: false,
+        text: "These were new ids. put returns null for a new key, so flag when it is not null."
+      };
+      announce("These were new ids. Try again with != null.");
+    }
+    renderTopNav();
+    renderCaption();
+    renderBoard();
+    renderPanel();
+    scrollNearest(els.controlPanel.querySelector(".feedback-box"));
+  }
+
+  // ------------------------------------------------------------------
+  // SUMMARY CARD
+  // ------------------------------------------------------------------
+  function renderSummary(p) {
+    state.completed[4] = true;
+    const rows = [
+      { m: "put(k, v)", hit: "replaces, returns old value", miss: "stores, returns null", missNull: true, cost: "goes to one key", costRed: false },
+      { m: "get(k)", hit: "returns the value", miss: "returns null", missNull: true, cost: "goes to one key", costRed: false },
+      { m: "remove(k)", hit: "removes, returns the value", miss: "returns null", missNull: true, cost: "goes to one key", costRed: false },
+      { m: "containsKey(k)", hit: "true", miss: "false", missNull: false, cost: "goes to one key", costRed: false },
+      { m: "containsValue(v)", hit: "true / false", miss: "—", missNull: false, cost: "checks every pair", costRed: true }
+    ];
+
+    const wrap = document.createElement("div");
+    wrap.className = "summary-card";
+    const h = document.createElement("h2");
+    h.className = "summary-title";
+    h.textContent = "Map ADT reference";
+    wrap.appendChild(h);
+
+    const tbl = document.createElement("table");
+    tbl.className = "summary-table";
+    tbl.innerHTML =
+      "<thead><tr><th>Method</th><th>Key is there</th><th>Key is missing</th><th>Cost</th></tr></thead>";
+    const tbody = document.createElement("tbody");
+    rows.forEach((r) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        `<td>${r.m}</td>` +
+        `<td>${r.hit}</td>` +
+        `<td class="${r.missNull ? "brick-text" : ""}">${r.miss}</td>` +
+        `<td class="${r.costRed ? "brick-text" : ""}">${r.cost}</td>`;
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(tbody);
+    wrap.appendChild(tbl);
+
+    const cards = document.createElement("div");
+    cards.className = "summary-cards";
+    rows.forEach((r) => {
+      const c = document.createElement("div");
+      c.className = "method-card";
+      c.innerHTML =
+        `<div class="method-card-title">${r.m}</div>` +
+        `<div><strong>Key is there:</strong> ${r.hit}</div>` +
+        `<div><strong>Key is missing:</strong> <span class="${r.missNull ? "brick-text" : ""}">${r.miss}</span></div>` +
+        `<div><strong>Cost:</strong> <span class="${r.costRed ? "brick-text" : ""}">${r.cost}</span></div>`;
+      cards.appendChild(c);
+    });
+    wrap.appendChild(cards);
+    p.appendChild(wrap);
+  }
+
+  // ------------------------------------------------------------------
+  // Step switching & reset
+  // ------------------------------------------------------------------
+  function initStepState(stepIdx) {
+    state.animGen += 1;
+    state.busy = false;
+    clearVisualEffects();
+    state.activeSlot = null;
+    state.dupSlot = null;
+    state.litKeySlot = null;
+    state.scanSlot = null;
+    state.beforeNote = null;
+    state.tray = undefined;
+
+    if (stepIdx === 0) {
+      state.board = {};
+      state.s1Index = 0;
+      state.s1Score = 0;
+      state.s1Answered = false;
+      state.s1PickedIdx = null;
+      state.s1LastFeedback = null;
+      state.s1Done = false;
+      state.s1CallResult = undefined;
+      state.freeCallText = "";
+      state.freeCallResult = undefined;
+      state.fpMethod = "put";
+      state.fpKey = 1;
+      state.fpVal = "Maija";
+      state.activeSlot = PREDICT_SCRIPT[0].key;
+    } else if (stepIdx === 1) {
+      state.board = { ...WALK_INIT };
+      state.s2EntryIdx = 0;
+      state.s2Line = 0;
+      state.s2Visits = 0;
+      state.s2Output = [];
+      state.s2EntryCard = null;
+      state.s2Finished = { keySet: false, entrySet: false };
+    } else if (stepIdx === 2) {
+      state.board = { ...COST_INIT };
+      state.s3Checked = 0;
+      state.s3LastAnswer = null;
+    } else if (stepIdx === 3) {
+      state.board = {};
+      state.s4Running = false;
+      state.s4QueueIdx = -1;
+      state.s4Output = [];
+      state.s4DupQueueIndices = [];
+      state.s4Feedback = null;
+    }
+  }
+
+  function goToStep(idx) {
+    state.step = idx;
+    initStepState(idx);
+    renderTopNav();
+    renderCaption();
+    renderBoard();
+    renderTray();
+    renderPanel();
+    announce(`Step ${idx + 1}: ${INSTRUCTIONS[idx]}`);
+  }
+
+  function resetCurrentStep() {
+    if (state.step === 2) {
+      state.s3AskedKey = false;
+      state.s3AskedVal = false;
+    }
+    if (state.step === 3) {
+      state.s4Op = null;
+      state.s4Done = false;
+    }
+    initStepState(state.step);
+    renderTopNav();
+    renderCaption();
+    renderBoard();
+    renderTray();
+    renderPanel();
+    announce("Step reset.");
+  }
+
+  els.tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      goToStep(Number(tab.dataset.step));
+    });
+  });
+
+  els.btnReset.addEventListener("click", resetCurrentStep);
+  els.btnBack.addEventListener("click", () => {
+    if (state.step > 0) goToStep(state.step - 1);
+  });
+  els.btnNext.addEventListener("click", () => {
+    if (state.step < 4) goToStep(state.step + 1);
+  });
+
+  goToStep(0);
+})();
+</script>
+</body>
+</html>
