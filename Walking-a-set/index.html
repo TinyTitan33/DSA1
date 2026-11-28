@@ -1,0 +1,2285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Walking a set</title>
+<style>
+  :root {
+    --bg: #E6F4F1;
+    --card: #FFFFFF;
+    --surface: #F7FBFA;
+    --border: #BFDCD6;
+    --ink: #12324A;
+    --muted: #5B7A8C;
+    --mint: #3DBE9A;
+    --mint-fill: #CFF3E4;
+    --mint-strong: #0E7A57;
+    --coral: #F2765E;
+    --coral-fill: #FFE0D9;
+    --coral-strong: #C2412B;
+    --soft: #CFE9E4;
+    --focus: #2A8FBD;
+    --sand: #F3E6CF;
+    --sand-border: #D9C6A3;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    --shadow: 0 2px 6px rgba(18, 50, 74, 0.08);
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+
+  html {
+    color-scheme: light;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  body {
+    margin: 0;
+    padding: 10px 10px 24px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.45;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (min-width: 600px) {
+    body {
+      padding: 14px 18px 28px;
+    }
+  }
+
+  .app {
+    max-width: 960px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .mono {
+    font-family: var(--mono);
+  }
+
+  /* Buttons & Interactive Controls */
+  button {
+    font-family: inherit;
+    color: var(--ink);
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 14px;
+    min-height: 44px;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+    transition: background-color 150ms ease, border-color 150ms ease, transform 100ms ease, box-shadow 150ms ease, opacity 150ms ease;
+  }
+
+  button:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  button:not([aria-disabled="true"]):active {
+    transform: scale(0.97);
+  }
+
+  @media (hover: hover) {
+    button:not([aria-disabled="true"]):hover {
+      border-color: var(--ink);
+    }
+  }
+
+  button[aria-disabled="true"] {
+    opacity: 0.48;
+    cursor: not-allowed;
+    background: var(--surface);
+  }
+
+  .btn-mono {
+    font-family: var(--mono);
+    font-size: 13.5px;
+    font-weight: 700;
+  }
+
+  .btn-coral {
+    border-color: var(--coral-strong);
+    color: var(--coral-strong);
+    background: var(--card);
+  }
+
+  .btn-coral:not([aria-disabled="true"]):hover {
+    background: var(--coral-fill);
+  }
+
+  .btn-primary {
+    background: var(--ink);
+    color: var(--card);
+    border-color: var(--ink);
+  }
+
+  .btn-link {
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 6px 8px;
+    min-height: 36px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .btn-link:not([aria-disabled="true"]):hover {
+    color: var(--ink);
+    border: none;
+  }
+
+  /* Single obvious next action highlight */
+  @keyframes nextPulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(61, 190, 154, 0.55);
+    }
+    50% {
+      box-shadow: 0 0 0 6px rgba(61, 190, 154, 0.14);
+    }
+  }
+
+  .is-next {
+    border-color: var(--mint-strong) !important;
+    box-shadow: 0 0 0 3px rgba(61, 190, 154, 0.35);
+    animation: nextPulse 1.8s ease-in-out infinite;
+  }
+
+  .is-next:not(.btn-primary):not(.btn-coral) {
+    background: var(--mint-fill);
+    color: var(--ink);
+  }
+
+  .is-next.btn-coral {
+    border-color: var(--coral-strong) !important;
+    background: var(--coral-fill);
+    box-shadow: 0 0 0 3px rgba(242, 118, 94, 0.35);
+    animation: none;
+  }
+
+  .is-next-group {
+    border-color: var(--mint-strong) !important;
+    box-shadow: 0 0 0 3px rgba(61, 190, 154, 0.28);
+  }
+
+  /* Step Navigation Bar */
+  .step-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 6px 8px;
+    box-shadow: var(--shadow);
+  }
+
+  .step-tab {
+    min-height: 38px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1.5px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .step-tab[aria-current="step"] {
+    background: var(--ink);
+    color: var(--card);
+    border-color: var(--ink);
+  }
+
+  .step-tab.is-done:not([aria-current="step"]) {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--ink);
+  }
+
+  .step-tab .tab-ico {
+    display: inline-flex;
+    align-items: center;
+    color: var(--mint-strong);
+  }
+
+  .step-tab[aria-current="step"] .tab-ico {
+    color: var(--mint);
+  }
+
+  .step-sep {
+    color: var(--border);
+    font-weight: 700;
+    user-select: none;
+  }
+
+  @media (max-width: 540px) {
+    .step-sep {
+      display: none;
+    }
+    .step-tab {
+      font-size: 12px;
+      padding: 5px 8px;
+      min-height: 34px;
+    }
+  }
+
+  /* Top Instruction Banner */
+  .top-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px 12px;
+  }
+
+  .muted-note {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .instruction {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  /* Main Workspace Grid: code panel stacks above belt on <720px */
+  .workspace {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+
+  @media (min-width: 720px) {
+    .workspace {
+      grid-template-columns: minmax(290px, 370px) 1fr;
+    }
+  }
+
+  .card {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    padding: 12px 14px;
+    box-shadow: var(--shadow);
+  }
+
+  /* Code Panel (only region allowed horizontal scroll on narrow widths) */
+  .code-panel {
+    overflow-x: auto;
+  }
+
+  .panel-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 0 0 8px;
+  }
+
+  .code-block {
+    font-family: var(--mono);
+    font-size: 13.5px;
+    line-height: 1.55;
+    margin: 0;
+    min-width: max-content;
+  }
+
+  .code-line {
+    padding: 2px 8px;
+    border-radius: 6px;
+    white-space: pre;
+    transition: background-color 180ms ease, opacity 220ms ease, transform 400ms ease, max-height 400ms ease;
+    border-left: 3px solid transparent;
+  }
+
+  .code-line.is-active {
+    background: var(--soft);
+    border-left-color: var(--ink);
+    font-weight: 700;
+  }
+
+  .code-line.is-flash {
+    background: var(--mint-fill);
+    border-left-color: var(--mint-strong);
+  }
+
+  .code-line.is-error-line {
+    background: var(--coral-fill);
+    border-left-color: var(--coral-strong);
+  }
+
+  .code-line.is-dim {
+    opacity: 0.36;
+  }
+
+  .code-blank {
+    display: inline-block;
+    min-width: 94px;
+    padding: 0 6px;
+    border-radius: 5px;
+    border: 1.5px dashed var(--muted);
+    background: var(--surface);
+    color: var(--muted);
+    text-align: center;
+    font-weight: 700;
+  }
+
+  .code-blank.is-filled {
+    border-style: solid;
+    border-color: var(--ink);
+    color: var(--ink);
+    background: var(--card);
+  }
+
+  .code-blank.is-filled-mint {
+    border-style: solid;
+    border-color: var(--mint-strong);
+    background: var(--mint-fill);
+    color: var(--mint-strong);
+  }
+
+  .code-blank.is-filled-coral {
+    border-style: solid;
+    border-color: var(--coral-strong);
+    background: var(--coral-fill);
+    color: var(--coral-strong);
+  }
+
+  /* Morph animation lines in Short Form step */
+  .morph-line {
+    max-height: 36px;
+    overflow: hidden;
+    transition: opacity 500ms ease, max-height 550ms ease, transform 550ms ease, margin 550ms ease, padding 550ms ease;
+  }
+
+  .morph-line.is-collapsed {
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    transform: translateY(-10px);
+  }
+
+  /* Belt Stage */
+  .stage-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .stage-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .set-label {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .status-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .var-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .var-val {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 5px;
+    border-radius: 6px;
+    background: var(--card);
+    border: 1.5px solid var(--ink);
+    color: var(--ink);
+    transition: transform 220ms ease, background-color 220ms ease;
+  }
+
+  .var-val.is-empty {
+    border-color: var(--border);
+    color: var(--muted);
+  }
+
+  .var-val.pop {
+    transform: scale(1.16);
+    background: var(--mint-fill);
+  }
+
+  .result-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  .result-chip.is-true {
+    background: var(--mint-fill);
+    border-color: var(--mint-strong);
+    color: var(--mint-strong);
+  }
+
+  .result-chip.is-false {
+    background: var(--coral-fill);
+    border-color: var(--coral-strong);
+    color: var(--coral-strong);
+  }
+
+  .result-chip.is-val {
+    background: var(--soft);
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+
+  /* Belt Track */
+  .belt-wrap {
+    position: relative;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 26px 12px 18px;
+    min-height: 98px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .belt-wrap.is-cracked {
+    border-color: var(--coral-strong);
+    background: #FFF6F4;
+  }
+
+  .outside-badge {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--coral-fill);
+    border: 1.5px solid var(--coral-strong);
+    color: var(--coral-strong);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    z-index: 4;
+    white-space: nowrap;
+  }
+
+  .crack-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .belt-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    row-gap: 10px;
+    max-width: 100%;
+  }
+
+  .gap-slot {
+    position: relative;
+    width: 12px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .cursor-bar {
+    width: 4px;
+    height: 36px;
+    border-radius: 3px;
+    background: var(--ink);
+    position: relative;
+    transition: transform 220ms ease, opacity 200ms ease, background-color 200ms ease;
+  }
+
+  .cursor-bar::before {
+    content: "i";
+    position: absolute;
+    top: -17px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .cursor-bar.is-crashed {
+    background: var(--coral-strong);
+  }
+
+  .cursor-bar.is-crashed::before {
+    color: var(--coral-strong);
+  }
+
+  .token {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2.5px solid var(--ink);
+    background: var(--card);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background-color 240ms ease, border-color 240ms ease, color 240ms ease, opacity 280ms ease, transform 280ms ease;
+  }
+
+  @media (min-width: 480px) {
+    .token {
+      width: 40px;
+      height: 40px;
+      font-size: 16px;
+    }
+    .gap-slot {
+      width: 14px;
+      height: 44px;
+    }
+    .cursor-bar {
+      height: 40px;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .belt-wrap {
+      padding-left: 6px;
+      padding-right: 6px;
+    }
+    .belt-row {
+      gap: 0;
+    }
+    .token {
+      width: 27px;
+      height: 27px;
+      font-size: 12.5px;
+      border-width: 2px;
+    }
+    .gap-slot {
+      width: 5px;
+      height: 34px;
+    }
+    .cursor-bar {
+      width: 3px;
+      height: 31px;
+    }
+  }
+
+  .token.is-facedown {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--card);
+  }
+
+  .token.is-used {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--muted);
+  }
+
+  .token.is-active-tok {
+    background: var(--mint-fill);
+    border-color: var(--mint-strong);
+    color: var(--ink);
+    transform: scale(1.08);
+  }
+
+  .token.is-added-tok {
+    background: var(--coral-fill);
+    border-color: var(--coral-strong);
+    color: var(--coral-strong);
+  }
+
+  .token.is-removing {
+    opacity: 0;
+    transform: scale(0.65);
+  }
+
+  .token.is-selected-copy {
+    box-shadow: 0 0 0 3px rgba(61, 190, 154, 0.4);
+  }
+
+  @keyframes beltShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-7px); }
+    40% { transform: translateX(7px); }
+    60% { transform: translateX(-5px); }
+    80% { transform: translateX(5px); }
+  }
+
+  .belt-wrap.shake {
+    animation: beltShake 360ms ease;
+  }
+
+  .empty-tag {
+    font-size: 13px;
+    color: var(--muted);
+    font-style: italic;
+    margin-left: 8px;
+  }
+
+  /* Secondary tray (Step 4 toRemove) */
+  .tray-box {
+    background: var(--surface);
+    border: 1.5px dashed var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-height: 54px;
+  }
+
+  .tray-label {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-right: 4px;
+  }
+
+  .mini-tok {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--mint-strong);
+    background: var(--mint-fill);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Controls & Prompts */
+  .controls-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .prompt-box {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .prompt-title {
+    margin: 0;
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .num-chip {
+    min-width: 48px;
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .choice-chip.is-picked {
+    background: var(--ink);
+    color: var(--card);
+    border-color: var(--ink);
+  }
+
+  /* Disabled reason hint */
+  .reason-hint {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--coral-strong);
+    min-height: 18px;
+  }
+
+  /* Message area (aria-live) */
+  .msg-box {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    min-height: 46px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .msg-box.is-mint {
+    background: var(--mint-fill);
+    border-color: var(--mint-strong);
+  }
+
+  .msg-box.is-coral {
+    background: var(--coral-fill);
+    border-color: var(--coral-strong);
+  }
+
+  .msg-main {
+    margin: 0;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .msg-exc {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .msg-sub {
+    margin: 2px 0 0;
+    font-size: 13.5px;
+    color: var(--ink);
+  }
+
+  /* Strips, Tally & Takeaway cards */
+  .strips-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .walk-strip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .strip-vals {
+    display: inline-flex;
+    gap: 8px;
+    font-weight: 700;
+  }
+
+  .tally-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .tally-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14.5px;
+    font-weight: 600;
+  }
+
+  .ico-mint {
+    color: var(--mint-strong);
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  .ico-coral {
+    color: var(--coral-strong);
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  .takeaway-box {
+    background: var(--sand);
+    border: 1.5px solid var(--sand-border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .teaser-line {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+
+  /* Footer row per step */
+  .step-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-top: 4px;
+  }
+
+  /* Counter badge for Step 2 */
+  .counter-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 120ms !important;
+    }
+    .is-next {
+      animation: none;
+    }
+    .belt-wrap.shake {
+      animation: none;
+      opacity: 0.72;
+    }
+    .token.is-active-tok,
+    .var-val.pop {
+      transform: none;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Step Indicator -->
+  <nav class="step-nav" aria-label="Activity steps">
+    <button type="button" class="step-tab" data-step="0" aria-current="step">
+      <span>1 Order</span>
+      <span class="tab-ico" aria-hidden="true"></span>
+    </button>
+    <span class="step-sep" aria-hidden="true">&middot;</span>
+    <button type="button" class="step-tab" data-step="1" aria-disabled="true" data-reason="Finish step 1 first">
+      <span>2 Empty set</span>
+      <span class="tab-ico" aria-hidden="true"></span>
+    </button>
+    <span class="step-sep" aria-hidden="true">&middot;</span>
+    <button type="button" class="step-tab" data-step="2" aria-disabled="true" data-reason="Finish step 2 first">
+      <span>3 Change it</span>
+      <span class="tab-ico" aria-hidden="true"></span>
+    </button>
+    <span class="step-sep" aria-hidden="true">&middot;</span>
+    <button type="button" class="step-tab" data-step="3" aria-disabled="true" data-reason="Finish step 3 first">
+      <span>4 The fix</span>
+      <span class="tab-ico" aria-hidden="true"></span>
+    </button>
+    <span class="step-sep" aria-hidden="true">&middot;</span>
+    <button type="button" class="step-tab" data-step="4" aria-disabled="true" data-reason="Finish step 4 first">
+      <span>Short form</span>
+      <span class="tab-ico" aria-hidden="true"></span>
+    </button>
+  </nav>
+
+  <!-- Step Header -->
+  <div class="top-row">
+    <div>
+      <p id="topMutedNote" class="muted-note" hidden></p>
+      <p id="stepInstruction" class="instruction"></p>
+    </div>
+  </div>
+
+  <!-- Main Workspace -->
+  <div id="workspace" class="workspace">
+    <!-- Left / Top: Code Panel -->
+    <section class="card code-panel" aria-label="Java loop code">
+      <p class="panel-label">Code</p>
+      <div id="codeLines" class="code-block"></div>
+    </section>
+
+    <!-- Right / Bottom: Belt Stage -->
+    <section class="card stage-card" aria-label="Set walk stage">
+      <div class="stage-header">
+        <span id="setLabel" class="set-label"></span>
+        <div class="status-chips">
+          <span id="bodyCounter" class="counter-pill" hidden>body ran: 0 times</span>
+          <span id="varBox" class="var-box">x = <span id="varVal" class="var-val is-empty">&mdash;</span></span>
+          <span id="resultChip" class="result-chip">ready</span>
+        </div>
+      </div>
+
+      <!-- Belt -->
+      <div id="beltWrap" class="belt-wrap">
+        <div id="outsideBadge" class="outside-badge" hidden></div>
+        <svg id="crackSvg" class="crack-svg" viewBox="0 0 400 100" preserveAspectRatio="none" hidden aria-hidden="true">
+          <polyline points="210,4 196,26 218,46 190,68 206,96" fill="none" stroke="#C2412B" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="196,26 178,34" fill="none" stroke="#C2412B" stroke-width="2.2" stroke-linecap="round"/>
+          <polyline points="218,46 236,54" fill="none" stroke="#C2412B" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+        <div id="beltRow" class="belt-row"></div>
+      </div>
+
+      <!-- Step 4 Secondary Tray -->
+      <div id="toRemoveTray" class="tray-box" hidden>
+        <span class="tray-label">toRemove:</span>
+        <span id="toRemoveItems" class="chip-row"></span>
+      </div>
+
+      <!-- Controls Container -->
+      <div id="controlsArea" class="controls-row"></div>
+
+      <!-- Prediction / Extra Prompt Container -->
+      <div id="promptArea" class="prompt-box" hidden></div>
+
+      <!-- Disabled reason feedback -->
+      <div id="reasonHint" class="reason-hint" aria-live="polite"></div>
+
+      <!-- Live Message Area -->
+      <div id="msgBox" class="msg-box" aria-live="polite">
+        <p id="msgMain" class="msg-main"></p>
+        <p id="msgExc" class="msg-exc" hidden></p>
+        <p id="msgSub" class="msg-sub" hidden></p>
+      </div>
+
+      <!-- Step-specific Extras (strips, tally, takeaway, summary) -->
+      <div id="extrasArea"></div>
+    </section>
+  </div>
+
+  <!-- Step Footer -->
+  <div class="step-footer">
+    <button type="button" id="resetStepBtn" class="btn-link">Reset step</button>
+    <button type="button" id="nextStepBtn" class="btn-primary is-next" hidden>Next step &rarr;</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // SVG vector icons (no emoji anywhere)
+  function svgCheck(size) {
+    var s = size || 16;
+    return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
+      '<path d="M2.5 8.5L6.2 12.2L13.5 4.2" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</svg>';
+  }
+
+  function svgCross(size) {
+    var s = size || 16;
+    return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
+      '<path d="M3.5 3.5L12.5 12.5M12.5 3.5L3.5 12.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>' +
+      '</svg>';
+  }
+
+  var reducedMotionQuery = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
+  function prefersReducedMotion() {
+    return !!(reducedMotionQuery && reducedMotionQuery.matches);
+  }
+
+  // Timer registry so resets & step changes cancel all queued animations cleanly
+  var activeTimers = [];
+  function later(fn, ms) {
+    var delay = ms; // pacing stays the same; reduced motion is handled in CSS
+    var id = window.setTimeout(function () {
+      activeTimers = activeTimers.filter(function (t) { return t !== id; });
+      fn();
+    }, delay);
+    activeTimers.push(id);
+    return id;
+  }
+
+  function clearAllTimers() {
+    for (var k = 0; k < activeTimers.length; k++) {
+      window.clearTimeout(activeTimers[k]);
+    }
+    activeTimers = [];
+  }
+
+  // DOM refs
+  var tabBtns = Array.prototype.slice.call(document.querySelectorAll(".step-tab"));
+  var topMutedNote = document.getElementById("topMutedNote");
+  var stepInstruction = document.getElementById("stepInstruction");
+  var codeLinesEl = document.getElementById("codeLines");
+  var setLabelEl = document.getElementById("setLabel");
+  var bodyCounterEl = document.getElementById("bodyCounter");
+  var varBoxEl = document.getElementById("varBox");
+  var varValEl = document.getElementById("varVal");
+  var resultChipEl = document.getElementById("resultChip");
+  var beltWrapEl = document.getElementById("beltWrap");
+  var outsideBadgeEl = document.getElementById("outsideBadge");
+  var crackSvgEl = document.getElementById("crackSvg");
+  var beltRowEl = document.getElementById("beltRow");
+  var toRemoveTrayEl = document.getElementById("toRemoveTray");
+  var toRemoveItemsEl = document.getElementById("toRemoveItems");
+  var controlsAreaEl = document.getElementById("controlsArea");
+  var promptAreaEl = document.getElementById("promptArea");
+  var reasonHintEl = document.getElementById("reasonHint");
+  var msgBoxEl = document.getElementById("msgBox");
+  var msgMainEl = document.getElementById("msgMain");
+  var msgExcEl = document.getElementById("msgExc");
+  var msgSubEl = document.getElementById("msgSub");
+  var extrasAreaEl = document.getElementById("extrasArea");
+  var resetStepBtn = document.getElementById("resetStepBtn");
+  var nextStepBtn = document.getElementById("nextStepBtn");
+
+  // Shared state
+  var currentStep = 0;
+  var completedSteps = [false, false, false, false, false];
+  var highestUnlocked = 0;
+  var s = {};
+
+  function showReason(text) {
+    reasonHintEl.textContent = text || "";
+  }
+
+  function clearReason() {
+    reasonHintEl.textContent = "";
+  }
+
+  function makeBtn(label, opts) {
+    opts = opts || {};
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = label;
+    if (opts.className) btn.className = opts.className;
+    if (opts.disabled) {
+      btn.setAttribute("aria-disabled", "true");
+      if (opts.reason) {
+        btn.setAttribute("data-reason", opts.reason);
+        btn.title = opts.reason;
+      }
+    }
+    if (opts.isNext && !opts.disabled) {
+      btn.classList.add("is-next");
+    }
+    if (opts.onMouseEnterReason || opts.reason) {
+      btn.addEventListener("mouseenter", function () {
+        if (btn.getAttribute("aria-disabled") === "true" && btn.dataset.reason) {
+          showReason(btn.dataset.reason);
+        }
+      });
+      btn.addEventListener("mouseleave", function () {
+        clearReason();
+      });
+    }
+    btn.addEventListener("click", function (e) {
+      if (btn.getAttribute("aria-disabled") === "true") {
+        e.preventDefault();
+        if (btn.dataset.reason) showReason(btn.dataset.reason);
+        return;
+      }
+      clearReason();
+      if (opts.onClick) opts.onClick();
+    });
+    return btn;
+  }
+
+  function setMessage(mainText, opts) {
+    opts = opts || {};
+    msgBoxEl.className = "msg-box" + (opts.tone ? " is-" + opts.tone : "");
+    msgMainEl.textContent = mainText || "";
+    if (opts.exc) {
+      msgExcEl.textContent = opts.exc;
+      msgExcEl.hidden = false;
+    } else {
+      msgExcEl.hidden = true;
+      msgExcEl.textContent = "";
+    }
+    if (opts.sub) {
+      msgSubEl.textContent = opts.sub;
+      msgSubEl.hidden = false;
+    } else {
+      msgSubEl.hidden = true;
+      msgSubEl.textContent = "";
+    }
+  }
+
+  function setVarX(val, pop) {
+    if (val === null || val === undefined) {
+      varValEl.textContent = "\u2014";
+      varValEl.className = "var-val is-empty";
+    } else {
+      varValEl.textContent = String(val);
+      varValEl.className = "var-val" + (pop ? " pop" : "");
+      if (pop) {
+        later(function () {
+          varValEl.classList.remove("pop");
+        }, 260);
+      }
+    }
+  }
+
+  function setResultChip(text, tone) {
+    resultChipEl.textContent = text;
+    resultChipEl.className = "result-chip" + (tone ? " is-" + tone : "");
+  }
+
+  function renderCode(lines, activeIdx, opts) {
+    opts = opts || {};
+    codeLinesEl.innerHTML = "";
+    for (var idx = 0; idx < lines.length; idx++) {
+      var div = document.createElement("div");
+      div.className = "code-line";
+      if (opts.lineClasses && opts.lineClasses[idx]) {
+        div.className += " " + opts.lineClasses[idx];
+      }
+      if (idx === activeIdx) {
+        div.classList.add(opts.activeClass || "is-active");
+      }
+      if (opts.htmlLines && opts.htmlLines[idx] !== undefined) {
+        div.innerHTML = opts.htmlLines[idx];
+      } else {
+        div.textContent = lines[idx];
+      }
+      codeLinesEl.appendChild(div);
+    }
+  }
+
+  function renderBelt(tokens, cursorIndex, opts) {
+    opts = opts || {};
+    beltRowEl.innerHTML = "";
+    beltWrapEl.classList.toggle("is-cracked", !!opts.cracked);
+    crackSvgEl.hidden = !opts.cracked;
+    if (opts.outsideBadge) {
+      outsideBadgeEl.textContent = opts.outsideBadge;
+      outsideBadgeEl.hidden = false;
+    } else {
+      outsideBadgeEl.hidden = true;
+    }
+
+    for (var pos = 0; pos <= tokens.length; pos++) {
+      var gap = document.createElement("div");
+      gap.className = "gap-slot";
+      if (pos === cursorIndex) {
+        var cur = document.createElement("div");
+        cur.className = "cursor-bar" + (opts.cracked ? " is-crashed" : "");
+        cur.setAttribute("aria-label", "Iterator cursor i");
+        gap.appendChild(cur);
+      }
+      beltRowEl.appendChild(gap);
+
+      if (pos < tokens.length) {
+        var t = tokens[pos];
+        var tok = document.createElement("div");
+        tok.className = "token";
+        if (t.facedown) {
+          tok.classList.add("is-facedown");
+          tok.textContent = "?";
+          tok.setAttribute("aria-label", "Hidden element");
+        } else {
+          tok.textContent = String(t.val);
+          tok.setAttribute("aria-label", "Element " + t.val);
+        }
+        if (t.used) tok.classList.add("is-used");
+        if (t.active) tok.classList.add("is-active-tok");
+        if (t.added) tok.classList.add("is-added-tok");
+        if (t.removing) tok.classList.add("is-removing");
+        if (t.selectedCopy) tok.classList.add("is-selected-copy");
+        beltRowEl.appendChild(tok);
+      }
+    }
+
+    if (tokens.length === 0) {
+      var emptySpan = document.createElement("span");
+      emptySpan.className = "empty-tag";
+      emptySpan.textContent = "(empty)";
+      beltRowEl.appendChild(emptySpan);
+    }
+  }
+
+  function updateNav() {
+    for (var idx = 0; idx < tabBtns.length; idx++) {
+      var btn = tabBtns[idx];
+      var ico = btn.querySelector(".tab-ico");
+      if (completedSteps[idx]) {
+        btn.classList.add("is-done");
+        ico.innerHTML = svgCheck(14);
+      } else {
+        btn.classList.remove("is-done");
+        ico.innerHTML = "";
+      }
+
+      if (idx === currentStep) {
+        btn.setAttribute("aria-current", "step");
+      } else {
+        btn.removeAttribute("aria-current");
+      }
+
+      if (idx <= highestUnlocked) {
+        btn.removeAttribute("aria-disabled");
+        btn.removeAttribute("title");
+      } else {
+        btn.setAttribute("aria-disabled", "true");
+        btn.title = btn.dataset.reason || "Finish previous step first";
+      }
+    }
+  }
+
+  function markStepDone(stepIdx) {
+    completedSteps[stepIdx] = true;
+    if (stepIdx + 1 > highestUnlocked && stepIdx + 1 < 5) {
+      highestUnlocked = stepIdx + 1;
+    }
+    updateNav();
+    if (stepIdx < 4) {
+      nextStepBtn.hidden = false;
+    }
+  }
+
+  function switchStep(idx) {
+    clearAllTimers();
+    clearReason();
+    currentStep = idx;
+    nextStepBtn.hidden = !(completedSteps[idx] && idx < 4);
+    topMutedNote.hidden = true;
+    topMutedNote.textContent = "";
+    bodyCounterEl.hidden = true;
+    varBoxEl.hidden = false;
+    resultChipEl.hidden = false;
+    beltWrapEl.hidden = false;
+    beltWrapEl.classList.remove("shake", "is-cracked");
+    crackSvgEl.hidden = true;
+    outsideBadgeEl.hidden = true;
+    toRemoveTrayEl.hidden = true;
+    promptAreaEl.hidden = true;
+    promptAreaEl.innerHTML = "";
+    controlsAreaEl.innerHTML = "";
+    extrasAreaEl.innerHTML = "";
+    updateNav();
+
+    if (idx === 0) initStep1();
+    else if (idx === 1) initStep2();
+    else if (idx === 2) initStep3();
+    else if (idx === 3) initStep4();
+    else if (idx === 4) initStep5();
+  }
+
+  tabBtns.forEach(function (btn) {
+    btn.addEventListener("mouseenter", function () {
+      if (btn.getAttribute("aria-disabled") === "true" && btn.dataset.reason) {
+        showReason(btn.dataset.reason);
+      }
+    });
+    btn.addEventListener("mouseleave", clearReason);
+    btn.addEventListener("click", function () {
+      var target = Number(btn.dataset.step);
+      if (btn.getAttribute("aria-disabled") === "true") {
+        showReason(btn.dataset.reason || "Finish the current step first.");
+        return;
+      }
+      switchStep(target);
+    });
+  });
+
+  resetStepBtn.addEventListener("click", function () {
+    switchStep(currentStep);
+  });
+
+  nextStepBtn.addEventListener("click", function () {
+    if (currentStep < 4) {
+      switchStep(currentStep + 1);
+    }
+  });
+
+  // =========================================================================
+  // STEP 1: Where will x land?
+  // =========================================================================
+  var BASE_CODE = [
+    "Iterator<Integer> i = S.iterator();",
+    "while (i.hasNext()) {",
+    "    Integer x = i.next();",
+    "    // do something with x",
+    "}"
+  ];
+
+  function initStep1() {
+    s = {
+      order1: [8, 3, 5, 2],
+      order2: [2, 8, 3, 5],
+      tokens: [8, 3, 5, 2].map(function (v) { return { val: v, facedown: true, used: false, active: false }; }),
+      cursor: 0,
+      expect: "hasNext", // "hasNext" | "next" | "predict" | "walk2Ready" | "walking2" | "done"
+      activeLine: 0,
+      walk1Done: false,
+      walk2Done: false
+    };
+
+    stepInstruction.textContent = "Walk the set. Press the highlighted button.";
+    setLabelEl.textContent = "S = {2, 3, 5, 8}";
+    setVarX(null, false);
+    setResultChip("ready", "");
+    setMessage("The iterator starts before the first element. Check i.hasNext() first.", {});
+    renderStep1();
+  }
+
+  function renderStep1() {
+    renderCode(BASE_CODE, s.activeLine);
+    renderBelt(s.tokens, s.cursor);
+    controlsAreaEl.innerHTML = "";
+    promptAreaEl.hidden = true;
+    promptAreaEl.innerHTML = "";
+
+    if (s.expect === "hasNext" || s.expect === "next" || s.expect === "animating") {
+      var hasBtn = makeBtn("i.hasNext()", {
+        className: "btn-mono",
+        disabled: s.expect !== "hasNext",
+        reason: "Call i.next() now that hasNext() returned true.",
+        isNext: s.expect === "hasNext",
+        onClick: step1HasNext
+      });
+      var nextBtn = makeBtn("i.next()", {
+        className: "btn-mono",
+        disabled: s.expect !== "next",
+        reason: "First check hasNext()",
+        isNext: s.expect === "next",
+        onClick: step1Next
+      });
+      controlsAreaEl.appendChild(hasBtn);
+      controlsAreaEl.appendChild(nextBtn);
+    } else if (s.expect === "predict") {
+      var hasDis = makeBtn("i.hasNext()", {
+        className: "btn-mono",
+        disabled: true,
+        reason: "Answer the prediction first."
+      });
+      controlsAreaEl.appendChild(hasDis);
+
+      promptAreaEl.hidden = false;
+      promptAreaEl.className = "prompt-box is-next-group";
+      var pTitle = document.createElement("p");
+      pTitle.className = "prompt-title";
+      pTitle.textContent = "Which value will x get next?";
+      promptAreaEl.appendChild(pTitle);
+
+      var chipRow = document.createElement("div");
+      chipRow.className = "chip-row";
+      [2, 3, 5, 8].forEach(function (val) {
+        var cBtn = makeBtn(String(val), {
+          className: "num-chip",
+          onClick: function () { step1Predict(val); }
+        });
+        chipRow.appendChild(cBtn);
+      });
+      promptAreaEl.appendChild(chipRow);
+    } else if (s.expect === "walk2Ready") {
+      var walk2Btn = makeBtn("Walk again: same elements, different insides", {
+        isNext: true,
+        onClick: step1StartWalk2
+      });
+      controlsAreaEl.appendChild(walk2Btn);
+
+      var note = document.createElement("p");
+      note.className = "muted-note";
+      note.textContent = "Another set holding the same elements, or this set after some adds and removes, can walk them in another order.";
+      extrasAreaEl.innerHTML = "";
+      extrasAreaEl.appendChild(note);
+    } else if (s.expect === "walking2") {
+      var runningBtn = makeBtn("Walking...", {
+        disabled: true,
+        reason: "Wait for the walk to finish."
+      });
+      controlsAreaEl.appendChild(runningBtn);
+    } else if (s.expect === "done") {
+      renderStep1Summary();
+    }
+  }
+
+  function step1HasNext() {
+    if (s.cursor < s.tokens.length) {
+      s.activeLine = 1;
+      setResultChip("hasNext() \u2192 true", "true");
+      if (s.cursor === 2) {
+        s.expect = "predict";
+        setMessage("There is another element. Before calling i.next(), predict which one!", {});
+      } else {
+        s.expect = "next";
+        setMessage("hasNext() is true. Now call i.next() to step over one element.", {});
+      }
+    } else {
+      s.activeLine = 1;
+      setResultChip("hasNext() \u2192 false", "false");
+      s.walk1Done = true;
+      s.expect = "walk2Ready";
+      setMessage("Every element was visited once and hasNext() is now false. Now try another set with the same elements.", { tone: "mint" });
+    }
+    renderStep1();
+  }
+
+  function step1Next() {
+    var idx = s.cursor;
+    var tok = s.tokens[idx];
+    if (!tok || s.expect !== "next") return;
+    s.expect = "animating";
+    tok.facedown = false;
+    tok.active = true;
+    s.cursor = idx + 1;
+    s.activeLine = 2;
+    setVarX(tok.val, true);
+    setResultChip("next() \u2192 " + tok.val, "val");
+    setMessage("i.next() hopped over " + tok.val + " and stored it in x.", {});
+    renderStep1();
+
+    later(function () {
+      s.activeLine = 3;
+      renderCode(BASE_CODE, 3, { activeClass: "is-flash" });
+    }, 220);
+
+    later(function () {
+      tok.active = false;
+      tok.used = true;
+      s.expect = "hasNext";
+      s.activeLine = 1;
+      renderStep1();
+    }, 440);
+  }
+
+  function step1Predict(guess) {
+    if (s.expect !== "predict") return;
+    if (guess === 8 || guess === 3) {
+      setMessage("next() never returns the same element twice. Try again.", { tone: "coral" });
+      return;
+    }
+    // Reveal 3rd element (5)
+    var tok = s.tokens[2];
+    tok.facedown = false;
+    tok.active = true;
+    s.cursor = 3;
+    s.activeLine = 2;
+    setVarX(tok.val, true);
+    setResultChip("next() \u2192 5", "val");
+
+    if (guess === 5) {
+      setMessage("Right, but only luck could tell you.", { tone: "mint" });
+    } else {
+      setMessage("It was 5. There was no way to know; the order isn't promised.", {});
+    }
+    s.expect = "animating";
+    renderStep1();
+
+    later(function () {
+      s.activeLine = 3;
+      renderCode(BASE_CODE, 3, { activeClass: "is-flash" });
+    }, 240);
+
+    later(function () {
+      tok.active = false;
+      tok.used = true;
+      s.expect = "hasNext";
+      s.activeLine = 1;
+      renderStep1();
+    }, 480);
+  }
+
+  function step1StartWalk2() {
+    s.tokens = s.order2.map(function (v) { return { val: v, facedown: true, used: false, active: false }; });
+    s.cursor = 0;
+    s.expect = "walking2";
+    s.activeLine = 0;
+    setVarX(null, false);
+    setResultChip("hasNext() \u2192 true", "true");
+    setMessage("Walking the second set with the exact same elements...", {});
+    renderStep1();
+
+    var stepIdx = 0;
+    function walkNextItem() {
+      if (stepIdx >= s.tokens.length) {
+        s.activeLine = 1;
+        setResultChip("hasNext() \u2192 false", "false");
+        s.walk2Done = true;
+        s.expect = "done";
+        setMessage("Both sets visited the exact same elements once, in different orders.", { tone: "mint" });
+        markStepDone(0);
+        renderStep1();
+        return;
+      }
+      s.activeLine = 1;
+      setResultChip("hasNext() \u2192 true", "true");
+      renderCode(BASE_CODE, 1);
+
+      later(function () {
+        var tok = s.tokens[stepIdx];
+        tok.facedown = false;
+        tok.active = true;
+        s.cursor = stepIdx + 1;
+        s.activeLine = 2;
+        setVarX(tok.val, true);
+        setResultChip("next() \u2192 " + tok.val, "val");
+        renderCode(BASE_CODE, 2);
+        renderBelt(s.tokens, s.cursor);
+
+        later(function () {
+          tok.active = false;
+          tok.used = true;
+          s.activeLine = 3;
+          renderCode(BASE_CODE, 3, { activeClass: "is-flash" });
+          renderBelt(s.tokens, s.cursor);
+          stepIdx++;
+          later(walkNextItem, 260);
+        }, 280);
+      }, 140);
+    }
+
+    later(walkNextItem, 250);
+  }
+
+  function renderStep1Summary() {
+    extrasAreaEl.innerHTML = "";
+
+    var strips = document.createElement("div");
+    strips.className = "strips-box";
+    strips.innerHTML =
+      '<div class="walk-strip"><span>Walk 1:</span><span class="strip-vals"><span>8</span><span>3</span><span>5</span><span>2</span></span></div>' +
+      '<div class="walk-strip"><span>Walk 2:</span><span class="strip-vals"><span>2</span><span>8</span><span>3</span><span>5</span></span></div>';
+    extrasAreaEl.appendChild(strips);
+
+    var tally = document.createElement("div");
+    tally.className = "tally-card";
+    tally.style.marginTop = "8px";
+    tally.innerHTML =
+      '<div class="tally-row"><span class="ico-mint">' + svgCheck(18) + '</span><span>Every element came out</span></div>' +
+      '<div class="tally-row"><span class="ico-mint">' + svgCheck(18) + '</span><span>None came out twice</span></div>' +
+      '<div class="tally-row"><span class="ico-coral">' + svgCross(18) + '</span><span>An order you can rely on</span></div>';
+    extrasAreaEl.appendChild(tally);
+
+    var teaser = document.createElement("p");
+    teaser.className = "teaser-line";
+    teaser.style.marginTop = "8px";
+    teaser.innerHTML = 'Some sets do promise an order: <span class="mono">SortedSet</span> walks in natural order, <span class="mono">LinkedHashSet</span> in insertion order. Why does the order change at all? It depends on how the set stores its elements inside. More in <em>HashSet vs TreeSet</em>.';
+    extrasAreaEl.appendChild(teaser);
+  }
+
+  // =========================================================================
+  // STEP 2: Nothing to walk
+  // =========================================================================
+  function initStep2() {
+    s = {
+      phase: "ready", // "ready" | "checked" | "crashed"
+      activeLine: 0
+    };
+    stepInstruction.textContent = "Now the set is empty. Run the loop.";
+    setLabelEl.textContent = "S = {}";
+    bodyCounterEl.hidden = false;
+    bodyCounterEl.textContent = "body ran: 0 times";
+    setVarX(null, false);
+    setResultChip("ready", "");
+    setMessage("Check i.hasNext() before trying to take an element.", {});
+    renderStep2();
+  }
+
+  function renderStep2() {
+    var lineClasses = {};
+    if (s.phase === "checked" || s.phase === "crashed") {
+      lineClasses[2] = "is-dim";
+      lineClasses[3] = "is-dim";
+    }
+    renderCode(BASE_CODE, s.activeLine, {
+      lineClasses: lineClasses,
+      activeClass: s.phase === "crashed" ? "is-error-line" : "is-active"
+    });
+    renderBelt([], 0, { cracked: s.phase === "crashed" });
+    controlsAreaEl.innerHTML = "";
+    extrasAreaEl.innerHTML = "";
+
+    var hasBtn = makeBtn("i.hasNext()", {
+      className: "btn-mono",
+      disabled: s.phase !== "ready",
+      reason: s.phase === "checked" ? "hasNext() already returned false. Now try the red button." : "Reset step to run again.",
+      isNext: s.phase === "ready",
+      onClick: step2HasNext
+    });
+    controlsAreaEl.appendChild(hasBtn);
+
+    if (s.phase === "checked" || s.phase === "crashed") {
+      var badBtn = makeBtn("Call i.next() anyway", {
+        className: "btn-coral",
+        disabled: s.phase === "crashed",
+        reason: "Already threw NoSuchElementException.",
+        isNext: s.phase === "checked",
+        onClick: step2BadNext
+      });
+      controlsAreaEl.appendChild(badBtn);
+    }
+
+    if (s.phase === "crashed") {
+      var take = document.createElement("div");
+      take.className = "takeaway-box";
+      take.textContent = "A pre-test loop is essential as also the first next() can fail if set is empty!";
+      extrasAreaEl.appendChild(take);
+    }
+  }
+
+  function step2HasNext() {
+    s.phase = "checked";
+    s.activeLine = 1;
+    setResultChip("hasNext() \u2192 false", "false");
+    setMessage("The loop checks first, so the body never runs.", {});
+    renderStep2();
+  }
+
+  function step2BadNext() {
+    s.phase = "crashed";
+    s.activeLine = 2;
+    beltWrapEl.classList.remove("shake");
+    void beltWrapEl.offsetWidth;
+    beltWrapEl.classList.add("shake");
+    setResultChip("next() \u2192 exception", "false");
+    setMessage("There's nothing left to return, so next() throws a runtime exception.", {
+      tone: "coral",
+      exc: "java.util.NoSuchElementException",
+      sub: "The same happens if you call next() after the last element of any set."
+    });
+    markStepDone(1);
+    renderStep2();
+  }
+
+  // =========================================================================
+  // STEP 3: Change it mid-walk
+  // =========================================================================
+  var STEP3_ORDER = [3, 8, 1, 6, 5, 2, 7, 4];
+
+  function initStep3() {
+    s = {
+      tokens: STEP3_ORDER.map(function (v) { return { val: v, facedown: false, used: false, active: false }; }),
+      cursor: 0,
+      choice: null, // "i.remove()" | "S.remove(x)" | "S.add(x + 10)"
+      running: false,
+      hasRunAny: false,
+      iRemoveDone: false,
+      sawCrash: false,
+      addUnlocked: false,
+      activeLine: 0,
+      activeClass: "is-active",
+      cracked: false,
+      outsideBadge: null
+    };
+    topMutedNote.hidden = false;
+    topMutedNote.innerHTML = "You built this loop in <em>Build the loop</em>. Now the same rule applies to a set, and it covers adding too.";
+    stepInstruction.textContent = "Remove the even numbers. Pick what goes in the blank, then Run.";
+    setLabelEl.textContent = "S = {1, 2, 3, 4, 5, 6, 7, 8}";
+    setVarX(null, false);
+    setResultChip("ready", "");
+    setMessage("Pick a statement to fill in the blank, then press Run.", {});
+    renderStep3();
+  }
+
+  function step3CodeHtml() {
+    var shown = s.choice || s.lastRun;
+    var blankText = shown || "________";
+    var cls = "code-blank";
+    if (shown === "i.remove()") cls += " is-filled-mint";
+    else if (shown) cls += " is-filled-coral";
+    return [
+      "Iterator&lt;Integer&gt; i = S.iterator();",
+      "while (i.hasNext()) {",
+      "    Integer x = i.next();",
+      "    if (x % 2 == 0)",
+      '        <span class="' + cls + '">' + blankText + "</span> ;",
+      "}"
+    ];
+  }
+
+  function renderStep3() {
+    var htmlLines = step3CodeHtml();
+    renderCode(htmlLines, s.activeLine, { htmlLines: htmlLines, activeClass: s.activeClass });
+    renderBelt(s.tokens, s.cursor, { cracked: s.cracked, outsideBadge: s.outsideBadge });
+
+    controlsAreaEl.innerHTML = "";
+    promptAreaEl.hidden = true;
+    promptAreaEl.innerHTML = "";
+    extrasAreaEl.innerHTML = "";
+
+    var needPick = !s.choice;
+    var highlightRemove = needPick && !s.iRemoveDone;
+    var highlightSetRemove = needPick && s.iRemoveDone && !s.sawCrash;
+
+    var c1 = makeBtn("i.remove()", {
+      className: "btn-mono choice-chip" + (s.choice === "i.remove()" ? " is-picked" : ""),
+      disabled: s.running,
+      reason: "Wait for the run to finish.",
+      isNext: highlightRemove,
+      onClick: function () { step3Select("i.remove()"); }
+    });
+    var c2 = makeBtn("S.remove(x)", {
+      className: "btn-mono choice-chip" + (s.choice === "S.remove(x)" ? " is-picked" : ""),
+      disabled: s.running,
+      reason: "Wait for the run to finish.",
+      isNext: highlightSetRemove,
+      onClick: function () { step3Select("S.remove(x)"); }
+    });
+    controlsAreaEl.appendChild(c1);
+    controlsAreaEl.appendChild(c2);
+
+    if (s.addUnlocked) {
+      var addWrap = document.createElement("span");
+      addWrap.className = "chip-row";
+      var addLbl = document.createElement("span");
+      addLbl.className = "muted-note";
+      addLbl.textContent = "What about adding?";
+      var c3 = makeBtn("S.add(x + 10)", {
+        className: "btn-mono choice-chip" + (s.choice === "S.add(x + 10)" ? " is-picked" : ""),
+        disabled: s.running,
+        reason: "Wait for the run to finish.",
+        onClick: function () { step3Select("S.add(x + 10)"); }
+      });
+      addWrap.appendChild(addLbl);
+      addWrap.appendChild(c3);
+      controlsAreaEl.appendChild(addWrap);
+    }
+
+    var runBtn = makeBtn("Run", {
+      disabled: s.running || !s.choice,
+      reason: s.running ? "Run is in progress." : "Pick what goes in the blank first.",
+      isNext: !s.running && !!s.choice,
+      onClick: step3Run
+    });
+    controlsAreaEl.appendChild(runBtn);
+  }
+
+  function step3Select(choice) {
+    s.choice = choice;
+    s.lastRun = null;
+    s.tokens = STEP3_ORDER.map(function (v) { return { val: v, facedown: false, used: false, active: false }; });
+    s.cursor = 0;
+    s.cracked = false;
+    s.outsideBadge = null;
+    s.activeLine = 4;
+    s.activeClass = "is-active";
+    setLabelEl.textContent = "S = {1, 2, 3, 4, 5, 6, 7, 8}";
+    setVarX(null, false);
+    setResultChip("ready", "");
+    setMessage("Filled in " + choice + ". Press Run to walk the set.", {});
+    renderStep3();
+  }
+
+  function step3Run() {
+    clearAllTimers();
+    s.tokens = STEP3_ORDER.map(function (v) { return { val: v, facedown: false, used: false, active: false }; });
+    s.cursor = 0;
+    s.running = true;
+    s.cracked = false;
+    s.outsideBadge = null;
+    s.activeLine = 1;
+    s.activeClass = "is-active";
+    setLabelEl.textContent = "S = {1, 2, 3, 4, 5, 6, 7, 8}";
+    setVarX(null, false);
+    renderStep3();
+
+    var choice = s.choice;
+    s.lastRun = choice;
+    var idx = 0;
+    var dirty = false;
+
+    function formatSetFromTokens() {
+      var vals = s.tokens.map(function (t) { return t.val; }).sort(function (a, b) { return a - b; });
+      return "S = {" + vals.join(", ") + "}";
+    }
+
+    function stepLoop() {
+      if (idx >= s.tokens.length) {
+        s.activeLine = 1;
+        s.activeClass = "is-active";
+        setResultChip("hasNext() \u2192 false", "false");
+        s.running = false;
+        s.hasRunAny = true;
+        s.addUnlocked = true;
+        s.iRemoveDone = true;
+        setLabelEl.textContent = formatSetFromTokens();
+        if (s.sawCrash) {
+          setMessage("The iterator made the change itself, so it kept its place.", { tone: "mint" });
+          markStepDone(2);
+        } else {
+          setMessage("The iterator made the change itself, so it kept its place.", {
+            tone: "mint",
+            sub: "Curious? Try S.remove(x) too."
+          });
+        }
+        s.choice = null;
+        renderStep3();
+        return;
+      }
+
+      // 1. while (i.hasNext())
+      s.activeLine = 1;
+      s.activeClass = "is-active";
+      setResultChip("hasNext() \u2192 true", "true");
+      renderCode(step3CodeHtml(), 1, { htmlLines: step3CodeHtml(), activeClass: "is-active" });
+
+      later(function () {
+        // 2. Integer x = i.next(); -> FAIL FAST happens HERE if dirty!
+        if (dirty) {
+          s.activeLine = 2;
+          s.activeClass = "is-error-line";
+          s.cracked = true;
+          s.running = false;
+          s.hasRunAny = true;
+          s.addUnlocked = true;
+          s.sawCrash = true;
+          setResultChip("next() \u2192 exception", "false");
+          if (choice === "S.remove(x)") {
+            setMessage("The set changed behind the iterator's back, so Java stops the walk.", {
+              tone: "coral",
+              exc: "java.util.ConcurrentModificationException",
+              sub: "Without this stop, the iterator could skip or repeat elements."
+            });
+          } else {
+            setMessage("Adding counts as changing too: 'You may not even add new elements.'", {
+              tone: "coral",
+              exc: "java.util.ConcurrentModificationException",
+              sub: "Without this stop, the iterator could skip or repeat elements."
+            });
+          }
+          if (s.iRemoveDone) markStepDone(2);
+          s.choice = null;
+          renderStep3();
+          return;
+        }
+
+        var tok = s.tokens[idx];
+        tok.active = true;
+        s.cursor = idx + 1;
+        s.activeLine = 2;
+        setVarX(tok.val, true);
+        setResultChip("next() \u2192 " + tok.val, "val");
+        renderCode(step3CodeHtml(), 2, { htmlLines: step3CodeHtml(), activeClass: "is-active" });
+        renderBelt(s.tokens, s.cursor);
+
+        later(function () {
+          // 3. if (x % 2 == 0)
+          s.activeLine = 3;
+          renderCode(step3CodeHtml(), 3, { htmlLines: step3CodeHtml(), activeClass: "is-active" });
+
+          if (tok.val % 2 !== 0) {
+            tok.active = false;
+            tok.used = true;
+            idx++;
+            renderBelt(s.tokens, s.cursor);
+            later(stepLoop, 280);
+            return;
+          }
+
+          // Even element -> execute blank statement!
+          later(function () {
+            s.activeLine = 4;
+            renderCode(step3CodeHtml(), 4, { htmlLines: step3CodeHtml(), activeClass: "is-flash" });
+
+            if (choice === "i.remove()") {
+              tok.removing = true;
+              renderBelt(s.tokens, s.cursor);
+              later(function () {
+                s.tokens.splice(idx, 1);
+                s.cursor = idx;
+                setLabelEl.textContent = formatSetFromTokens();
+                renderBelt(s.tokens, s.cursor);
+                later(stepLoop, 240);
+              }, 260);
+            } else if (choice === "S.remove(x)") {
+              // Removed from outside by S (no crash yet!)
+              s.outsideBadge = "S.remove(" + tok.val + ")";
+              tok.removing = true;
+              renderBelt(s.tokens, s.cursor, { outsideBadge: s.outsideBadge });
+              later(function () {
+                s.tokens.splice(idx, 1);
+                s.cursor = idx;
+                dirty = true;
+                setLabelEl.textContent = formatSetFromTokens();
+                setMessage("S changed outside the iterator. Watch what happens on the next i.next()...", {});
+                renderBelt(s.tokens, s.cursor, { outsideBadge: s.outsideBadge });
+                later(stepLoop, 420);
+              }, 300);
+            } else {
+              // S.add(x + 10) from outside (no crash yet!)
+              var newVal = tok.val + 10;
+              s.outsideBadge = "S.add(" + newVal + ")";
+              tok.active = false;
+              tok.used = true;
+              s.tokens.push({ val: newVal, facedown: false, used: false, active: false, added: true });
+              dirty = true;
+              idx++;
+              setLabelEl.textContent = formatSetFromTokens();
+              setMessage("S added " + newVal + " outside the iterator. Watch the next i.next()...", {});
+              renderBelt(s.tokens, s.cursor, { outsideBadge: s.outsideBadge });
+              later(stepLoop, 450);
+            }
+          }, 240);
+        }, 240);
+      }, 220);
+    }
+
+    later(stepLoop, 220);
+  }
+
+  // =========================================================================
+  // STEP 4: The fix without i.remove()
+  // =========================================================================
+  var STEP4_CODE = [
+    "Set<Integer> toRemove = new HashSet<>();",
+    "Iterator<Integer> i = S.iterator();",
+    "while (i.hasNext()) {",
+    "    Integer x = i.next();",
+    "    if (x % 2 == 0)",
+    "        toRemove.add(x);",
+    "}",
+    "S.removeAll(toRemove);"
+  ];
+
+  function initStep4() {
+    s = {
+      tokens: STEP3_ORDER.map(function (v) { return { val: v, facedown: false, used: false, active: false, selectedCopy: false }; }),
+      toRemove: [],
+      cursor: 0,
+      phase: "predict", // "predict" | "ready" | "running" | "done"
+      activeLine: 0
+    };
+    stepInstruction.textContent = "Another safe way: collect first, change after.";
+    setLabelEl.textContent = "S = {1, 2, 3, 4, 5, 6, 7, 8}";
+    toRemoveTrayEl.hidden = false;
+    setVarX(null, false);
+    setResultChip("ready", "");
+    setMessage("First, predict what happens during the loop.", {});
+    renderStep4();
+  }
+
+  function renderStep4() {
+    renderCode(STEP4_CODE, s.activeLine);
+    renderBelt(s.tokens, s.cursor);
+
+    toRemoveItemsEl.innerHTML = "";
+    if (s.toRemove.length === 0) {
+      var emp = document.createElement("span");
+      emp.className = "muted-note";
+      emp.textContent = "(empty)";
+      toRemoveItemsEl.appendChild(emp);
+    } else {
+      s.toRemove.forEach(function (v) {
+        var chip = document.createElement("span");
+        chip.className = "mini-tok";
+        chip.textContent = String(v);
+        toRemoveItemsEl.appendChild(chip);
+      });
+    }
+
+    controlsAreaEl.innerHTML = "";
+    promptAreaEl.hidden = true;
+    promptAreaEl.innerHTML = "";
+    extrasAreaEl.innerHTML = "";
+
+    if (s.phase === "predict") {
+      var disRun = makeBtn("Run", {
+        disabled: true,
+        reason: "Answer the prediction first."
+      });
+      controlsAreaEl.appendChild(disRun);
+
+      promptAreaEl.hidden = false;
+      promptAreaEl.className = "prompt-box is-next-group";
+      var pTitle = document.createElement("p");
+      pTitle.className = "prompt-title";
+      pTitle.textContent = "After the loop, before removeAll, how many elements are in S?";
+      promptAreaEl.appendChild(pTitle);
+
+      var cRow = document.createElement("div");
+      cRow.className = "chip-row";
+      [8, 4].forEach(function (n) {
+        cRow.appendChild(makeBtn(String(n), {
+          className: "num-chip",
+          onClick: function () { step4Predict(n); }
+        }));
+      });
+      promptAreaEl.appendChild(cRow);
+    } else if (s.phase === "ready") {
+      controlsAreaEl.appendChild(makeBtn("Run", {
+        isNext: true,
+        onClick: step4Run
+      }));
+    } else if (s.phase === "running") {
+      controlsAreaEl.appendChild(makeBtn("Running...", {
+        disabled: true,
+        reason: "Wait for the run to finish."
+      }));
+    }
+
+    if (s.phase === "done") {
+      var foot = document.createElement("p");
+      foot.className = "muted-note";
+      foot.innerHTML = 'With the course TraSet: <span class="mono">S = S.difference(toRemove);</span> gives a new set instead (see <em>Set operations</em>).';
+      extrasAreaEl.appendChild(foot);
+    }
+  }
+
+  function step4Predict(val) {
+    s.phase = "ready";
+    if (val === 8) {
+      setMessage("Right: 8. S wasn't touched during the walk. Now press Run.", { tone: "mint" });
+    } else {
+      setMessage("It is 8. S wasn't touched during the walk. Press Run to see it.", {});
+    }
+    renderStep4();
+  }
+
+  function step4Run() {
+    s.phase = "running";
+    s.activeLine = 1;
+    renderStep4();
+
+    var idx = 0;
+    function walkNext() {
+      if (idx >= s.tokens.length) {
+        // Now S.removeAll(toRemove);
+        s.activeLine = 7;
+        setResultChip("S.removeAll(toRemove)", "val");
+        setMessage("Loop finished. Now S.removeAll(toRemove) removes all collected evens at once.", {});
+        s.tokens.forEach(function (t) {
+          if (t.val % 2 === 0) t.removing = true;
+        });
+        renderCode(STEP4_CODE, 7, { activeClass: "is-flash" });
+        renderBelt(s.tokens, s.cursor);
+
+        later(function () {
+          s.tokens = s.tokens.filter(function (t) { return t.val % 2 !== 0; });
+          s.cursor = s.tokens.length;
+          setLabelEl.textContent = "S = {1, 3, 5, 7}";
+          s.phase = "done";
+          setMessage("Safe walk complete: S = {1, 3, 5, 7}.", { tone: "mint" });
+          markStepDone(3);
+          renderStep4();
+        }, 420);
+        return;
+      }
+
+      var tok = s.tokens[idx];
+      tok.active = true;
+      s.cursor = idx + 1;
+      s.activeLine = 3;
+      setVarX(tok.val, true);
+      setResultChip("next() \u2192 " + tok.val, "val");
+      renderCode(STEP4_CODE, 3);
+      renderBelt(s.tokens, s.cursor);
+
+      later(function () {
+        s.activeLine = 4;
+        renderCode(STEP4_CODE, 4);
+        if (tok.val % 2 === 0) {
+          later(function () {
+            s.activeLine = 5;
+            tok.selectedCopy = true;
+            s.toRemove.push(tok.val);
+            renderStep4();
+            later(function () {
+              tok.active = false;
+              tok.used = true;
+              idx++;
+              walkNext();
+            }, 220);
+          }, 200);
+        } else {
+          later(function () {
+            tok.active = false;
+            tok.used = true;
+            idx++;
+            walkNext();
+          }, 220);
+        }
+      }, 200);
+    }
+
+    later(walkNext, 220);
+  }
+
+  // =========================================================================
+  // STEP 5: Closing — the short form
+  // =========================================================================
+  function initStep5() {
+    s = {
+      phase: "long" // "long" | "morphing" | "short"
+    };
+    stepInstruction.textContent = "The short for-each loop is the exact same walk.";
+    setLabelEl.textContent = "S = {2, 3, 5, 8}";
+    varBoxEl.hidden = true;
+    resultChipEl.hidden = true;
+    beltWrapEl.hidden = true;
+    setMessage("Press Shorten it to fold the iterator loop into the short form.", {});
+    renderStep5();
+  }
+
+  function renderStep5() {
+    controlsAreaEl.innerHTML = "";
+    extrasAreaEl.innerHTML = "";
+    codeLinesEl.innerHTML = "";
+
+    if (s.phase === "long" || s.phase === "morphing") {
+      var l0 = document.createElement("div");
+      l0.className = "code-line morph-line";
+      l0.textContent = "Iterator<Integer> i = S.iterator();";
+
+      var l1 = document.createElement("div");
+      l1.className = "code-line morph-line";
+      l1.textContent = "while (i.hasNext()) {";
+
+      var l2 = document.createElement("div");
+      l2.className = "code-line morph-line";
+      l2.textContent = "    Integer x = i.next();";
+
+      var l3 = document.createElement("div");
+      l3.className = "code-line";
+      l3.textContent = "    // do something with x";
+
+      var l4 = document.createElement("div");
+      l4.className = "code-line";
+      l4.textContent = "}";
+
+      codeLinesEl.appendChild(l0);
+      codeLinesEl.appendChild(l1);
+      codeLinesEl.appendChild(l2);
+      codeLinesEl.appendChild(l3);
+      codeLinesEl.appendChild(l4);
+
+      if (s.phase === "morphing") {
+        later(function () {
+          l0.classList.add("is-collapsed");
+          l2.classList.add("is-collapsed");
+          l1.classList.add("is-flash");
+          l1.textContent = "for (Integer x : S) {";
+        }, 120);
+      }
+
+      controlsAreaEl.appendChild(makeBtn("Shorten it", {
+        disabled: s.phase === "morphing",
+        reason: "Folding into short form...",
+        isNext: s.phase === "long",
+        onClick: step5Shorten
+      }));
+    } else {
+      var shortLines = [
+        "for (Integer x : S) {",
+        "    // do something with x",
+        "}"
+      ];
+      renderCode(shortLines, 0, { activeClass: "is-flash" });
+
+      var noIterChip = makeBtn("i.remove()", {
+        className: "btn-mono",
+        disabled: true,
+        reason: "No iterator name, nothing to call remove() on. Use the long form, or collect first and change after."
+      });
+      controlsAreaEl.appendChild(noIterChip);
+
+      var summary = document.createElement("div");
+      summary.className = "tally-card";
+      summary.innerHTML =
+        '<div class="tally-row"><span class="ico-mint">' + svgCheck(18) + '</span><span>Every element once, order not promised</span></div>' +
+        '<div class="tally-row"><span class="ico-mint">' + svgCheck(18) + '</span><span>Change the set only with <code class="mono">i.remove()</code></span></div>' +
+        '<div class="tally-row"><span class="ico-coral">' + svgCross(18) + '</span><span><code class="mono">S.remove(x)</code> or <code class="mono">S.add(x)</code> during the walk</span></div>';
+      extrasAreaEl.appendChild(summary);
+    }
+  }
+
+  function step5Shorten() {
+    s.phase = "morphing";
+    renderStep5();
+    later(function () {
+      s.phase = "short";
+      setMessage("Same walk, written short. Java still uses an iterator behind the scenes.", { tone: "mint" });
+      markStepDone(4);
+      renderStep5();
+    }, 1450);
+  }
+
+  // Boot on Step 1
+  switchStep(0);
+})();
+</script>
+</body>
+</html>
