@@ -1,0 +1,3122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>One grade, two lists — Multilist explorer</title>
+<style>
+  :root {
+    color-scheme: light only;
+    --bg-linen: #F4EEE3;
+    --panel-bg: #FFFDF8;
+    --panel-border: #D9D0C2;
+    --ink: #2B2B2B;
+    --muted: #9A938A;
+    --cobalt: #2F5DA8;
+    --cobalt-tint: rgba(47, 93, 168, 0.14);
+    --saffron: #E0A21B;
+    --saffron-outline: #9C6E0A;
+    --saffron-tint: rgba(224, 162, 27, 0.20);
+    --moss: #5E7D3A;
+    --moss-tint: rgba(94, 125, 58, 0.16);
+    --correct: #3E7D4F;
+    --correct-tint: rgba(62, 125, 79, 0.14);
+    --brick: #B5452F;
+    --brick-tint: rgba(181, 69, 47, 0.14);
+    --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    --radius: 12px;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg-linen);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    line-height: 1.4;
+    -webkit-text-size-adjust: 100%;
+    overflow-x: hidden;
+  }
+
+  .app {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 4px 4px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  /* Top bar (max 2 rows on 360px portrait) */
+  .topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5px;
+  }
+
+  .step-nav {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    flex: 1 1 320px;
+  }
+
+  .top-actions {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    align-items: center;
+  }
+
+  button {
+    font-family: var(--font-ui);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--panel-bg);
+    border: 1.5px solid var(--panel-border);
+    border-radius: 10px;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 6px 10px;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, opacity 140ms ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-align: center;
+  }
+
+  button:focus-visible,
+  [data-interactive="true"]:focus-visible {
+    outline: 3px solid var(--cobalt);
+    outline-offset: 2px;
+  }
+
+  button:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+  }
+
+  .pill-btn {
+    border-radius: 999px;
+    padding: 6px 8px;
+    font-size: 0.82rem;
+    flex: 1 1 auto;
+    white-space: nowrap;
+  }
+
+  .pill-btn[aria-current="step"] {
+    background: var(--ink);
+    color: var(--panel-bg);
+    border-color: var(--ink);
+  }
+
+  .toggle-btn[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--panel-bg);
+    border-color: var(--ink);
+  }
+
+  .primary-btn {
+    background: var(--cobalt);
+    color: #FFFDF8;
+    border-color: var(--cobalt);
+  }
+
+  .primary-btn.moss-mode {
+    background: var(--moss);
+    color: #FFFDF8;
+    border-color: var(--moss);
+  }
+
+  /* Instruction bar */
+  .instruction-bar {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-left: 5px solid var(--cobalt);
+    border-radius: var(--radius);
+    padding: 7px 10px;
+    font-size: 0.90rem;
+    font-weight: 600;
+  }
+
+  /* Workspace layout */
+  .workspace {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    align-items: start;
+  }
+
+  .grid-card,
+  .side-panel {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    padding: 3px;
+    min-width: 0;
+  }
+
+  .side-panel {
+    padding: 7px 9px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .feedback-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    order: 1;
+  }
+
+  .controls-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    order: 2;
+  }
+
+  .grid-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+
+  .svg-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  }
+
+  .svg-ui {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  .legend-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    padding: 4px 6px 2px;
+    border-top: 1px solid var(--panel-border);
+    margin-top: 2px;
+    font-size: 0.78rem;
+    color: var(--ink);
+  }
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .side-legend {
+    display: flex;
+    margin-top: 2px;
+  }
+
+  #gridCard .legend-strip {
+    display: none;
+  }
+
+  /* Panel components */
+  .panel-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .panel-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+
+  .counter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .stat-chip {
+    background: var(--bg-linen);
+    border: 1px solid var(--panel-border);
+    border-radius: 9px;
+    padding: 4px 7px;
+    font-size: 0.79rem;
+    font-weight: 600;
+    flex: 1 1 0;
+    white-space: nowrap;
+  }
+
+  .stat-chip.cobalt {
+    border-color: var(--cobalt);
+    background: var(--cobalt-tint);
+  }
+
+  .stat-chip.saffron {
+    border-color: var(--saffron-outline);
+    background: var(--saffron-tint);
+  }
+
+  .stat-chip.moss {
+    border-color: var(--moss);
+    background: var(--moss-tint);
+  }
+
+  .live-result {
+    background: var(--bg-linen);
+    border: 1px solid var(--panel-border);
+    border-radius: 9px;
+    padding: 5px 9px;
+    font-size: 0.83rem;
+    min-height: 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+  }
+
+  .live-result.good {
+    border-color: var(--correct);
+    background: var(--correct-tint);
+  }
+
+  .live-result.warn {
+    border-color: var(--brick);
+    background: var(--brick-tint);
+  }
+
+  .live-result.both {
+    border-color: var(--cobalt);
+    box-shadow: inset 0 0 0 2px var(--saffron);
+  }
+
+  .note-box {
+    background: var(--bg-linen);
+    border: 1px dashed var(--muted);
+    border-radius: 9px;
+    padding: 7px 10px;
+    font-size: 0.84rem;
+  }
+
+  .action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .grade-picker {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(44px, 1fr));
+    gap: 5px;
+  }
+
+  .grade-btn {
+    padding: 6px 4px;
+    font-size: 0.96rem;
+    font-weight: 700;
+  }
+
+  .grade-btn[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--panel-bg);
+    border-color: var(--ink);
+  }
+
+  /* Code panel */
+  .code-card {
+    background: var(--bg-linen);
+    border: 1px solid var(--panel-border);
+    border-radius: 9px;
+    padding: 3px 5px;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    line-height: 1.25;
+    overflow-x: auto;
+  }
+
+  .code-line {
+    padding: 1.5px 5px;
+    border-radius: 5px;
+    white-space: pre;
+    border-left: 4px solid transparent;
+    transition: background-color 140ms ease, border-color 140ms ease;
+  }
+
+  .code-line.active-cobalt {
+    background: var(--cobalt-tint);
+    border-left-color: var(--cobalt);
+    font-weight: 700;
+  }
+
+  .code-line.active-saffron {
+    background: var(--saffron-tint);
+    border-left-color: var(--saffron-outline);
+    font-weight: 700;
+  }
+
+  /* Node anatomy mini diagram (Step 4) */
+  .anatomy-card {
+    background: var(--bg-linen);
+    border: 1px solid var(--panel-border);
+    border-radius: 9px;
+    padding: 7px 9px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .anatomy-slots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+  }
+
+  .slot-pill {
+    padding: 3px 7px;
+    border-radius: 6px;
+    background: var(--panel-bg);
+    border: 1.5px solid var(--panel-border);
+    font-weight: 600;
+  }
+
+  .slot-pill.cobalt { border-color: var(--cobalt); color: var(--cobalt); }
+  .slot-pill.saffron { border-color: var(--saffron-outline); color: var(--saffron-outline); }
+  .slot-pill.moss { border-color: var(--moss); color: var(--moss); }
+
+  /* Bottom Back/Next navigation */
+  .bottombar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding-top: 2px;
+  }
+
+  .bottombar .step-progress {
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  /* SVG interactive feedback */
+  [data-interactive="true"] {
+    cursor: pointer;
+  }
+
+  [data-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  .pulse-hint {
+    animation: gentlePulse 1.7s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  @keyframes gentlePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.045); }
+  }
+
+  /* Shared node pulses twice then stays still (Fix 6) */
+  .pulse-once {
+    animation: pulseOnce 650ms ease-in-out 2;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  @keyframes pulseOnce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+  }
+
+  .fade-enter {
+    animation: quickFade 200ms ease-out;
+  }
+
+  @keyframes quickFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Wide screens (>= 700 px) */
+  @media (min-width: 700px) {
+    .app {
+      padding: 14px 18px 20px;
+      gap: 12px;
+    }
+
+    #gridCard .legend-strip {
+      display: flex;
+    }
+
+    .side-legend {
+      display: none;
+    }
+
+    .pill-btn {
+      flex: 0 1 auto;
+      padding: 8px 13px;
+      font-size: 0.88rem;
+    }
+
+    .workspace {
+      grid-template-columns: minmax(0, 1.32fr) minmax(290px, 0.90fr);
+      gap: 14px;
+    }
+
+    .grid-card {
+      padding: 10px;
+    }
+
+    .side-panel {
+      padding: 14px;
+      gap: 12px;
+    }
+
+    .controls-strip { order: 1; }
+    .feedback-strip { order: 2; }
+    .stat-chip { font-size: 0.86rem; padding: 6px 10px; }
+    .live-result { font-size: 0.90rem; padding: 8px 11px; min-height: 40px; }
+    .code-card { font-size: 0.83rem; padding: 8px; line-height: 1.4; }
+    .code-line { padding: 4px 8px; }
+  }
+
+  /* Landscape phones (e.g. 640x360, 740x360): >= 11px labels, >= 16px digits, >= 44px tap targets */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .app {
+      padding: 3px 6px 6px;
+      gap: 3px;
+    }
+
+    .topbar {
+      flex-wrap: nowrap;
+    }
+
+    .pill-btn {
+      flex: 0 1 auto;
+      padding: 5px 9px;
+      font-size: 0.78rem;
+    }
+
+    .instruction-bar {
+      padding: 3px 9px;
+      font-size: 0.80rem;
+      line-height: 1.2;
+    }
+
+    .workspace {
+      grid-template-columns: max-content minmax(230px, 1fr);
+      gap: 6px;
+      align-items: start;
+    }
+
+    .grid-card {
+      padding: 2px;
+    }
+
+    #gridCard .legend-strip {
+      display: none;
+    }
+
+    .side-legend {
+      display: flex;
+      margin-top: 4px;
+    }
+
+    .grid-svg {
+      height: calc(100vh - 86px);
+      max-height: 320px;
+      width: auto;
+      max-width: 100%;
+      margin: 0 auto;
+    }
+
+    .side-panel {
+      max-height: calc(100vh - 86px);
+      overflow-y: auto;
+      padding: 6px 8px;
+      gap: 6px;
+    }
+
+    .controls-strip { order: 1; }
+    .feedback-strip { order: 2; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 120ms !important;
+    }
+    .pulse-hint,
+    .pulse-once {
+      animation: none !important;
+    }
+  }
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="topbar" aria-label="Activity controls">
+    <nav class="step-nav" aria-label="Steps">
+      <button type="button" class="pill-btn" data-step="0" aria-current="step">1 Predict</button>
+      <button type="button" class="pill-btn" data-step="1">2 Add</button>
+      <button type="button" class="pill-btn" data-step="2">3 Delete</button>
+      <button type="button" class="pill-btn" data-step="3">4 Teacher</button>
+    </nav>
+    <div class="top-actions">
+      <button type="button" id="speedBtn" class="toggle-btn" aria-pressed="false">Speed: Normal</button>
+      <button type="button" id="resetBtn">Reset</button>
+    </div>
+  </header>
+
+  <div class="instruction-bar" id="instructionBar"></div>
+
+  <section class="workspace" aria-label="Multilist interactive stage">
+    <div class="grid-card" id="gridCard">
+      <svg id="gridSvg" class="grid-svg" viewBox="0 0 1310 1014" role="img" aria-labelledby="svgTitle svgDesc">
+        <title id="svgTitle">Student and course grade multilist grid</title>
+        <desc id="svgDesc"></desc>
+        <defs>
+          <pattern id="hatchPattern" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="12" height="12" fill="#FFFDF8"></rect>
+            <line x1="0" y1="0" x2="0" y2="12" stroke="#2B2B2B" stroke-width="3.6" stroke-opacity="0.35"></line>
+          </pattern>
+          <marker id="tip-cobalt" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+            <path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="#2F5DA8"></path>
+          </marker>
+          <marker id="tip-saffron" viewBox="0 0 12 12" refX="9.5" refY="6" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M 1.5 1.8 L 10.5 6 L 1.5 10.2 z" fill="#E0A21B" stroke="#9C6E0A" stroke-width="1.3" stroke-linejoin="round"></path>
+          </marker>
+          <marker id="tip-moss" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+            <path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="#5E7D3A"></path>
+          </marker>
+          <mask id="maskOutsideNodes" maskUnits="userSpaceOnUse" x="0" y="0" width="1310" height="1138"></mask>
+          <mask id="maskCrossArrowCard" maskUnits="userSpaceOnUse" x="0" y="0" width="1310" height="1138"></mask>
+        </defs>
+        <g id="layerBackdrop"></g>
+        <g id="layerCells"></g>
+        <g id="layerUnderlays"></g>
+        <g id="layerArrows"></g>
+        <g id="layerHeaders"></g>
+        <g id="layerNodes"></g>
+        <g id="layerCrossUnderlays" style="pointer-events: none;"></g>
+        <g id="layerCrossArrows" style="pointer-events: none;"></g>
+        <g id="layerNodeContent" style="pointer-events: none;"></g>
+        <g id="layerExtras"></g>
+        <g id="layerOverlay"></g>
+      </svg>
+
+      <div class="legend-strip" id="legendStrip" aria-hidden="true">
+        <span class="legend-item">
+          <svg width="26" height="10" viewBox="0 0 26 10"><line x1="1" y1="5" x2="20" y2="5" stroke="#2F5DA8" stroke-width="3"></line><polygon points="19,1.5 25,5 19,8.5" fill="#2F5DA8"></polygon></svg>
+          Student (cobalt, solid)
+        </span>
+        <span class="legend-item">
+          <svg width="28" height="12" viewBox="0 0 28 12"><line x1="2" y1="6" x2="20" y2="6" stroke="#9C6E0A" stroke-width="6.4" stroke-linecap="round"></line><line x1="2" y1="6" x2="20" y2="6" stroke="#E0A21B" stroke-width="3.8" stroke-linecap="round"></line><polygon points="19,1.5 27,6 19,10.5" fill="#E0A21B" stroke="#9C6E0A" stroke-width="1.1"></polygon></svg>
+          Course (saffron, outlined)
+        </span>
+        <span class="legend-item moss-legend" style="display:none;">
+          <svg width="28" height="10" viewBox="0 0 28 10"><line x1="1" y1="5" x2="20" y2="5" stroke="#5E7D3A" stroke-width="3" stroke-dasharray="4.5 3"></line><polygon points="19,1.5 26,5 19,8.5" fill="#5E7D3A"></polygon></svg>
+          Teacher (moss, dashed)
+        </span>
+      </div>
+    </div>
+
+    <aside class="side-panel" id="sidePanel" aria-label="Step controls and details"></aside>
+  </section>
+
+  <footer class="bottombar">
+    <button type="button" id="backBtn">Back</button>
+    <span class="step-progress" id="stepProgress">Step 1 of 4</span>
+    <button type="button" id="nextStepBtn">Next</button>
+  </footer>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  const COLORS = {
+    linen: "#F4EEE3",
+    panel: "#FFFDF8",
+    border: "#D9D0C2",
+    ink: "#2B2B2B",
+    muted: "#9A938A",
+    cobalt: "#2F5DA8",
+    saffron: "#E0A21B",
+    saffronOutline: "#9C6E0A",
+    moss: "#5E7D3A",
+    correct: "#3E7D4F",
+    brick: "#B5452F",
+  };
+
+  const STUDENTS = ["Matti", "Maija", "Pekka"];
+  const COURSES = ["Progr", "DSA1", "DSA2"];
+  const TEACHERS = [
+    { name: "Virtanen", short: "V", x: 361 },
+    { name: "Lahti", short: "L", x: 719 },
+  ];
+
+  // Verified viewBox geometry (Fix 1 clearances + >=44px tap targets + >=12px/18px at 360px + >=11px/16px at 640x360)
+  const VB_W = 1310;
+  const VB_H_BASE = 1014;
+  const VB_H_TALL = 1138;
+
+  const RH = { x: 8, w: 148, h: 136 };
+  const CH = { y: 6, w: 146, h: 68 };
+  const X_COLS = [361, 719, 1077];
+  const Y_ROWS = [246, 538, 830];
+  const NODE_W = 146;
+  const NODE_H = 136;
+  const HIT_SZ = 184;
+
+  // Reserved non-overlapping orthogonal routing lanes (all >= 24 from nodes, >= 14 apart, >= 10 from null labels, final stub >= 32)
+  const STU_ENTRY_X = [252, 610, 968];   // 36 >= 32 final stub into col left edges (288, 646, 1004)
+  const CRS_LANE_X = [562, 920, 1278];   // >= 14 past col null right (548.2, 906.2, 1264.2), slot+16 = 578, 936, 1294
+  const MOSS_LANE_X = [202, 594, 952];   // 16 from CRS slot1 & STU_ENTRY, >= 52 final stub into cols 0..2
+
+  const CRS_ENTRY_Y = [142, 434, 726];   // 36 >= 32 final stub into row top edges (178, 470, 762)
+  const STU_LANE_Y = [374, 666, 958];    // >= 12 below row null bottom (<=362, <=654, <=946), slot+14 = 388, 680, 972
+  const MOSS_LANE_Y = [404, 696, 988];   // >= 16 below STU slot1, >= 16 above CRS_ENTRY, slot+14 = 418, 710, 1002
+  const MOSS_X_SLOTS = [
+    [202, 220, 236],   // Col 0 entry lanes: >=46 from RH, >=20 from S-drop, >=16 from STU_ENTRY[0], >=52 final stub
+    [594, 544, 526],   // Col 1 entry lanes: >=16 from CRS[0]+16/STU_ENTRY[1], >=18 from CRS[0], >=92 from col 0, >=52 stub
+    [952, 904, 886],   // Col 2 entry lanes: >=16 from CRS[1]+16/STU_ENTRY[2], >=16 from CRS[1], >=94 from col 1, >=52 stub
+  ];
+  const MOSS_Y_SLOTS = [
+    [404, 420],        // Row 0->1 moss horizontal lanes (16 apart, >=14 from STU_LANE/CRS_ENTRY)
+    [696, 712],        // Row 1->2 moss horizontal lanes (16 apart, >=14 from STU_LANE/CRS_ENTRY)
+    [988, 1004],       // Row 2 moss horizontal lanes (disjoint from header lanes 1018/1002)
+  ];
+
+  const BASE_NODES = [
+    { r: 0, c: 0, grade: 4, teacher: "V" },
+    { r: 0, c: 1, grade: 3, teacher: "L" },
+    { r: 1, c: 0, grade: 5, teacher: "L" },
+    { r: 1, c: 1, grade: 4, teacher: "L" },
+    { r: 1, c: 2, grade: 2, teacher: "V" },
+    { r: 2, c: 1, grade: 0, teacher: "L" },
+    { r: 2, c: 2, grade: 3, teacher: "V" },
+  ];
+
+  const PREDICT_QUESTIONS = [
+    { type: "student", index: 0, label: "Matti" },
+    { type: "course", index: 1, label: "DSA1" },
+    { type: "student", index: 1, label: "Maija" },
+    { type: "course", index: 2, label: "DSA2" },
+    { type: "both", studentIndex: 0, courseIndex: 1 },
+  ];
+
+  const SVG_NS = "http://www.w3.org/2000/svg";
+
+  function svgEl(tag, attrs = {}, textContent = null) {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v !== null && v !== undefined) {
+        el.setAttribute(k, String(v));
+      }
+    }
+    if (textContent !== null) {
+      el.textContent = textContent;
+    }
+    return el;
+  }
+
+  function reducedMotion() {
+    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function stepDelay(multiplier = 1) {
+    if (reducedMotion()) return Math.round(120 * multiplier);
+    const base = state.slower ? 1100 : 600;
+    return Math.round(base * multiplier);
+  }
+
+  const state = {
+    step: 0,
+    slower: false,
+    isAnimating: false,
+    animToken: 0,
+
+    students: [],
+    courses: [],
+    teachers: [],
+    nodes: [],
+    nextNodeId: 1,
+
+    walkedArrowKeys: null,
+    drawingArrowKey: null,
+    fadingOldArrow: null,
+    liveAnnouncementHtml: "",
+    liveAnnouncementTone: "",
+
+    predict: {
+      qIndex: 0,
+      freeMode: false,
+      selectedHeader: null,
+      markedIds: new Set(),
+      visitedIds: new Set(),
+      mattiIds: new Set(),
+      dsa1Ids: new Set(),
+      revealed: false,
+      feedback: null,
+      visitedCount: null,
+      activeChainType: null,
+      bothPulse: false,
+    },
+
+    add: {
+      selectedCell: null,
+      selectedGrade: null,
+      cellNote: "",
+      writes: 0,
+      activeLine: -1,
+      lastInserted: null,
+      newNodeId: null,
+      insertCount: 0,
+      extraStudents: 0,
+    },
+
+    del: {
+      selectedNodeId: null,
+      fadingNodeId: null,
+      studentWalkCount: 0,
+      courseWalkCount: 0,
+      visitedIds: new Set(),
+      activeChain: null,
+      codeLines: [],
+      activeLine: -1,
+      summaryText: "",
+      suggestPulse: true,
+    },
+
+    teacher: {
+      enabled: false,
+      visitedCount: null,
+      visitedIds: new Set(),
+      matchedIds: new Set(),
+      resultText: "",
+      offVisited: null,
+      onVisited: null,
+    },
+  };
+
+  function buildBaseModel() {
+    state.students = STUDENTS.map((name, idx) => ({ id: `S${idx}`, name, index: idx, first: null }));
+    state.courses = COURSES.map((name, idx) => ({ id: `C${idx}`, name, index: idx, first: null }));
+    state.teachers = TEACHERS.map((t, idx) => ({ id: `T${idx}`, name: t.name, short: t.short, index: idx, x: t.x, first: null }));
+    state.nodes = [];
+    state.nextNodeId = 1;
+
+    for (const spec of BASE_NODES) {
+      state.nodes.push({
+        id: `n${state.nextNodeId++}`,
+        r: spec.r,
+        c: spec.c,
+        grade: spec.grade,
+        teacher: spec.teacher,
+        nextOfStudent: null,
+        nextOfCourse: null,
+        nextOfTeacher: null,
+      });
+    }
+
+    for (let r = 0; r < 3; r++) {
+      const rowNodes = state.nodes.filter((n) => n.r === r).sort((a, b) => a.c - b.c);
+      state.students[r].first = rowNodes[0] || null;
+      for (let i = 0; i < rowNodes.length - 1; i++) {
+        rowNodes[i].nextOfStudent = rowNodes[i + 1];
+      }
+    }
+
+    for (let c = 0; c < 3; c++) {
+      const colNodes = state.nodes.filter((n) => n.c === c).sort((a, b) => a.r - b.r);
+      state.courses[c].first = colNodes[0] || null;
+      for (let i = 0; i < colNodes.length - 1; i++) {
+        colNodes[i].nextOfCourse = colNodes[i + 1];
+      }
+    }
+
+    for (const th of state.teachers) {
+      const tNodes = state.nodes.filter((n) => n.teacher === th.short).sort((a, b) => (a.r - b.r) || (a.c - b.c));
+      th.first = tNodes[0] || null;
+      for (let i = 0; i < tNodes.length - 1; i++) {
+        tNodes[i].nextOfTeacher = tNodes[i + 1];
+      }
+    }
+  }
+
+  function walkChain(head, nextProp) {
+    const out = [];
+    let cur = head;
+    let guard = 0;
+    while (cur && guard < 30) {
+      out.push(cur);
+      cur = cur[nextProp];
+      guard++;
+    }
+    return out;
+  }
+
+  function getChainMembership() {
+    const onStudent = [new Set(), new Set(), new Set()];
+    const onCourse = [new Set(), new Set(), new Set()];
+    const onTeacher = new Set();
+    state.students.forEach((s, r) => walkChain(s.first, "nextOfStudent").forEach((n) => onStudent[r].add(n.id)));
+    state.courses.forEach((c, col) => walkChain(c.first, "nextOfCourse").forEach((n) => onCourse[col].add(n.id)));
+    state.teachers.forEach((t) => walkChain(t.first, "nextOfTeacher").forEach((n) => onTeacher.add(n.id)));
+    return { onStudent, onCourse, onTeacher };
+  }
+
+  function nodeAt(r, c) {
+    return state.nodes.find((n) => n.r === r && n.c === c) || null;
+  }
+
+  function entryPos(node, chain) {
+    const cx = X_COLS[node.c];
+    const cy = Y_ROWS[node.r];
+    if (chain === "student") return { x: cx - NODE_W / 2, y: cy };
+    if (chain === "course") return { x: cx, y: cy - NODE_H / 2 };
+    return { x: cx - NODE_W / 2, y: cy + 44 };
+  }
+
+  function exitPos(node, chain) {
+    const cx = X_COLS[node.c];
+    const cy = Y_ROWS[node.r];
+    if (chain === "student") return { x: cx + NODE_W / 2, y: cy };
+    if (chain === "course") return { x: cx, y: cy + NODE_H / 2 };
+    return { x: cx + 59, y: cy + NODE_H / 2 };
+  }
+
+  function headerExitPos(chain, idx) {
+    if (chain === "student") return { x: RH.x + RH.w, y: Y_ROWS[idx] };
+    if (chain === "course") return { x: X_COLS[idx], y: CH.y + CH.h };
+    return { x: TEACHERS[idx].x - 56, y: 1054 };
+  }
+
+  function setAnnouncement(html, tone = "") {
+    state.liveAnnouncementHtml = html;
+    state.liveAnnouncementTone = tone;
+    const box = document.getElementById("ariaLiveBox");
+    if (box) {
+      box.className = `live-result ${tone}`;
+      box.innerHTML = html;
+    }
+  }
+
+  function resetCurrentStep() {
+    state.animToken++;
+    state.isAnimating = false;
+    state.walkedArrowKeys = null;
+    state.drawingArrowKey = null;
+    state.fadingOldArrow = null;
+    buildBaseModel();
+
+    if (state.step === 0) {
+      state.predict = {
+        qIndex: 0,
+        freeMode: false,
+        selectedHeader: null,
+        markedIds: new Set(),
+        visitedIds: new Set(),
+        mattiIds: new Set(),
+        dsa1Ids: new Set(),
+        revealed: false,
+        feedback: null,
+        visitedCount: null,
+        activeChainType: null,
+        bothPulse: false,
+      };
+      state.liveAnnouncementHtml = "No header selected yet.";
+      state.liveAnnouncementTone = "";
+    } else if (state.step === 1) {
+      state.add = {
+        selectedCell: null,
+        selectedGrade: null,
+        cellNote: "",
+        writes: 0,
+        activeLine: -1,
+        lastInserted: null,
+        newNodeId: null,
+        insertCount: 0,
+        extraStudents: 0,
+      };
+      state.liveAnnouncementHtml = "Tap any dashed empty cell on the grid.";
+      state.liveAnnouncementTone = "";
+    } else if (state.step === 2) {
+      state.del = {
+        selectedNodeId: null,
+        fadingNodeId: null,
+        studentWalkCount: 0,
+        courseWalkCount: 0,
+        visitedIds: new Set(),
+        activeChain: null,
+        codeLines: [],
+        activeLine: -1,
+        summaryText: "",
+        suggestPulse: true,
+      };
+      state.liveAnnouncementHtml = "Try tapping Pekka's DSA2 grade (bottom-right) first.";
+      state.liveAnnouncementTone = "";
+    } else if (state.step === 3) {
+      state.teacher = {
+        enabled: false,
+        visitedCount: null,
+        visitedIds: new Set(),
+        matchedIds: new Set(),
+        resultText: "Teacher chain is Off. Press Find Virtanen's grades to scan all chains.",
+        offVisited: null,
+        onVisited: null,
+      };
+      state.liveAnnouncementHtml = state.teacher.resultText;
+      state.liveAnnouncementTone = "";
+    }
+
+    renderAll();
+  }
+
+  window.__multilistDebug = {
+    getState: () => state,
+    walkChain,
+  };
+
+  function sleep(ms, token) {
+    return new Promise((resolve) => {
+      setTimeout(() => resolve(token === state.animToken), ms);
+    });
+  }
+
+  function scrollGridIntoView() {
+    const card = document.getElementById("gridCard");
+    if (card && card.scrollIntoView) {
+      card.scrollIntoView({ block: "nearest", behavior: reducedMotion() ? "auto" : "smooth" });
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Dynamic Instruction Line
+  // ------------------------------------------------------------------
+  function getInstructionText() {
+    if (state.step === 0) {
+      const p = state.predict;
+      const isBothQ = !p.freeMode && p.qIndex === PREDICT_QUESTIONS.length - 1;
+      if (isBothQ) {
+        if (p.revealed) return "Press Free mode to explore any chain, or Next for Step 2.";
+        if (p.markedIds.size === 1) return "Press Reveal to check your pick.";
+        return "Final question: tap the node on BOTH Matti's chain and DSA1's chain, then press Reveal.";
+      }
+      if (p.revealed) {
+        return p.freeMode ? "Tap another student or course header to explore." : "Press Next question to continue.";
+      }
+      if (p.selectedHeader) return "Tap the grades you think its chain reaches, then press Reveal.";
+      return p.freeMode
+        ? "Free mode: tap any student or course header."
+        : `Tap ${PREDICT_QUESTIONS[p.qIndex].label} to begin Question ${p.qIndex + 1}.`;
+    }
+
+    if (state.step === 1) {
+      const a = state.add;
+      if (state.isAnimating) return "Updating pointers one reference write at a time...";
+      if (a.insertCount === 1 && a.extraStudents === 0) {
+        return "Now press Add 50 more students, then insert into the other empty cell.";
+      }
+      if (a.insertCount >= 2) return "Press Reset to try again.";
+      if (a.extraStudents > 0 && a.insertCount >= 1) {
+        return "Pick the remaining empty cell to test again, or press Reset.";
+      }
+      if (a.selectedCell && a.selectedGrade !== null) return "Press Insert to run the 4 reference writes.";
+      if (a.selectedCell) return "Now choose a grade (0–5), then press Insert.";
+      return "Pick an empty cell, choose a grade, then press Insert.";
+    }
+
+    if (state.step === 2) {
+      if (state.isAnimating) return "Walking singly linked chains to find each predecessor...";
+      if (state.nodes.length === 0) return "All grades deleted. Press Reset to restore.";
+      if (state.del.summaryText) return "Tap another grade to delete it, or press Reset.";
+      return "Tap a grade to delete it.";
+    }
+
+    const t = state.teacher;
+    if (state.isAnimating) {
+      return t.enabled ? "Walking Teacher Virtanen's moss chain..." : "Scanning every student chain...";
+    }
+    if (t.offVisited !== null && t.onVisited !== null) {
+      return "Teacher chain (optional): compare 7 visits Off vs 3 visits On.";
+    }
+    if (!t.enabled && t.offVisited !== null) {
+      return "Now switch Teacher chain to On and run Find Virtanen's grades again.";
+    }
+    if (t.enabled && t.onVisited === null) {
+      return "Press Find Virtanen's grades to walk only the moss teacher chain.";
+    }
+    return "Teacher chain (optional): find Virtanen's grades with the toggle Off, then try On.";
+  }
+
+  function renderTopBar() {
+    document.querySelectorAll(".step-nav .pill-btn").forEach((btn) => {
+      const idx = Number(btn.dataset.step);
+      btn.setAttribute("aria-current", idx === state.step ? "step" : "false");
+      btn.disabled = state.isAnimating;
+    });
+
+    const speedBtn = document.getElementById("speedBtn");
+    speedBtn.setAttribute("aria-pressed", state.slower ? "true" : "false");
+    speedBtn.textContent = state.slower ? "Speed: Slower" : "Speed: Normal";
+
+    document.getElementById("instructionBar").textContent = getInstructionText();
+
+    const showMoss = state.step === 3 && state.teacher.enabled;
+    document.querySelectorAll(".moss-legend").forEach((el) => {
+      el.style.display = showMoss ? "inline-flex" : "none";
+    });
+
+    const backBtn = document.getElementById("backBtn");
+    const nextStepBtn = document.getElementById("nextStepBtn");
+    backBtn.disabled = state.isAnimating || state.step === 0;
+    nextStepBtn.disabled = state.isAnimating || state.step === 3;
+    document.getElementById("stepProgress").textContent = `Step ${state.step + 1} of 4`;
+  }
+
+  // ------------------------------------------------------------------
+  // SVG Text Alternative
+  // ------------------------------------------------------------------
+  function updateSvgDescription() {
+    const desc = document.getElementById("svgDesc");
+    const studentLines = state.students.map((s) => {
+      const items = walkChain(s.first, "nextOfStudent").map((n) => `${COURSES[n.c]} ${n.grade}`);
+      return `${s.name}: ${items.length ? items.join(" -> ") : "empty"}`;
+    });
+    const courseLines = state.courses.map((c) => {
+      const items = walkChain(c.first, "nextOfCourse").map((n) => `${STUDENTS[n.r]} ${n.grade}`);
+      return `${c.name}: ${items.length ? items.join(" -> ") : "empty"}`;
+    });
+    let extra = "";
+    if (state.step === 3 && state.teacher.enabled) {
+      const tLines = state.teachers.map((t) => {
+        const items = walkChain(t.first, "nextOfTeacher").map((n) => `${STUDENTS[n.r]}/${COURSES[n.c]} ${n.grade}`);
+        return `${t.name}: ${items.length ? items.join(" -> ") : "empty"}`;
+      });
+      extra = ` Teacher chains: ${tLines.join("; ")}.`;
+    }
+    desc.textContent = `3 by 3 grade grid. Student chains: ${studentLines.join("; ")}. Course chains: ${courseLines.join("; ")}.${extra}`;
+  }
+
+  // ------------------------------------------------------------------
+  // Orthogonal Routing (Fixes 1 & 2: clearances, >=32 stubs, membership blocking)
+  // ------------------------------------------------------------------
+  function roundedOrthoPath(pts, radius = 10) {
+    if (pts.length < 2) return "";
+    if (pts.length === 2) return `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y}`;
+    let d = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const prev = pts[i - 1];
+      const cur = pts[i];
+      const next = pts[i + 1];
+      const dx1 = cur.x - prev.x;
+      const dy1 = cur.y - prev.y;
+      const len1 = Math.hypot(dx1, dy1);
+      const dx2 = next.x - cur.x;
+      const dy2 = next.y - cur.y;
+      const len2 = Math.hypot(dx2, dy2);
+      if (len1 < 0.01 || len2 < 0.01) {
+        d += ` L ${cur.x} ${cur.y}`;
+        continue;
+      }
+      const r = Math.min(radius, len1 * 0.45, len2 * 0.45);
+      const pBefore = { x: cur.x - (dx1 / len1) * r, y: cur.y - (dy1 / len1) * r };
+      const pAfter = { x: cur.x + (dx2 / len2) * r, y: cur.y + (dy2 / len2) * r };
+      d += ` L ${pBefore.x.toFixed(2)} ${pBefore.y.toFixed(2)} Q ${cur.x.toFixed(2)} ${cur.y.toFixed(2)} ${pAfter.x.toFixed(2)} ${pAfter.y.toFixed(2)}`;
+    }
+    const last = pts[pts.length - 1];
+    d += ` L ${last.x} ${last.y}`;
+    return d;
+  }
+
+  function analyzeStudentStraight(fromIsHeader, r, sc, tc, memberSet) {
+    if (!fromIsHeader && tc <= sc) return { straight: false, crossesEmpty: false, crossesNonMember: false };
+    const startC = fromIsHeader ? 0 : sc + 1;
+    let crossesEmpty = false;
+    let crossesNonMember = false;
+    for (let c = startC; c < tc; c++) {
+      const n = nodeAt(r, c);
+      if (!n) {
+        crossesEmpty = true;
+      } else if (memberSet.has(n.id)) {
+        return { straight: false, crossesEmpty: false, crossesNonMember: false };
+      } else {
+        crossesNonMember = true;
+      }
+    }
+    return { straight: true, crossesEmpty, crossesNonMember };
+  }
+
+  function analyzeCourseStraight(fromIsHeader, c, sr, tr, memberSet) {
+    if (!fromIsHeader && tr <= sr) return { straight: false, crossesEmpty: false, crossesNonMember: false };
+    const startR = fromIsHeader ? 0 : sr + 1;
+    let crossesEmpty = false;
+    let crossesNonMember = false;
+    for (let r = startR; r < tr; r++) {
+      const n = nodeAt(r, c);
+      if (!n) {
+        crossesEmpty = true;
+      } else if (memberSet.has(n.id)) {
+        return { straight: false, crossesEmpty: false, crossesNonMember: false };
+      } else {
+        crossesNonMember = true;
+      }
+    }
+    return { straight: true, crossesEmpty, crossesNonMember };
+  }
+
+  function buildStudentRoute(fromIsHeader, r, sc, targetNode, slotOffset, memberSet) {
+    const start = fromIsHeader ? headerExitPos("student", r) : exitPos(nodeAt(r, sc), "student");
+    const end = entryPos(targetNode, "student");
+    const tc = targetNode.c;
+
+    const info = analyzeStudentStraight(fromIsHeader, r, sc, tc, memberSet);
+    if (info.straight) {
+      return {
+        d: `M ${start.x} ${start.y} L ${end.x} ${end.y}`,
+        crossesEmpty: info.crossesEmpty,
+        crossesNonMember: info.crossesNonMember,
+        start,
+        end,
+      };
+    }
+
+    // Slot offsets move toward middle of the gap (+16)
+    const laneY = STU_LANE_Y[r] + slotOffset * 16;
+    const entryX = STU_ENTRY_X[tc];
+    const dropX = fromIsHeader ? 182 : start.x + 26;
+    const pts = [
+      start,
+      { x: dropX, y: start.y },
+      { x: dropX, y: laneY },
+      { x: entryX, y: laneY },
+      { x: entryX, y: end.y },
+      end,
+    ];
+    return { d: roundedOrthoPath(pts, 10), crossesEmpty: false, crossesNonMember: false, start, end };
+  }
+
+  function buildCourseRoute(fromIsHeader, c, sr, targetNode, slotOffset, memberSet) {
+    const start = fromIsHeader ? headerExitPos("course", c) : exitPos(nodeAt(sr, c), "course");
+    const end = entryPos(targetNode, "course");
+    const tr = targetNode.r;
+
+    const info = analyzeCourseStraight(fromIsHeader, c, sr, tr, memberSet);
+    if (info.straight) {
+      return {
+        d: `M ${start.x} ${start.y} L ${end.x} ${end.y}`,
+        crossesEmpty: info.crossesEmpty,
+        crossesNonMember: info.crossesNonMember,
+        start,
+        end,
+      };
+    }
+
+    const laneX = CRS_LANE_X[c] + slotOffset * 16;
+    const entryY = CRS_ENTRY_Y[tr];
+    const dropY = fromIsHeader ? 104 : start.y + 26;
+    const pts = [
+      start,
+      { x: start.x, y: dropY },
+      { x: laneX, y: dropY },
+      { x: laneX, y: entryY },
+      { x: end.x, y: entryY },
+      end,
+    ];
+    return { d: roundedOrthoPath(pts, 10), crossesEmpty: false, crossesNonMember: false, start, end };
+  }
+
+  function buildTeacherRoute(fromIsHeader, tIdx, fromNode, targetNode, laneY, entryX) {
+    const start = fromIsHeader ? headerExitPos("teacher", tIdx) : exitPos(fromNode, "teacher");
+    const end = entryPos(targetNode, "teacher");
+    const pts = [
+      start,
+      { x: start.x, y: laneY },
+      { x: entryX, y: laneY },
+      { x: entryX, y: end.y },
+      end,
+    ];
+    return { d: roundedOrthoPath(pts, 10), crossesEmpty: false, crossesNonMember: false, start, end };
+  }
+
+  function arrowOpacity(chain, fromId, toId) {
+    const key = `${chain}:${fromId}->${toId}`;
+    if (state.walkedArrowKeys) {
+      return state.walkedArrowKeys.has(key) ? 1.0 : 0.35;
+    }
+    if (state.step === 3 && state.teacher.enabled && chain !== "teacher") {
+      return 0.30;
+    }
+    return 1.0;
+  }
+
+  function appendArrowSvg(layerArrows, layerUnderlays, layerCrossArrows, layerCrossUnderlays, chain, fromId, toId, route, opacity) {
+    const key = `${chain}:${fromId}->${toId}`;
+    const isDrawing = state.drawingArrowKey === key;
+    const targetArrowLayer = route.crossesNonMember ? layerCrossArrows : layerArrows;
+    const targetUnderlayLayer = route.crossesNonMember ? layerCrossUnderlays : layerUnderlays;
+
+    if (route.crossesEmpty || route.crossesNonMember) {
+      targetUnderlayLayer.appendChild(svgEl("path", {
+        d: route.d,
+        fill: "none",
+        stroke: COLORS.linen,
+        "stroke-width": chain === "course" ? 17 : 13,
+        "stroke-linecap": "round",
+        opacity,
+      }));
+    }
+
+    const g = svgEl("g", {
+      "data-chain": chain,
+      "data-from": fromId,
+      "data-to": toId,
+      "data-pointer": "true",
+      opacity,
+    });
+
+    const useMarker = !(isDrawing && !reducedMotion());
+
+    if (chain === "student") {
+      g.appendChild(svgEl("path", {
+        class: "arrow-path",
+        d: route.d,
+        fill: "none",
+        stroke: COLORS.cobalt,
+        "stroke-width": 4.8,
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round",
+        "marker-end": useMarker ? "url(#tip-cobalt)" : null,
+      }));
+    } else if (chain === "course") {
+      g.appendChild(svgEl("path", {
+        class: "arrow-outline",
+        d: route.d,
+        fill: "none",
+        stroke: COLORS.saffronOutline,
+        "stroke-width": 10.2,
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round",
+      }));
+      g.appendChild(svgEl("path", {
+        class: "arrow-path",
+        d: route.d,
+        fill: "none",
+        stroke: COLORS.saffron,
+        "stroke-width": 6.4,
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round",
+        "marker-end": useMarker ? "url(#tip-saffron)" : null,
+      }));
+    } else {
+      g.appendChild(svgEl("path", {
+        class: "arrow-path",
+        d: route.d,
+        fill: "none",
+        stroke: COLORS.moss,
+        "stroke-width": 4.4,
+        "stroke-dasharray": "9 6",
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round",
+        "marker-end": "url(#tip-moss)",
+      }));
+    }
+
+    targetArrowLayer.appendChild(g);
+  }
+
+  function drawAllPointers(layerArrows, layerUnderlays, layerCrossArrows, layerCrossUnderlays, membership) {
+    const rowSlotUsed = [0, 0, 0];
+    const colSlotUsed = [0, 0, 0];
+
+    // 1. Student headers & nodes
+    state.students.forEach((stu, r) => {
+      if (!stu.first) {
+        drawNullRight(layerArrows, headerExitPos("student", r), COLORS.cobalt, state.walkedArrowKeys ? 0.35 : 1);
+      } else {
+        const route = buildStudentRoute(true, r, -1, stu.first, rowSlotUsed[r], membership.onStudent[r]);
+        if (!analyzeStudentStraight(true, r, -1, stu.first.c, membership.onStudent[r]).straight) rowSlotUsed[r]++;
+        appendArrowSvg(layerArrows, layerUnderlays, layerCrossArrows, layerCrossUnderlays, "student", stu.id, stu.first.id, route, arrowOpacity("student", stu.id, stu.first.id));
+      }
+    });
+
+    for (const node of state.nodes) {
+      if (!node.nextOfStudent) {
+        const offRow = !membership.onStudent[node.r].has(node.id);
+        drawNullRight(layerArrows, exitPos(node, "student"), COLORS.cobalt, state.walkedArrowKeys ? 0.35 : 1, offRow);
+      } else {
+        const route = buildStudentRoute(false, node.r, node.c, node.nextOfStudent, rowSlotUsed[node.r], membership.onStudent[node.r]);
+        if (!analyzeStudentStraight(false, node.r, node.c, node.nextOfStudent.c, membership.onStudent[node.r]).straight) rowSlotUsed[node.r]++;
+        appendArrowSvg(layerArrows, layerUnderlays, layerCrossArrows, layerCrossUnderlays, "student", node.id, node.nextOfStudent.id, route, arrowOpacity("student", node.id, node.nextOfStudent.id));
+      }
+    }
+
+    // 2. Course headers & nodes
+    state.courses.forEach((crs, c) => {
+      if (!crs.first) {
+        drawNullDown(layerArrows, headerExitPos("course", c), COLORS.saffronOutline, state.walkedArrowKeys ? 0.35 : 1);
+      } else {
+        const route = buildCourseRoute(true, c, -1, crs.first, colSlotUsed[c], membership.onCourse[c]);
+        if (!analyzeCourseStraight(true, c, -1, crs.first.r, membership.onCourse[c]).straight) colSlotUsed[c]++;
+        appendArrowSvg(layerArrows, layerUnderlays, layerCrossArrows, layerCrossUnderlays, "course", crs.id, crs.first.id, route, arrowOpacity("course", crs.id, crs.first.id));
+      }
+    });
+
+    for (const node of state.nodes) {
+      if (!node.nextOfCourse) {
+        const offCol = !membership.onCourse[node.c].has(node.id) && (
+          (state.courses[node.c].first && state.courses[node.c].first.r > node.r) ||
+          state.nodes.some((other) => other.c === node.c && other.r < node.r && other.nextOfCourse && other.nextOfCourse.r > node.r)
+        );
+        const nudgeLeft = state.step === 3 && state.teacher.enabled && !offCol;
+        drawNullDown(layerArrows, exitPos(node, "course"), COLORS.saffronOutline, state.walkedArrowKeys ? 0.35 : 1, nudgeLeft ? "below-left" : "below", offCol);
+      } else {
+        const route = buildCourseRoute(false, node.c, node.r, node.nextOfCourse, colSlotUsed[node.c], membership.onCourse[node.c]);
+        if (!analyzeCourseStraight(false, node.c, node.r, node.nextOfCourse.r, membership.onCourse[node.c]).straight) colSlotUsed[node.c]++;
+        appendArrowSvg(layerArrows, layerUnderlays, layerCrossArrows, layerCrossUnderlays, "course", node.id, node.nextOfCourse.id, route, arrowOpacity("course", node.id, node.nextOfCourse.id));
+      }
+    }
+
+    // 3. Teacher headers & nodes (Step 4 when Teacher chain is On)
+    if (state.step === 3 && state.teacher.enabled) {
+      const usedMossV = [[], [], []]; // per-column { x, y0, y1 }
+      const usedMossH = [];           // { y, x0, x1 }
+      const overlap = (a0, a1, b0, b1, pad = 4) => Math.min(a1, b1) >= Math.max(a0, b0) - pad;
+
+      function allocTeacherRoute(fromIsHeader, tIdx, fromNode, targetNode) {
+        const start = fromIsHeader ? headerExitPos("teacher", tIdx) : exitPos(fromNode, "teacher");
+        const end = entryPos(targetNode, "teacher");
+        const col = targetNode.c;
+        const xCands = MOSS_X_SLOTS[col];
+        const yCands = fromIsHeader ? [1018 - tIdx * 16, 1002 - tIdx * 16] : MOSS_Y_SLOTS[fromNode.r];
+
+        // Pick (laneY, entryX) with no overlapping H or V moss segments; prefer unused vertical X first
+        let best = null;
+        for (const cy of yCands) {
+          for (const cx of xCands) {
+            const x0 = Math.min(start.x, cx), x1 = Math.max(start.x, cx);
+            const y0 = Math.min(cy, end.y), y1 = Math.max(cy, end.y);
+            const hHit = usedMossH.some((h) => h.y === cy && overlap(x0, x1, h.x0, h.x1));
+            const vHit = usedMossV[col].some((v) => v.x === cx && overlap(y0, y1, v.y0, v.y1));
+            const vUsedCol = usedMossV[col].some((v) => v.x === cx);
+            if (!hHit && !vHit) {
+              if (!vUsedCol) {
+                best = { laneY: cy, entryX: cx };
+                break;
+              }
+              if (!best) best = { laneY: cy, entryX: cx };
+            }
+          }
+          if (best && !usedMossV[col].some((v) => v.x === best.entryX)) break;
+        }
+        if (!best) best = { laneY: yCands[0], entryX: xCands[0] };
+
+        const x0 = Math.min(start.x, best.entryX), x1 = Math.max(start.x, best.entryX);
+        const y0 = Math.min(best.laneY, end.y), y1 = Math.max(best.laneY, end.y);
+        usedMossH.push({ y: best.laneY, x0, x1 });
+        usedMossV[col].push({ x: best.entryX, y0, y1 });
+        return buildTeacherRoute(fromIsHeader, tIdx, fromNode, targetNode, best.laneY, best.entryX);
+      }
+
+      state.teachers.forEach((th, tIdx) => {
+        if (!th.first) {
+          drawNullDown(layerArrows, headerExitPos("teacher", tIdx), COLORS.moss, 1);
+        } else {
+          const route = allocTeacherRoute(true, tIdx, null, th.first);
+          appendArrowSvg(layerArrows, layerUnderlays, layerCrossArrows, layerCrossUnderlays, "teacher", th.id, th.first.id, route, arrowOpacity("teacher", th.id, th.first.id));
+        }
+      });
+
+      for (const node of state.nodes) {
+        if (!node.nextOfTeacher) {
+          drawNullDown(layerArrows, exitPos(node, "teacher"), COLORS.moss, 1, "right");
+        } else {
+          const route = allocTeacherRoute(false, 0, node, node.nextOfTeacher);
+          appendArrowSvg(layerArrows, layerUnderlays, layerCrossArrows, layerCrossUnderlays, "teacher", node.id, node.nextOfTeacher.id, route, arrowOpacity("teacher", node.id, node.nextOfTeacher.id));
+        }
+      }
+    }
+
+    // Fading replaced header arrow during Step 2 Line 2 / Line 4 (keeps exact pre-change shape)
+    if (state.step === 1 && state.fadingOldArrow) {
+      const f = state.fadingOldArrow;
+      const oldD = f.d || (f.chain === "student"
+        ? buildStudentRoute(true, f.idx, -1, f.toNode, 0, membership.onStudent[f.idx]).d
+        : buildCourseRoute(true, f.idx, -1, f.toNode, 0, membership.onCourse[f.idx]).d);
+      const fadeG = svgEl("g", { class: "fading-old-arrow", opacity: "0.95" });
+      fadeG.appendChild(svgEl("path", {
+        d: oldD,
+        fill: "none",
+        stroke: f.chain === "student" ? COLORS.cobalt : COLORS.saffronOutline,
+        "stroke-width": f.chain === "student" ? 4.4 : 8.0,
+        "stroke-dasharray": "9 6",
+      }));
+      layerArrows.appendChild(fadeG);
+      if (!reducedMotion()) {
+        fadeG.style.transition = `opacity ${stepDelay(0.85)}ms ease-out`;
+        requestAnimationFrame(() => { fadeG.style.opacity = "0"; });
+      } else {
+        fadeG.style.opacity = "0.25";
+      }
+    }
+  }
+
+  function drawNullRight(layer, dot, color, opacity = 1, offsetBelow = false) {
+    const g = svgEl("g", { opacity });
+    if (offsetBelow) {
+      g.appendChild(svgEl("path", { d: `M ${dot.x} ${dot.y} L ${dot.x + 16} ${dot.y + 40}`, fill: "none", stroke: color, "stroke-width": 3.8 }));
+      g.appendChild(svgEl("line", { x1: dot.x + 16, y1: dot.y + 26, x2: dot.x + 16, y2: dot.y + 54, stroke: COLORS.muted, "stroke-width": 3.4 }));
+      g.appendChild(svgEl("text", {
+        x: dot.x + 20, y: dot.y + 58,
+        class: "svg-mono", "font-size": 46, fill: COLORS.muted,
+      }, "null"));
+    } else {
+      g.appendChild(svgEl("path", { d: `M ${dot.x} ${dot.y} L ${dot.x + 10} ${dot.y}`, fill: "none", stroke: color, "stroke-width": 3.8 }));
+      g.appendChild(svgEl("line", { x1: dot.x + 10, y1: dot.y - 16, x2: dot.x + 10, y2: dot.y + 16, stroke: COLORS.muted, "stroke-width": 3.4 }));
+      g.appendChild(svgEl("text", {
+        x: dot.x + 13, y: dot.y + 13,
+        class: "svg-mono", "font-size": 46, fill: COLORS.muted,
+      }, "null"));
+    }
+    layer.appendChild(g);
+  }
+
+  function drawNullDown(layer, dot, color, opacity = 1, labelSide = "below", offsetRight = false) {
+    const g = svgEl("g", { opacity });
+    if (offsetRight) {
+      g.appendChild(svgEl("path", { d: `M ${dot.x} ${dot.y} L ${dot.x + 34} ${dot.y + 18}`, fill: "none", stroke: color, "stroke-width": 4.0 }));
+      g.appendChild(svgEl("line", { x1: dot.x + 20, y1: dot.y + 18, x2: dot.x + 48, y2: dot.y + 18, stroke: COLORS.muted, "stroke-width": 3.4 }));
+      g.appendChild(svgEl("text", {
+        x: dot.x + 26, y: dot.y + 56, "text-anchor": "start",
+        class: "svg-mono", "font-size": 46, fill: COLORS.muted,
+      }, "null"));
+    } else {
+      if (labelSide === "right") {
+        g.appendChild(svgEl("path", { d: `M ${dot.x} ${dot.y} L ${dot.x + 14} ${dot.y + 8}`, fill: "none", stroke: color, "stroke-width": 4.0 }));
+        g.appendChild(svgEl("line", { x1: dot.x, y1: dot.y + 8, x2: dot.x + 28, y2: dot.y + 8, stroke: COLORS.muted, "stroke-width": 3.4 }));
+        g.appendChild(svgEl("text", {
+          x: dot.x + 16, y: dot.y + 44, "text-anchor": "start",
+          class: "svg-mono", "font-size": 46, fill: COLORS.muted,
+        }, "null"));
+      } else if (labelSide === "left") {
+        g.appendChild(svgEl("path", { d: `M ${dot.x} ${dot.y} L ${dot.x} ${dot.y + 8}`, fill: "none", stroke: color, "stroke-width": 4.0 }));
+        g.appendChild(svgEl("line", { x1: dot.x - 16, y1: dot.y + 8, x2: dot.x + 16, y2: dot.y + 8, stroke: COLORS.muted, "stroke-width": 3.4 }));
+        g.appendChild(svgEl("text", {
+          x: dot.x - 20, y: dot.y + 30, "text-anchor": "end",
+          class: "svg-mono", "font-size": 46, fill: COLORS.muted,
+        }, "null"));
+      } else if (labelSide === "below-left") {
+        g.appendChild(svgEl("path", { d: `M ${dot.x} ${dot.y} L ${dot.x} ${dot.y + 7}`, fill: "none", stroke: color, "stroke-width": 4.0 }));
+        g.appendChild(svgEl("line", { x1: dot.x - 16, y1: dot.y + 7, x2: dot.x + 16, y2: dot.y + 7, stroke: COLORS.muted, "stroke-width": 3.4 }));
+        g.appendChild(svgEl("text", {
+          x: dot.x - 14, y: dot.y + 44, "text-anchor": "middle",
+          class: "svg-mono", "font-size": 46, fill: COLORS.muted,
+        }, "null"));
+      } else {
+        g.appendChild(svgEl("path", { d: `M ${dot.x} ${dot.y} L ${dot.x} ${dot.y + 7}`, fill: "none", stroke: color, "stroke-width": 4.0 }));
+        g.appendChild(svgEl("line", { x1: dot.x - 16, y1: dot.y + 7, x2: dot.x + 16, y2: dot.y + 7, stroke: COLORS.muted, "stroke-width": 3.4 }));
+        g.appendChild(svgEl("text", {
+          x: dot.x, y: dot.y + 44, "text-anchor": "middle",
+          class: "svg-mono", "font-size": 46, fill: COLORS.muted,
+        }, "null"));
+      }
+    }
+    layer.appendChild(g);
+  }
+
+  function drawFiftyStack(layer) {
+    const stackY = 1044;
+    for (let i = 2; i >= 0; i--) {
+      layer.appendChild(svgEl("rect", {
+        x: 274 + i * 8, y: stackY + i * 6, width: 886, height: 74, rx: 14,
+        fill: COLORS.panel, stroke: COLORS.muted, "stroke-width": 2.2,
+      }));
+    }
+    layer.appendChild(svgEl("text", {
+      x: 717, y: stackY + 52, "text-anchor": "middle",
+      class: "svg-ui", "font-size": 46, "font-weight": 700, fill: COLORS.ink,
+    }, "+50 more students (50 rows below)"));
+  }
+
+  function drawTeacherHeaders(layer) {
+    state.teachers.forEach((th) => {
+      const w = 276;
+      const h = 72;
+      const rx = th.x - w / 2;
+      const ry = 1054;
+      const g = svgEl("g", { "data-teacher-header": th.name });
+      g.appendChild(svgEl("rect", { x: rx, y: ry, width: w, height: h, rx: 14, fill: COLORS.moss }));
+      g.appendChild(svgEl("rect", { x: rx + 12, y: ry, width: w - 12, height: h, rx: 12, fill: COLORS.ink }));
+      g.appendChild(svgEl("text", {
+        x: th.x + 6, y: ry + 51, "text-anchor": "middle",
+        class: "svg-ui", "font-size": 46, "font-weight": 600, fill: COLORS.panel,
+      }, `${th.name} (${th.short})`));
+      g.appendChild(svgEl("circle", {
+        cx: th.x - 56, cy: ry, r: 9,
+        fill: COLORS.moss, stroke: COLORS.panel, "stroke-width": 2.4,
+      }));
+      layer.appendChild(g);
+    });
+  }
+
+  function renderSvgGrid() {
+    const svg = document.getElementById("gridSvg");
+    const needTall = (state.step === 1 && state.add.extraStudents > 0) || (state.step === 3 && state.teacher.enabled);
+    const vbH = needTall ? VB_H_TALL : VB_H_BASE;
+    svg.setAttribute("viewBox", `0 0 ${VB_W} ${vbH}`);
+
+    const layerBackdrop = document.getElementById("layerBackdrop");
+    const layerCells = document.getElementById("layerCells");
+    const layerUnderlays = document.getElementById("layerUnderlays");
+    const layerArrows = document.getElementById("layerArrows");
+    const layerHeaders = document.getElementById("layerHeaders");
+    const layerNodes = document.getElementById("layerNodes");
+    const layerCrossUnderlays = document.getElementById("layerCrossUnderlays");
+    const layerCrossArrows = document.getElementById("layerCrossArrows");
+    const layerNodeContent = document.getElementById("layerNodeContent");
+    const layerExtras = document.getElementById("layerExtras");
+    const layerOverlay = document.getElementById("layerOverlay");
+
+    [
+      layerBackdrop, layerCells, layerUnderlays, layerArrows, layerHeaders,
+      layerNodes, layerCrossUnderlays, layerCrossArrows, layerNodeContent, layerExtras, layerOverlay,
+    ].forEach((g) => { g.innerHTML = ""; });
+
+    // Rebuild node exclusion & attenuation masks so crossing underlays never strip node cards
+    // and crossing arrows read as passing behind node digits (~60% inside cards).
+    const maskOut = document.getElementById("maskOutsideNodes");
+    const maskFade = document.getElementById("maskCrossArrowCard");
+    [maskOut, maskFade].forEach((m) => {
+      m.innerHTML = "";
+      m.setAttribute("height", String(vbH));
+      m.appendChild(svgEl("rect", { x: 0, y: 0, width: VB_W, height: vbH, fill: "#FFFFFF" }));
+    });
+    for (const n of state.nodes) {
+      const nrx = X_COLS[n.c] - NODE_W / 2;
+      const nry = Y_ROWS[n.r] - NODE_H / 2;
+      maskOut.appendChild(svgEl("rect", { x: nrx, y: nry, width: NODE_W, height: NODE_H, rx: 14, fill: "#000000" }));
+      maskFade.appendChild(svgEl("rect", { x: nrx, y: nry, width: NODE_W, height: NODE_H, rx: 14, fill: "#999999" }));
+    }
+    layerCrossUnderlays.setAttribute("mask", "url(#maskOutsideNodes)");
+    layerCrossArrows.setAttribute("mask", "url(#maskCrossArrowCard)");
+
+    const membership = getChainMembership();
+
+    // Subtle grid frame
+    const gridX = 256;
+    const gridY = 152;
+    const gridW = 928;
+    const gridH = 774;
+    layerBackdrop.appendChild(svgEl("rect", {
+      x: gridX, y: gridY, width: gridW, height: gridH, rx: 16,
+      fill: "none", stroke: COLORS.muted, "stroke-width": 1.8, "stroke-opacity": 0.30,
+    }));
+    [540, 898].forEach((vx) => {
+      layerBackdrop.appendChild(svgEl("line", {
+        x1: vx, y1: gridY, x2: vx, y2: gridY + gridH,
+        stroke: COLORS.muted, "stroke-width": 1.6, "stroke-opacity": 0.25,
+      }));
+    });
+    [392, 684].forEach((hy) => {
+      layerBackdrop.appendChild(svgEl("line", {
+        x1: gridX, y1: hy, x2: gridX + gridW, y2: hy,
+        stroke: COLORS.muted, "stroke-width": 1.6, "stroke-opacity": 0.25,
+      }));
+    });
+
+    // Empty cells
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        if (nodeAt(r, c)) continue;
+        const cx = X_COLS[c];
+        const cy = Y_ROWS[r];
+        const rx = cx - NODE_W / 2;
+        const ry = cy - NODE_H / 2;
+
+        const isStep2 = state.step === 1;
+        const isLocked = isStep2 && state.add.insertCount === 1 && state.add.extraStudents === 0;
+        const isSelected = isStep2 && state.add.selectedCell && state.add.selectedCell.r === r && state.add.selectedCell.c === c;
+        const canTap = isStep2 && !state.isAnimating;
+
+        const cellGroup = svgEl("g", {
+          "data-empty-cell": `${r}-${c}`,
+          "data-interactive": canTap ? "true" : "false",
+          "data-locked": isLocked ? "true" : "false",
+          "tabindex": canTap ? "0" : "-1",
+          "role": isStep2 ? "button" : null,
+          "aria-label": isStep2 ? `Empty cell ${STUDENTS[r]} ${COURSES[c]}` : null,
+        });
+        cellGroup.appendChild(svgEl("rect", {
+          x: cx - HIT_SZ / 2, y: r === 0 ? 168.5 : cy - HIT_SZ / 2, width: HIT_SZ, height: HIT_SZ, rx: 16,
+          fill: "transparent",
+        }));
+        cellGroup.appendChild(svgEl("rect", {
+          x: rx, y: ry, width: NODE_W, height: NODE_H, rx: 14,
+          fill: isSelected ? "rgba(47, 93, 168, 0.12)" : "transparent",
+          stroke: isSelected ? COLORS.cobalt : COLORS.muted,
+          "stroke-width": isSelected ? 4.2 : 3.0,
+          "stroke-opacity": isLocked ? 0.35 : (isSelected ? 1 : 0.60),
+          "stroke-dasharray": isSelected ? "none" : "10 8",
+        }));
+        if (isSelected) {
+          cellGroup.appendChild(svgEl("text", {
+            x: cx, y: cy + 16, "text-anchor": "middle",
+            class: "svg-ui", "font-size": 46, "font-weight": 700, fill: COLORS.cobalt,
+          }, "picked"));
+        }
+        if (canTap) {
+          const pickEmpty = () => onSelectEmptyCell(r, c);
+          cellGroup.addEventListener("click", pickEmpty);
+          cellGroup.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickEmpty(); }
+          });
+        }
+        layerCells.appendChild(cellGroup);
+      }
+    }
+
+    // Row headers (left)
+    state.students.forEach((stu, r) => {
+      const cy = Y_ROWS[r];
+      const ry = cy - RH.h / 2;
+      const canTapHeader = state.step === 0 && !state.isAnimating && (state.predict.freeMode || state.predict.qIndex < PREDICT_QUESTIONS.length - 1);
+      const isSelected = state.step === 0 && state.predict.selectedHeader && state.predict.selectedHeader.type === "student" && state.predict.selectedHeader.index === r;
+      const isGuidedTarget = state.step === 0 && !state.predict.freeMode && PREDICT_QUESTIONS[state.predict.qIndex].type === "student" && PREDICT_QUESTIONS[state.predict.qIndex].index === r;
+      const isBothGlow = state.step === 0 && state.predict.revealed && state.predict.activeChainType === "both" && r === 0;
+
+      const g = svgEl("g", {
+        "data-row-header": stu.name,
+        "data-interactive": canTapHeader ? "true" : "false",
+        "tabindex": canTapHeader ? "0" : "-1",
+        "role": canTapHeader ? "button" : null,
+        "aria-label": canTapHeader ? `Student ${stu.name}` : null,
+      });
+
+      g.appendChild(svgEl("rect", {
+        x: 0, y: r === 0 ? 168.5 : cy - HIT_SZ / 2, width: HIT_SZ, height: HIT_SZ, rx: 14,
+        fill: "transparent",
+      }));
+
+      if (isSelected || isBothGlow) {
+        g.appendChild(svgEl("rect", {
+          x: RH.x - 6, y: ry - 6, width: RH.w + 12, height: RH.h + 12, rx: 18,
+          fill: "none", stroke: COLORS.cobalt, "stroke-width": 5.5,
+        }));
+      } else if (isGuidedTarget && !state.predict.selectedHeader) {
+        g.appendChild(svgEl("rect", {
+          x: RH.x - 5, y: ry - 5, width: RH.w + 10, height: RH.h + 10, rx: 17,
+          fill: "none", stroke: COLORS.cobalt, "stroke-width": 3.6, "stroke-dasharray": "9 6",
+        }));
+      }
+
+      g.appendChild(svgEl("rect", { x: RH.x, y: ry, width: RH.w, height: RH.h, rx: 14, fill: COLORS.cobalt }));
+      g.appendChild(svgEl("rect", { x: RH.x + 12, y: ry, width: RH.w - 12, height: RH.h, rx: 12, fill: COLORS.ink }));
+      g.appendChild(svgEl("text", {
+        x: RH.x + 80, y: cy + 16, "text-anchor": "middle",
+        class: "svg-ui", "font-size": 46, "font-weight": 600, fill: COLORS.panel,
+      }, stu.name));
+      g.appendChild(svgEl("circle", {
+        cx: RH.x + RH.w, cy: cy, r: 9.5,
+        fill: COLORS.cobalt, stroke: COLORS.panel, "stroke-width": 2.6,
+      }));
+
+      if (canTapHeader) {
+        const tapRow = () => onSelectHeader("student", r);
+        g.addEventListener("click", tapRow);
+        g.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tapRow(); }
+        });
+      }
+      layerHeaders.appendChild(g);
+    });
+
+    // Column headers (top)
+    state.courses.forEach((crs, c) => {
+      const cx = X_COLS[c];
+      const rx = cx - CH.w / 2;
+      const canTapHeader = state.step === 0 && !state.isAnimating && (state.predict.freeMode || state.predict.qIndex < PREDICT_QUESTIONS.length - 1);
+      const isSelected = state.step === 0 && state.predict.selectedHeader && state.predict.selectedHeader.type === "course" && state.predict.selectedHeader.index === c;
+      const isGuidedTarget = state.step === 0 && !state.predict.freeMode && PREDICT_QUESTIONS[state.predict.qIndex].type === "course" && PREDICT_QUESTIONS[state.predict.qIndex].index === c;
+      const isBothGlow = state.step === 0 && state.predict.revealed && state.predict.activeChainType === "both" && c === 1;
+
+      const g = svgEl("g", {
+        "data-col-header": crs.name,
+        "data-interactive": canTapHeader ? "true" : "false",
+        "tabindex": canTapHeader ? "0" : "-1",
+        "role": canTapHeader ? "button" : null,
+        "aria-label": canTapHeader ? `Course ${crs.name}` : null,
+      });
+
+      g.appendChild(svgEl("rect", {
+        x: cx - HIT_SZ / 2, y: 0, width: HIT_SZ, height: 168, rx: 14,
+        fill: "transparent",
+      }));
+
+      if (isSelected || isBothGlow) {
+        g.appendChild(svgEl("rect", {
+          x: rx - 6, y: CH.y - 6, width: CH.w + 12, height: CH.h + 12, rx: 18,
+          fill: "none", stroke: COLORS.saffronOutline, "stroke-width": 5.5,
+        }));
+      } else if (isGuidedTarget && !state.predict.selectedHeader) {
+        g.appendChild(svgEl("rect", {
+          x: rx - 5, y: CH.y - 5, width: CH.w + 10, height: CH.h + 10, rx: 17,
+          fill: "none", stroke: COLORS.saffronOutline, "stroke-width": 3.6, "stroke-dasharray": "9 6",
+        }));
+      }
+
+      g.appendChild(svgEl("rect", { x: rx, y: CH.y, width: CH.w, height: CH.h, rx: 14, fill: COLORS.saffron }));
+      g.appendChild(svgEl("rect", { x: rx, y: CH.y + 11, width: CH.w, height: CH.h - 11, rx: 12, fill: COLORS.ink }));
+      g.appendChild(svgEl("text", {
+        x: cx, y: CH.y + 52, "text-anchor": "middle",
+        class: "svg-ui", "font-size": 46, "font-weight": 600, fill: COLORS.panel,
+      }, crs.name));
+      g.appendChild(svgEl("circle", {
+        cx: cx, cy: CH.y + CH.h, r: 9.5,
+        fill: COLORS.saffron, stroke: COLORS.saffronOutline, "stroke-width": 2.6,
+      }));
+
+      if (canTapHeader) {
+        const tapCol = () => onSelectHeader("course", c);
+        g.addEventListener("click", tapCol);
+        g.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tapCol(); }
+        });
+      }
+      layerHeaders.appendChild(g);
+    });
+
+    // Draw all pointers directly from live node/header pointers
+    drawAllPointers(layerArrows, layerUnderlays, layerCrossArrows, layerCrossUnderlays, membership);
+
+    // Extras (+50 stack / Teacher headers)
+    if (state.step === 1 && state.add.extraStudents > 0) {
+      drawFiftyStack(layerExtras);
+    }
+    if (state.step === 3 && state.teacher.enabled) {
+      drawTeacherHeaders(layerHeaders);
+    }
+
+    // Draw nodes (cards in layerNodes, digits/badges/dots in layerNodeContent above crossing arrows)
+    for (const node of state.nodes) {
+      drawGradeNode(layerNodes, layerNodeContent, layerExtras, node, membership);
+    }
+
+    updateSvgDescription();
+  }
+
+  function isNodeOnAnyChain(node, membership) {
+    return (
+      membership.onStudent[node.r].has(node.id) ||
+      membership.onCourse[node.c].has(node.id) ||
+      membership.onTeacher.has(node.id)
+    );
+  }
+
+  function drawGradeNode(layer, contentLayer, layerExtras, node, membership) {
+    const cx = X_COLS[node.c];
+    const cy = Y_ROWS[node.r];
+    const rx = cx - NODE_W / 2;
+    const ry = cy - NODE_H / 2;
+
+    const isStep1 = state.step === 0;
+    const isStep2 = state.step === 1;
+    const isStep3 = state.step === 2;
+    const isStep4 = state.step === 3;
+
+    const onAnyChain = isNodeOnAnyChain(node, membership);
+    const isGhost = isStep2 && !onAnyChain;
+
+    let fill = isGhost ? "none" : COLORS.panel;
+    let opacity = isGhost ? 0.55 : 1;
+    let interactive = false;
+    const ariaLabel = `${STUDENTS[node.r]} ${COURSES[node.c]} grade ${node.grade}`;
+
+    if (isStep1) {
+      const p = state.predict;
+      const isBothQ = !p.freeMode && p.qIndex === PREDICT_QUESTIONS.length - 1;
+      interactive = !state.isAnimating && !p.revealed && (isBothQ || p.selectedHeader !== null);
+
+      if (p.activeChainType === "both" && (p.mattiIds.has(node.id) || p.dsa1Ids.has(node.id))) {
+        const onMatti = p.mattiIds.has(node.id);
+        const onDsa1 = p.dsa1Ids.has(node.id);
+        if (onMatti && onDsa1) fill = COLORS.panel;
+        else if (onMatti) fill = "rgba(47, 93, 168, 0.18)";
+        else fill = "rgba(224, 162, 27, 0.24)";
+      } else if (p.visitedIds.has(node.id)) {
+        if (p.activeChainType === "student") fill = "rgba(47, 93, 168, 0.20)";
+        else if (p.activeChainType === "course") fill = "rgba(224, 162, 27, 0.26)";
+      } else if (p.markedIds.has(node.id)) {
+        fill = "url(#hatchPattern)";
+      }
+    } else if (isStep2) {
+      if (!isGhost && state.add.newNodeId !== node.id) opacity = 0.72;
+      interactive = !state.isAnimating;
+    } else if (isStep3) {
+      interactive = !state.isAnimating;
+      if (state.del.visitedIds.has(node.id)) {
+        fill = state.del.activeChain === "course" ? "rgba(224, 162, 27, 0.26)" : "rgba(47, 93, 168, 0.20)";
+      }
+      if (state.del.fadingNodeId === node.id) {
+        opacity = 1;
+      }
+    } else if (isStep4) {
+      if (state.teacher.matchedIds.has(node.id)) fill = "rgba(94, 125, 58, 0.24)";
+      else if (state.teacher.visitedIds.has(node.id)) fill = "rgba(154, 147, 138, 0.20)";
+    }
+
+    const g = svgEl("g", {
+      "data-node-id": node.id,
+      "data-cell": `${node.r}-${node.c}`,
+      "data-ghost": isGhost ? "true" : "false",
+      "data-interactive": interactive ? "true" : "false",
+      "data-disabled": isStep2 ? "true" : "false",
+      "tabindex": interactive ? "0" : "-1",
+      "role": interactive ? "button" : null,
+      "aria-label": interactive ? ariaLabel : null,
+      opacity,
+    });
+
+    if (isStep3 && state.del.suggestPulse && !state.del.selectedNodeId && node.r === 2 && node.c === 2) {
+      g.classList.add("pulse-hint");
+    }
+    if (isStep1 && state.predict.bothPulse && node.r === 0 && node.c === 1) {
+      g.classList.add("pulse-once");
+    }
+
+    g.appendChild(svgEl("rect", {
+      x: cx - HIT_SZ / 2, y: node.r === 0 ? 168.5 : cy - HIT_SZ / 2, width: HIT_SZ, height: HIT_SZ, rx: 16,
+      fill: "transparent",
+    }));
+
+    g.appendChild(svgEl("rect", {
+      "data-main-rect": "true",
+      x: rx, y: ry, width: NODE_W, height: NODE_H, rx: 14,
+      fill,
+      stroke: isGhost ? COLORS.muted : COLORS.ink,
+      "stroke-width": isGhost ? 3.2 : 1.8,
+      "stroke-opacity": isGhost ? 0.95 : 0.42,
+      "stroke-dasharray": isGhost ? "9 6" : "none",
+    }));
+
+    if (!isGhost) {
+      const cr = 14;
+      g.appendChild(svgEl("line", { x1: rx + cr, y1: ry, x2: rx + NODE_W - cr, y2: ry, stroke: COLORS.saffronOutline, "stroke-width": 5.2, "stroke-linecap": "round" }));
+      g.appendChild(svgEl("line", { x1: rx + cr, y1: ry + NODE_H, x2: rx + NODE_W - cr, y2: ry + NODE_H, stroke: COLORS.saffronOutline, "stroke-width": 5.2, "stroke-linecap": "round" }));
+      g.appendChild(svgEl("line", { x1: rx, y1: ry + cr, x2: rx, y2: ry + NODE_H - cr, stroke: COLORS.cobalt, "stroke-width": 4.8, "stroke-linecap": "round" }));
+      g.appendChild(svgEl("line", { x1: rx + NODE_W, y1: ry + cr, x2: rx + NODE_W, y2: ry + NODE_H - cr, stroke: COLORS.cobalt, "stroke-width": 4.8, "stroke-linecap": "round" }));
+    }
+
+    if (isStep1 && state.predict.markedIds.has(node.id) && !state.predict.revealed) {
+      g.appendChild(svgEl("rect", {
+        x: rx - 6, y: ry - 6, width: NODE_W + 12, height: NODE_H + 12, rx: 18,
+        fill: "none", stroke: COLORS.ink, "stroke-width": 3.8, "stroke-dasharray": "8 5",
+      }));
+    }
+
+    if (isStep1 && state.predict.feedback && state.predict.feedback.bothId === node.id) {
+      g.appendChild(svgEl("rect", {
+        x: rx - 7, y: ry - 7, width: NODE_W + 14, height: NODE_H + 14, rx: 18,
+        fill: "none", stroke: COLORS.saffronOutline, "stroke-width": 5.4,
+      }));
+      g.appendChild(svgEl("rect", {
+        x: rx - 14, y: ry - 14, width: NODE_W + 28, height: NODE_H + 28, rx: 21,
+        fill: "none", stroke: COLORS.cobalt, "stroke-width": 5.0,
+      }));
+    }
+
+    const contentOpacity = isGhost ? 0.85 : opacity;
+    const contentG = svgEl("g", {
+      "data-node-content": node.id,
+      "data-cell": `${node.r}-${node.c}`,
+      opacity: contentOpacity,
+    });
+    if (isStep3 && state.del.suggestPulse && !state.del.selectedNodeId && node.r === 2 && node.c === 2) {
+      contentG.classList.add("pulse-hint");
+    }
+    if (isStep1 && state.predict.bothPulse && node.r === 0 && node.c === 1) {
+      contentG.classList.add("pulse-once");
+    }
+
+    if (isStep1 && state.predict.feedback) {
+      const fb = state.predict.feedback;
+      if (fb.correctIds.has(node.id)) {
+        contentG.appendChild(svgEl("circle", { cx: rx + NODE_W - 22, cy: ry + 24, r: 16, fill: COLORS.correct }));
+        contentG.appendChild(svgEl("path", {
+          d: `M ${rx + NODE_W - 30} ${ry + 24} l 5 5 l 11 -11`,
+          fill: "none", stroke: "#FFFDF8", "stroke-width": 3.6, "stroke-linecap": "round", "stroke-linejoin": "round",
+        }));
+      }
+      if (fb.missedIds.has(node.id)) {
+        g.appendChild(svgEl("rect", {
+          x: rx - 8, y: ry - 8, width: NODE_W + 16, height: NODE_H + 16, rx: 18,
+          fill: "none", stroke: COLORS.brick, "stroke-width": 5.0,
+        }));
+      }
+      if (fb.extraIds.has(node.id)) {
+        contentG.appendChild(svgEl("circle", { cx: rx + NODE_W - 22, cy: ry + 24, r: 16, fill: COLORS.brick }));
+        contentG.appendChild(svgEl("path", {
+          d: `M ${rx + NODE_W - 28} ${ry + 18} l 12 12 M ${rx + NODE_W - 16} ${ry + 18} l -12 12`,
+          fill: "none", stroke: "#FFFDF8", "stroke-width": 3.6, "stroke-linecap": "round",
+        }));
+      }
+    }
+
+    if (isStep3 && state.del.selectedNodeId === node.id) {
+      g.appendChild(svgEl("rect", {
+        x: rx - 8, y: ry - 8, width: NODE_W + 16, height: NODE_H + 16, rx: 18,
+        fill: "none", stroke: COLORS.brick, "stroke-width": 5.0,
+      }));
+    }
+
+    // "fail" shown inside the node under the digit (Fix 3)
+    const showFailInside = isStep1 && state.predict.feedback && state.predict.activeChainType === "course" && state.predict.visitedIds.has(node.id) && node.grade === 0;
+    const digitY = showFailInside ? cy + 2 : cy + 22;
+
+    contentG.appendChild(svgEl("text", {
+      x: cx, y: digitY, "text-anchor": "middle",
+      class: "svg-ui", "font-size": 69, "font-weight": 700, fill: COLORS.ink,
+    }, String(node.grade)));
+
+    if (showFailInside) {
+      contentG.appendChild(svgEl("text", {
+        x: cx, y: cy + 52, "text-anchor": "middle",
+        "data-fail-label": node.id,
+        class: "svg-ui", "font-size": 46, "font-weight": 700, fill: COLORS.muted,
+      }, "fail"));
+    }
+
+    // Teacher corner badge (Step 4)
+    if (isStep4) {
+      contentG.appendChild(svgEl("rect", {
+        x: rx + 8, y: ry + 8, width: 44, height: 44, rx: 9,
+        fill: node.teacher === "V" ? COLORS.moss : COLORS.linen,
+        stroke: node.teacher === "V" ? COLORS.moss : COLORS.muted,
+        "stroke-width": 2.2,
+      }));
+      contentG.appendChild(svgEl("text", {
+        x: rx + 30, y: ry + 43, "text-anchor": "middle",
+        class: "svg-ui", "font-size": 46, "font-weight": 700,
+        fill: node.teacher === "V" ? "#FFFDF8" : COLORS.ink,
+      }, node.teacher));
+    }
+
+    // "g" tag on new node during Step 2 insert (stays clear of routes)
+    if (isStep2 && state.add.newNodeId === node.id) {
+      const tagG = svgEl("g", { "data-g-tag": "true" });
+      tagG.appendChild(svgEl("rect", {
+        x: rx - 38, y: ry - 48, width: 42, height: 46, rx: 9,
+        fill: COLORS.panel, stroke: COLORS.ink, "stroke-width": 2.4,
+      }));
+      tagG.appendChild(svgEl("text", {
+        x: rx - 17, y: ry - 12, "text-anchor": "middle",
+        class: "svg-mono", "font-size": 46, "font-weight": 700, fill: COLORS.ink,
+      }, "g"));
+      layerExtras.appendChild(tagG);
+    }
+
+    // Pointer dots (on top of crossing arrows)
+    contentG.appendChild(svgEl("circle", {
+      cx: rx + NODE_W, cy: cy, r: 9.5,
+      fill: COLORS.cobalt, stroke: COLORS.panel, "stroke-width": 2.6,
+    }));
+    contentG.appendChild(svgEl("circle", {
+      cx: cx, cy: ry + NODE_H, r: 9.5,
+      fill: COLORS.saffron, stroke: COLORS.saffronOutline, "stroke-width": 2.6,
+    }));
+    if (isStep4 && state.teacher.enabled) {
+      contentG.appendChild(svgEl("circle", {
+        cx: cx + 59, cy: ry + NODE_H, r: 9,
+        fill: COLORS.moss, stroke: COLORS.panel, "stroke-width": 2.4,
+      }));
+    }
+    contentLayer.appendChild(contentG);
+
+    if (isStep1 && interactive) {
+      const tapNode = () => onPredictTapNode(node.id);
+      g.addEventListener("click", tapNode);
+      g.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tapNode(); }
+      });
+    } else if (isStep2 && !state.isAnimating) {
+      g.addEventListener("click", () => {
+        state.add.cellNote = `${STUDENTS[node.r]} ${COURSES[node.c]} already has a grade.`;
+        setAnnouncement(state.add.cellNote, "warn");
+        renderSidePanel();
+      });
+    } else if (isStep3 && interactive) {
+      const tapDel = () => onDeleteNode(node.id);
+      g.addEventListener("click", tapDel);
+      g.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tapDel(); }
+      });
+    }
+
+    layer.appendChild(g);
+  }
+
+  // ------------------------------------------------------------------
+  // Draw-In Animation with Synchronized Arrowhead + Walking Dot (Fixes 3 & 4)
+  // ------------------------------------------------------------------
+  function setWalkerDot(pos, color, strokeColor = COLORS.panel) {
+    const overlay = document.getElementById("layerOverlay");
+    overlay.innerHTML = "";
+    if (!pos) return;
+    overlay.appendChild(svgEl("circle", {
+      cx: pos.x, cy: pos.y, r: 14,
+      fill: color, stroke: strokeColor, "stroke-width": 3.8,
+    }));
+  }
+
+  function animateArrowDraw(chain, fromId, toId, durMs, token) {
+    return new Promise((resolve) => {
+      if (token !== state.animToken) { resolve(false); return; }
+      const g = document.querySelector(
+        `#layerArrows g[data-chain="${chain}"][data-from="${fromId}"][data-to="${toId}"], ` +
+        `#layerCrossArrows g[data-chain="${chain}"][data-from="${fromId}"][data-to="${toId}"]`
+      );
+      const pathEl = g ? g.querySelector(".arrow-path") : null;
+      const outEl = g ? g.querySelector(".arrow-outline") : null;
+      if (!pathEl || reducedMotion() || chain === "teacher") {
+        setTimeout(() => resolve(token === state.animToken), durMs);
+        return;
+      }
+
+      const totalLen = pathEl.getTotalLength();
+      [pathEl, outEl].filter(Boolean).forEach((el) => {
+        el.style.strokeDasharray = `${totalLen}`;
+        el.style.strokeDashoffset = `${totalLen}`;
+      });
+
+      // Moving arrowhead that rides the tip of the growing line (never shown at destination early)
+      const overlay = document.getElementById("layerOverlay");
+      const tipPath = chain === "course"
+        ? svgEl("path", { d: "M -24 -12 L 4 0 L -24 12 z", fill: COLORS.saffron, stroke: COLORS.saffronOutline, "stroke-width": 2.6, "stroke-linejoin": "round" })
+        : svgEl("path", { d: "M -20 -10 L 3 0 L -20 10 z", fill: COLORS.cobalt });
+      overlay.appendChild(tipPath);
+
+      const start = performance.now();
+      function frame(now) {
+        if (token !== state.animToken) {
+          tipPath.remove();
+          resolve(false);
+          return;
+        }
+        const t = Math.min(1, (now - start) / Math.max(1, durMs));
+        const curLen = t * totalLen;
+        [pathEl, outEl].filter(Boolean).forEach((el) => {
+          el.style.strokeDashoffset = `${totalLen - curLen}`;
+        });
+        const pt = pathEl.getPointAtLength(curLen);
+        const ptPrev = pathEl.getPointAtLength(Math.max(0, curLen - 2));
+        const angle = Math.atan2(pt.y - ptPrev.y, pt.x - ptPrev.x) * (180 / Math.PI);
+        tipPath.setAttribute("transform", `translate(${pt.x.toFixed(2)}, ${pt.y.toFixed(2)}) rotate(${angle.toFixed(2)})`);
+
+        if (t < 1) {
+          requestAnimationFrame(frame);
+        } else {
+          tipPath.remove();
+          pathEl.setAttribute("marker-end", chain === "course" ? "url(#tip-saffron)" : "url(#tip-cobalt)");
+          resolve(true);
+        }
+      }
+      requestAnimationFrame(frame);
+    });
+  }
+
+  function animateSegment(from, to, color, strokeColor, durMs, token) {
+    return new Promise((resolve) => {
+      if (token !== state.animToken) { resolve(false); return; }
+      if (reducedMotion()) {
+        setWalkerDot(to, color, strokeColor);
+        setTimeout(() => resolve(token === state.animToken), durMs);
+        return;
+      }
+      const start = performance.now();
+      function frame(now) {
+        if (token !== state.animToken) { resolve(false); return; }
+        const t = Math.min(1, (now - start) / Math.max(1, durMs));
+        setWalkerDot({ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }, color, strokeColor);
+        if (t < 1) requestAnimationFrame(frame);
+        else resolve(true);
+      }
+      requestAnimationFrame(frame);
+    });
+  }
+
+  function animateAlongPath(chain, fromId, toId, fallbackEnd, color, strokeColor, durMs, token) {
+    return new Promise((resolve) => {
+      if (token !== state.animToken) { resolve(false); return; }
+      const g = document.querySelector(
+        `#layerArrows g[data-chain="${chain}"][data-from="${fromId}"][data-to="${toId}"], ` +
+        `#layerCrossArrows g[data-chain="${chain}"][data-from="${fromId}"][data-to="${toId}"]`
+      );
+      const pathEl = g ? g.querySelector(".arrow-path") : null;
+      if (!pathEl || reducedMotion()) {
+        setWalkerDot(fallbackEnd, color, strokeColor);
+        setTimeout(() => resolve(token === state.animToken), durMs);
+        return;
+      }
+      const totalLen = pathEl.getTotalLength();
+      const start = performance.now();
+      function frame(now) {
+        if (token !== state.animToken) { resolve(false); return; }
+        const t = Math.min(1, (now - start) / Math.max(1, durMs));
+        const pt = pathEl.getPointAtLength(t * totalLen);
+        setWalkerDot({ x: pt.x, y: pt.y }, color, strokeColor);
+        if (t < 1) requestAnimationFrame(frame);
+        else resolve(true);
+      }
+      requestAnimationFrame(frame);
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // Side Panel Rendering
+  // ------------------------------------------------------------------
+  function renderSidePanel() {
+    const panel = document.getElementById("sidePanel");
+    panel.innerHTML = "";
+
+    const feedbackStrip = document.createElement("div");
+    feedbackStrip.className = "feedback-strip";
+
+    const controlsStrip = document.createElement("div");
+    controlsStrip.className = "controls-strip";
+
+    if (state.step === 0) renderStep1Panel(feedbackStrip, controlsStrip);
+    else if (state.step === 1) renderStep2Panel(feedbackStrip, controlsStrip);
+    else if (state.step === 2) renderStep3Panel(feedbackStrip, controlsStrip);
+    else renderStep4Panel(feedbackStrip, controlsStrip);
+
+    const liveBox = document.createElement("div");
+    liveBox.id = "ariaLiveBox";
+    liveBox.className = `live-result ${state.liveAnnouncementTone}`;
+    liveBox.setAttribute("aria-live", "polite");
+    liveBox.innerHTML = state.liveAnnouncementHtml;
+    feedbackStrip.appendChild(liveBox);
+
+    const sideLegend = document.getElementById("legendStrip").cloneNode(true);
+    sideLegend.id = "sideLegend";
+    sideLegend.className = "legend-strip side-legend";
+    controlsStrip.appendChild(sideLegend);
+
+    panel.appendChild(feedbackStrip);
+    panel.appendChild(controlsStrip);
+  }
+
+  function renderStep1Panel(feedbackStrip, controlsStrip) {
+    const p = state.predict;
+    const isBothQ = !p.freeMode && p.qIndex === PREDICT_QUESTIONS.length - 1;
+    const qLabel = p.freeMode ? "Free mode: any chain" : `Question ${p.qIndex + 1} of ${PREDICT_QUESTIONS.length}`;
+
+    const counters = document.createElement("div");
+    counters.className = "counter-row";
+    if (isBothQ) {
+      counters.innerHTML = `<div class="stat-chip" id="visitedCounter">${p.revealed ? "On both chains: 1 node" : "On both chains: —"}</div>`;
+    } else {
+      const visitedLabel = p.visitedCount === null ? "visited: —" : `visited: ${p.visitedCount}`;
+      const chipCls = p.activeChainType === "course" ? "saffron" : (p.activeChainType === "student" ? "cobalt" : "");
+      counters.innerHTML = `
+        <div class="stat-chip ${chipCls}" id="visitedCounter">${visitedLabel}</div>
+        <div class="stat-chip">scanning all grades: 7</div>
+      `;
+    }
+    feedbackStrip.appendChild(counters);
+
+    const hdrDiv = document.createElement("div");
+    hdrDiv.className = "panel-section";
+    hdrDiv.innerHTML = `<div class="panel-label">${qLabel}</div>`;
+
+    const actionRow = document.createElement("div");
+    actionRow.className = "action-row";
+
+    const revealBtn = document.createElement("button");
+    revealBtn.type = "button";
+    revealBtn.id = "revealBtn";
+    revealBtn.className = "primary-btn";
+    revealBtn.textContent = "Reveal";
+    revealBtn.disabled = state.isAnimating || p.revealed || (isBothQ ? p.markedIds.size !== 1 : !p.selectedHeader);
+    revealBtn.addEventListener("click", onRevealPredict);
+    actionRow.appendChild(revealBtn);
+
+    if (!p.freeMode) {
+      const nextQBtn = document.createElement("button");
+      nextQBtn.type = "button";
+      nextQBtn.id = "nextQBtn";
+      nextQBtn.textContent = p.qIndex < PREDICT_QUESTIONS.length - 1 ? "Next question" : "Free mode";
+      nextQBtn.disabled = state.isAnimating || !p.revealed;
+      nextQBtn.addEventListener("click", onNextPredictQuestion);
+      actionRow.appendChild(nextQBtn);
+    }
+
+    hdrDiv.appendChild(actionRow);
+    controlsStrip.appendChild(hdrDiv);
+  }
+
+  function renderStep2Panel(feedbackStrip, controlsStrip) {
+    const a = state.add;
+
+    const counters = document.createElement("div");
+    counters.className = "counter-row";
+    counters.innerHTML = `<div class="stat-chip ${a.writes > 2 ? "saffron" : (a.writes > 0 ? "cobalt" : "")}" id="writesCounter">reference writes: ${a.writes}</div>`;
+
+    const codeRow = a.selectedCell ? a.selectedCell.r : (a.lastInserted ? a.lastInserted.r : null);
+    const codeCol = a.selectedCell ? a.selectedCell.c : (a.lastInserted ? a.lastInserted.c : null);
+    if (codeCol !== null || a.extraStudents > 0) {
+      const targetCourseIdx = codeCol !== null ? codeCol : 0;
+      const conceptualLen = walkChain(state.courses[targetCourseIdx].first, "nextOfCourse").length + a.extraStudents;
+      counters.innerHTML += `<div class="stat-chip">${COURSES[targetCourseIdx]} chain length: ${conceptualLen}</div>`;
+    }
+    feedbackStrip.appendChild(counters);
+
+    const stuVar = codeRow !== null ? STUDENTS[codeRow].toLowerCase() : "student";
+    const crsVar = codeCol !== null ? COURSES[codeCol].toLowerCase() : "course";
+    const lines = [
+      `g.nextOfStudent = ${stuVar}.first;`,
+      `${stuVar}.first = g;`,
+      `g.nextOfCourse = ${crsVar}.first;`,
+      `${crsVar}.first = g;`,
+    ];
+    const codeCard = document.createElement("div");
+    codeCard.className = "code-card";
+    lines.forEach((line, idx) => {
+      const row = document.createElement("div");
+      row.className = "code-line";
+      if (a.activeLine === idx) row.classList.add(idx < 2 ? "active-cobalt" : "active-saffron");
+      row.textContent = line;
+      codeCard.appendChild(row);
+    });
+    feedbackStrip.appendChild(codeCard);
+
+    const pickSec = document.createElement("div");
+    pickSec.className = "panel-section";
+    pickSec.innerHTML = `<div class="panel-label">Choose grade (0 = fail, 5 = max)</div>`;
+
+    const picker = document.createElement("div");
+    picker.className = "grade-picker";
+    for (let g = 0; g <= 5; g++) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "grade-btn";
+      btn.textContent = String(g);
+      btn.setAttribute("aria-pressed", a.selectedGrade === g ? "true" : "false");
+      btn.disabled = state.isAnimating || a.insertCount >= 2;
+      btn.addEventListener("click", () => {
+        state.add.selectedGrade = g;
+        renderTopBar();
+        renderSidePanel();
+      });
+      picker.appendChild(btn);
+    }
+    pickSec.appendChild(picker);
+
+    const actionRow = document.createElement("div");
+    actionRow.className = "action-row";
+
+    const insertBtn = document.createElement("button");
+    insertBtn.type = "button";
+    insertBtn.id = "insertBtn";
+    insertBtn.className = "primary-btn";
+    insertBtn.textContent = "Insert";
+    insertBtn.disabled = state.isAnimating || !a.selectedCell || a.selectedGrade === null || a.insertCount >= 2;
+    insertBtn.addEventListener("click", onInsertGrade);
+    actionRow.appendChild(insertBtn);
+
+    const fiftyBtn = document.createElement("button");
+    fiftyBtn.type = "button";
+    fiftyBtn.id = "fiftyBtn";
+    fiftyBtn.textContent = a.extraStudents > 0 ? "50 more students added" : "Add 50 more students";
+    fiftyBtn.disabled = state.isAnimating || a.extraStudents > 0;
+    fiftyBtn.addEventListener("click", onAddFiftyStudents);
+    actionRow.appendChild(fiftyBtn);
+
+    pickSec.appendChild(actionRow);
+    controlsStrip.appendChild(pickSec);
+  }
+
+  function renderStep3Panel(feedbackStrip, controlsStrip) {
+    const d = state.del;
+
+    const counters = document.createElement("div");
+    counters.className = "counter-row";
+    counters.innerHTML = `
+      <div class="stat-chip cobalt" id="stuWalkChip">visited (student chain): ${d.studentWalkCount}</div>
+      <div class="stat-chip saffron" id="crsWalkChip">visited (course chain): ${d.courseWalkCount}</div>
+    `;
+    feedbackStrip.appendChild(counters);
+
+    const codeCard = document.createElement("div");
+    codeCard.className = "code-card";
+    if (d.codeLines.length === 0) {
+      const placeholder = document.createElement("div");
+      placeholder.className = "code-line";
+      placeholder.textContent = "// Tap any grade node to unlink it";
+      codeCard.appendChild(placeholder);
+    } else {
+      d.codeLines.forEach((entry, idx) => {
+        const row = document.createElement("div");
+        row.className = "code-line";
+        if (d.activeLine === idx) row.classList.add(entry.chain === "course" ? "active-saffron" : "active-cobalt");
+        row.textContent = entry.text;
+        codeCard.appendChild(row);
+      });
+    }
+    feedbackStrip.appendChild(codeCard);
+
+    if (d.summaryText) {
+      const doublyBox = document.createElement("div");
+      doublyBox.className = "note-box";
+      doublyBox.innerHTML = `With a <code>prev</code> reference in each chain (doubly linked), we could unlink right away, but each node then holds 6 references.`;
+      controlsStrip.appendChild(doublyBox);
+    }
+  }
+
+  function renderStep4Panel(feedbackStrip, controlsStrip) {
+    const t = state.teacher;
+
+    const counters = document.createElement("div");
+    counters.className = "counter-row";
+    counters.innerHTML = `
+      <div class="stat-chip ${t.enabled ? "moss" : ""}" id="teacherVisitedChip">visited: ${t.visitedCount === null ? "—" : t.visitedCount}</div>
+      <div class="stat-chip">Virtanen's grades: 3</div>
+    `;
+    feedbackStrip.appendChild(counters);
+
+    const actionRow = document.createElement("div");
+    actionRow.className = "action-row";
+
+    const toggleBtn = document.createElement("button");
+    toggleBtn.type = "button";
+    toggleBtn.id = "teacherToggleBtn";
+    toggleBtn.className = "toggle-btn";
+    toggleBtn.setAttribute("aria-pressed", t.enabled ? "true" : "false");
+    toggleBtn.textContent = t.enabled ? "Teacher chain: On" : "Teacher chain: Off";
+    toggleBtn.disabled = state.isAnimating;
+    toggleBtn.addEventListener("click", () => {
+      state.teacher.enabled = !state.teacher.enabled;
+      state.teacher.visitedIds = new Set();
+      state.teacher.matchedIds = new Set();
+      state.teacher.visitedCount = null;
+      state.walkedArrowKeys = null;
+      const msg = state.teacher.enabled
+        ? "Teacher chain is On. Press Find Virtanen's grades to walk only V."
+        : "Teacher chain is Off. Press Find Virtanen's grades to scan all chains.";
+      state.teacher.resultText = msg;
+      setAnnouncement(msg, "");
+      renderAll();
+    });
+    actionRow.appendChild(toggleBtn);
+
+    const findBtn = document.createElement("button");
+    findBtn.type = "button";
+    findBtn.id = "findVirtanenBtn";
+    findBtn.className = `primary-btn ${t.enabled ? "moss-mode" : ""}`;
+    findBtn.textContent = "Find Virtanen's grades";
+    findBtn.disabled = state.isAnimating;
+    findBtn.addEventListener("click", onFindVirtanen);
+    actionRow.appendChild(findBtn);
+
+    const anatomy = document.createElement("div");
+    anatomy.className = "anatomy-card";
+    anatomy.innerHTML = `
+      <div class="panel-label">Node anatomy (${t.enabled ? "3 pointer slots" : "2 pointer slots"})</div>
+      <div class="anatomy-slots">
+        <span class="slot-pill">grade</span>
+        <span class="slot-pill">teacher</span>
+        <span class="slot-pill cobalt">nextOfStudent</span>
+        <span class="slot-pill saffron">nextOfCourse</span>
+        ${t.enabled ? `<span class="slot-pill moss fade-enter">nextOfTeacher</span>` : ""}
+      </div>
+    `;
+
+    controlsStrip.appendChild(actionRow);
+    controlsStrip.appendChild(anatomy);
+
+    if (t.offVisited !== null || t.onVisited !== null) {
+      const compareBox = document.createElement("div");
+      compareBox.className = "note-box";
+      compareBox.id = "teacherCompareBox";
+      const offTxt = t.offVisited === null ? "—" : t.offVisited;
+      const onTxt = t.onVisited === null ? "—" : t.onVisited;
+      compareBox.textContent = `Off: ${offTxt} visits. On: ${onTxt} visits. Cost: one more reference in every node.`;
+      controlsStrip.appendChild(compareBox);
+    }
+  }
+
+  function renderAll() {
+    renderTopBar();
+    renderSvgGrid();
+    renderSidePanel();
+  }
+
+  // ------------------------------------------------------------------
+  // Step 1 Handlers
+  // ------------------------------------------------------------------
+  function onSelectHeader(type, index) {
+    if (state.isAnimating || state.step !== 0) return;
+    const p = state.predict;
+    if (!p.freeMode) {
+      const q = PREDICT_QUESTIONS[p.qIndex];
+      if (q.type !== type || q.index !== index) {
+        setAnnouncement(`For Question ${p.qIndex + 1}, tap <strong>${q.label}</strong>.`, "warn");
+        return;
+      }
+    }
+    p.selectedHeader = { type, index };
+    p.markedIds = new Set();
+    p.visitedIds = new Set();
+    p.revealed = false;
+    p.feedback = null;
+    p.visitedCount = null;
+    p.activeChainType = type;
+    const hName = type === "student" ? STUDENTS[index] : COURSES[index];
+    setAnnouncement(`Selected: ${hName}. Marked nodes: 0.`, "");
+    renderAll();
+  }
+
+  function onPredictTapNode(nodeId) {
+    if (state.isAnimating || state.step !== 0 || state.predict.revealed) return;
+    const p = state.predict;
+    const isBothQ = !p.freeMode && p.qIndex === PREDICT_QUESTIONS.length - 1;
+    if (isBothQ) {
+      p.markedIds = new Set([nodeId]);
+      setAnnouncement("Node picked. Tap Reveal to check.", "");
+    } else {
+      if (!p.selectedHeader) return;
+      if (p.markedIds.has(nodeId)) p.markedIds.delete(nodeId);
+      else p.markedIds.add(nodeId);
+      const hName = p.selectedHeader.type === "student" ? STUDENTS[p.selectedHeader.index] : COURSES[p.selectedHeader.index];
+      setAnnouncement(`Selected: ${hName}. Marked nodes: ${p.markedIds.size}.`, "");
+    }
+    renderAll();
+  }
+
+  async function walkSingleChainForPredict(chainType, idx, color, strokeCol, token, keepPreviousIds = false) {
+    const p = state.predict;
+    const headerObj = chainType === "student" ? state.students[idx] : state.courses[idx];
+    const nextProp = chainType === "student" ? "nextOfStudent" : "nextOfCourse";
+    const chain = walkChain(headerObj.first, nextProp);
+
+    const keys = new Set();
+    if (chain.length) {
+      keys.add(`${chainType}:${headerObj.id}->${chain[0].id}`);
+      for (let i = 0; i < chain.length - 1; i++) keys.add(`${chainType}:${chain[i].id}->${chain[i + 1].id}`);
+    }
+    state.walkedArrowKeys = keys;
+    renderSvgGrid();
+
+    let prevId = headerObj.id;
+    let prevPos = headerExitPos(chainType, idx);
+    setWalkerDot(prevPos, color, strokeCol);
+    if (!(await sleep(stepDelay(0.45), token))) return null;
+
+    for (let i = 0; i < chain.length; i++) {
+      const node = chain[i];
+      const ePos = entryPos(node, chainType);
+      if (i > 0) {
+        const xPos = exitPos(chain[i - 1], chainType);
+        if (!(await animateSegment(prevPos, xPos, color, strokeCol, stepDelay(0.32), token))) return null;
+      }
+      if (!(await animateAlongPath(chainType, prevId, node.id, ePos, color, strokeCol, stepDelay(0.85), token))) return null;
+
+      p.visitedIds.add(node.id);
+      if (keepPreviousIds) {
+        if (chainType === "student") p.mattiIds.add(node.id);
+        else p.dsa1Ids.add(node.id);
+      } else {
+        p.visitedCount++;
+      }
+      renderSvgGrid();
+      setWalkerDot(ePos, color, strokeCol);
+      const vc = document.getElementById("visitedCounter");
+      if (vc && !keepPreviousIds) vc.textContent = `visited: ${p.visitedCount}`;
+      if (!(await sleep(stepDelay(0.45), token))) return null;
+
+      prevId = node.id;
+      prevPos = ePos;
+    }
+
+    if (chain.length > 0) {
+      const lastNode = chain[chain.length - 1];
+      const xPos = exitPos(lastNode, chainType);
+      if (!(await animateSegment(prevPos, xPos, color, strokeCol, stepDelay(0.32), token))) return null;
+      const nullEnd = chainType === "student" ? { x: xPos.x + 12, y: xPos.y } : { x: xPos.x, y: xPos.y + 12 };
+      if (!(await animateSegment(xPos, nullEnd, color, strokeCol, stepDelay(0.35), token))) return null;
+    }
+    setWalkerDot(null);
+    return chain;
+  }
+
+  async function onRevealPredict() {
+    if (state.isAnimating || state.step !== 0) return;
+    const p = state.predict;
+    const isBothQ = !p.freeMode && p.qIndex === PREDICT_QUESTIONS.length - 1;
+    const token = ++state.animToken;
+    state.isAnimating = true;
+    scrollGridIntoView();
+    renderAll();
+
+    if (isBothQ) {
+      const pickedId = Array.from(p.markedIds)[0];
+      const targetNode = nodeAt(0, 1);
+
+      p.visitedIds = new Set();
+      p.mattiIds = new Set();
+      p.dsa1Ids = new Set();
+      p.activeChainType = "both";
+
+      const mattiOk = await walkSingleChainForPredict("student", 0, COLORS.cobalt, COLORS.panel, token, true);
+      if (!mattiOk) return;
+      const dsa1Ok = await walkSingleChainForPredict("course", 1, COLORS.saffron, COLORS.saffronOutline, token, true);
+      if (!dsa1Ok) return;
+
+      const bothKeys = new Set();
+      mattiOk.forEach((n, i) => bothKeys.add(`student:${i === 0 ? state.students[0].id : mattiOk[i - 1].id}->${n.id}`));
+      dsa1Ok.forEach((n, i) => bothKeys.add(`course:${i === 0 ? state.courses[1].id : dsa1Ok[i - 1].id}->${n.id}`));
+      state.walkedArrowKeys = bothKeys;
+
+      p.revealed = true;
+      p.bothPulse = true;
+      p.feedback = {
+        correctIds: pickedId === targetNode.id ? new Set([targetNode.id]) : new Set(),
+        missedIds: pickedId === targetNode.id ? new Set() : new Set([targetNode.id]),
+        extraIds: pickedId !== targetNode.id ? new Set([pickedId]) : new Set(),
+        bothId: targetNode.id,
+      };
+      const msg = `<strong>Same object, not a copy.</strong> Matti's chain and DSA1's chain both reach this one node.`;
+      state.isAnimating = false;
+      renderAll();
+      setAnnouncement(msg, "both");
+      return;
+    }
+
+    const { type, index } = p.selectedHeader;
+    const color = type === "student" ? COLORS.cobalt : COLORS.saffron;
+    const strokeCol = type === "student" ? COLORS.panel : COLORS.saffronOutline;
+    p.visitedIds = new Set();
+    p.visitedCount = 0;
+    p.activeChainType = type;
+
+    const chain = await walkSingleChainForPredict(type, index, color, strokeCol, token, false);
+    if (!chain) return;
+
+    const actualIds = new Set(chain.map((n) => n.id));
+    const correctIds = new Set([...p.markedIds].filter((id) => actualIds.has(id)));
+    const missedIds = new Set([...actualIds].filter((id) => !p.markedIds.has(id)));
+    const extraIds = new Set([...p.markedIds].filter((id) => !actualIds.has(id)));
+
+    p.feedback = { correctIds, missedIds, extraIds, bothId: null };
+    p.revealed = true;
+
+    let msg;
+    if (type === "student") {
+      const names = chain.map((n) => COURSES[n.c]).join(", ");
+      msg = `${STUDENTS[index]}'s chain: ${names}. <strong>${chain.length} visits instead of 7.</strong>`;
+    } else {
+      const passed = chain.filter((n) => n.grade > 0).map((n) => STUDENTS[n.r]);
+      const notPassed = chain.filter((n) => n.grade === 0).map((n) => STUDENTS[n.r]);
+      const passedText = passed.length ? passed.join(" and ") : "none";
+      const npNote = notPassed.length ? ` (${notPassed.join(", ")}: not passed)` : "";
+      msg = `${COURSES[index]}: visited ${chain.length}, passed <strong>${passedText}</strong>${npNote}.`;
+    }
+    const tone = missedIds.size === 0 && extraIds.size === 0 ? "good" : "warn";
+
+    state.isAnimating = false;
+    renderAll();
+    setAnnouncement(msg, tone);
+  }
+
+  function onNextPredictQuestion() {
+    if (state.isAnimating) return;
+    const p = state.predict;
+    state.walkedArrowKeys = null;
+    if (p.qIndex < PREDICT_QUESTIONS.length - 1) p.qIndex++;
+    else p.freeMode = true;
+
+    p.selectedHeader = null;
+    p.markedIds = new Set();
+    p.visitedIds = new Set();
+    p.mattiIds = new Set();
+    p.dsa1Ids = new Set();
+    p.revealed = false;
+    p.feedback = null;
+    p.visitedCount = null;
+    p.activeChainType = null;
+    p.bothPulse = false;
+    setAnnouncement(p.qIndex === PREDICT_QUESTIONS.length - 1 && !p.freeMode ? "Tap one node, then press Reveal." : "No header selected yet.", "");
+    renderAll();
+  }
+
+  // ------------------------------------------------------------------
+  // Step 2 Handlers (Fixes 1, 2, 4, 7, 8)
+  // ------------------------------------------------------------------
+  function onSelectEmptyCell(r, c) {
+    if (state.isAnimating || state.step !== 1) return;
+    const a = state.add;
+    if (a.insertCount === 1 && a.extraStudents === 0) {
+      setAnnouncement("Press Add 50 more students first before filling the second cell.", "warn");
+      return;
+    }
+    if (a.insertCount >= 2) return;
+    a.selectedCell = { r, c };
+    a.cellNote = "";
+    a.activeLine = -1;
+    a.writes = 0;
+    setAnnouncement(`Target cell: ${STUDENTS[r]} / ${COURSES[c]}.`, "");
+    renderAll();
+  }
+
+  async function onInsertGrade() {
+    if (state.isAnimating || state.step !== 1) return;
+    const a = state.add;
+    if (!a.selectedCell || a.selectedGrade === null) return;
+    const { r, c } = a.selectedCell;
+    if (nodeAt(r, c)) return;
+
+    const token = ++state.animToken;
+    state.isAnimating = true;
+    scrollGridIntoView();
+    a.writes = 0;
+    a.cellNote = "";
+
+    // Node appears BEFORE line 1 (ghosted, on no chain yet, both pointers null, with "g" tag)
+    const newNode = {
+      id: `n${state.nextNodeId++}`,
+      r,
+      c,
+      grade: a.selectedGrade,
+      teacher: "V",
+      nextOfStudent: null,
+      nextOfCourse: null,
+      nextOfTeacher: null,
+    };
+    state.nodes.push(newNode);
+    a.newNodeId = newNode.id;
+    renderAll();
+    if (!(await sleep(stepDelay(0.75), token))) return;
+
+    const stu = state.students[r];
+    const crs = state.courses[c];
+
+    // Line 1: g.nextOfStudent = stu.first;
+    a.activeLine = 0;
+    a.writes = 1;
+    newNode.nextOfStudent = stu.first;
+    state.drawingArrowKey = newNode.nextOfStudent ? `student:${newNode.id}->${newNode.nextOfStudent.id}` : null;
+    renderAll();
+    if (state.drawingArrowKey) {
+      if (!(await animateArrowDraw("student", newNode.id, newNode.nextOfStudent.id, stepDelay(0.95), token))) return;
+    } else if (!(await sleep(stepDelay(0.95), token))) return;
+    state.drawingArrowKey = null;
+
+    const captureRenderedHeaderD = (chain, fromId) => {
+      const el = document.querySelector(
+        `#layerArrows g[data-chain="${chain}"][data-from="${fromId}"] .arrow-path, ` +
+        `#layerCrossArrows g[data-chain="${chain}"][data-from="${fromId}"] .arrow-path`
+      );
+      return el ? el.getAttribute("d") : null;
+    };
+
+    // Line 2: stu.first = g; (g joins student chain -> becomes solid)
+    a.activeLine = 1;
+    a.writes = 2;
+    const oldStuFirst = stu.first;
+    const oldStuD = oldStuFirst ? captureRenderedHeaderD("student", stu.id) : null;
+    state.fadingOldArrow = oldStuFirst ? { chain: "student", idx: r, toNode: oldStuFirst, d: oldStuD } : null;
+    stu.first = newNode;
+    state.drawingArrowKey = `student:${stu.id}->${newNode.id}`;
+    renderAll();
+    if (!(await animateArrowDraw("student", stu.id, newNode.id, stepDelay(0.95), token))) return;
+    state.drawingArrowKey = null;
+    state.fadingOldArrow = null;
+
+    // Line 3: g.nextOfCourse = crs.first;
+    a.activeLine = 2;
+    a.writes = 3;
+    newNode.nextOfCourse = crs.first;
+    state.drawingArrowKey = newNode.nextOfCourse ? `course:${newNode.id}->${newNode.nextOfCourse.id}` : null;
+    renderAll();
+    if (state.drawingArrowKey) {
+      if (!(await animateArrowDraw("course", newNode.id, newNode.nextOfCourse.id, stepDelay(0.95), token))) return;
+    } else if (!(await sleep(stepDelay(0.95), token))) return;
+    state.drawingArrowKey = null;
+
+    // Line 4: crs.first = g;
+    a.activeLine = 3;
+    a.writes = 4;
+    const oldCrsFirst = crs.first;
+    const oldCrsD = oldCrsFirst ? captureRenderedHeaderD("course", crs.id) : null;
+    state.fadingOldArrow = oldCrsFirst ? { chain: "course", idx: c, toNode: oldCrsFirst, d: oldCrsD } : null;
+    crs.first = newNode;
+    state.drawingArrowKey = `course:${crs.id}->${newNode.id}`;
+    renderAll();
+    if (!(await animateArrowDraw("course", crs.id, newNode.id, stepDelay(0.95), token))) return;
+    state.drawingArrowKey = null;
+    state.fadingOldArrow = null;
+
+    a.insertCount++;
+    a.lastInserted = { r, c, grade: a.selectedGrade };
+    a.selectedCell = null;
+    a.selectedGrade = null;
+    a.newNodeId = null;
+
+    const msg = a.extraStudents > 0
+      ? "Still 4 writes. Insert doesn't depend on size."
+      : "New grades go to the front, so chains aren't sorted. That's why it's O(1).";
+    state.isAnimating = false;
+    renderAll();
+    setAnnouncement(msg, "good");
+  }
+
+  function onAddFiftyStudents() {
+    if (state.isAnimating || state.step !== 1) return;
+    state.add.extraStudents = 50;
+    const msg = "50 more students added. Now insert into an empty cell to see the write count.";
+    renderAll();
+    setAnnouncement(msg, "");
+  }
+
+  // ------------------------------------------------------------------
+  // Step 3 Handlers (Fixes 1, 2, 3, 4, 5, 9)
+  // ------------------------------------------------------------------
+  async function onDeleteNode(nodeId) {
+    if (state.isAnimating || state.step !== 2) return;
+    const target = state.nodes.find((n) => n.id === nodeId);
+    if (!target) return;
+
+    const token = ++state.animToken;
+    state.isAnimating = true;
+    scrollGridIntoView();
+
+    const d = state.del;
+    d.suggestPulse = false;
+    d.selectedNodeId = target.id;
+    d.fadingNodeId = null;
+    d.studentWalkCount = 0;
+    d.courseWalkCount = 0;
+    d.visitedIds = new Set();
+
+    const stu = state.students[target.r];
+    const crs = state.courses[target.c];
+    const stuName = stu.name.toLowerCase();
+    const crsName = crs.name.toLowerCase();
+
+    const stuChain = walkChain(stu.first, "nextOfStudent");
+    const stuIdx = stuChain.findIndex((n) => n.id === target.id);
+    const stuPrev = stuIdx > 0 ? stuChain[stuIdx - 1] : null;
+
+    const crsChain = walkChain(crs.first, "nextOfCourse");
+    const crsIdx = crsChain.findIndex((n) => n.id === target.id);
+    const crsPrev = crsIdx > 0 ? crsChain[crsIdx - 1] : null;
+
+    d.codeLines = [
+      { chain: "student", text: stuPrev ? `// walk ${stuName} to prev (${stuIdx} hop${stuIdx === 1 ? "" : "s"})` : `// ${stuName}.first is already g` },
+      { chain: "student", text: stuPrev ? "prev.nextOfStudent = g.nextOfStudent;" : `${stuName}.first = g.nextOfStudent;` },
+      { chain: "course", text: crsPrev ? `// walk ${crsName} to prev (${crsIdx} hop${crsIdx === 1 ? "" : "s"})` : `// ${crsName}.first is already g` },
+      { chain: "course", text: crsPrev ? "prev.nextOfCourse = g.nextOfCourse;" : `${crsName}.first = g.nextOfCourse;` },
+    ];
+    d.activeLine = 0;
+    d.activeChain = "student";
+
+    // Walk 1: Student chain along actual arrows
+    const stuKeys = new Set();
+    if (stuChain.length) {
+      stuKeys.add(`student:${stu.id}->${stuChain[0].id}`);
+      for (let i = 0; i < stuChain.length - 1; i++) stuKeys.add(`student:${stuChain[i].id}->${stuChain[i + 1].id}`);
+    }
+    state.walkedArrowKeys = stuKeys;
+    renderAll();
+
+    let prevId = stu.id;
+    let prevPos = headerExitPos("student", target.r);
+    setWalkerDot(prevPos, COLORS.cobalt, COLORS.panel);
+    if (!(await sleep(stepDelay(0.45), token))) return;
+
+    for (let i = 0; i <= stuIdx; i++) {
+      const cur = stuChain[i];
+      const ePos = entryPos(cur, "student");
+      if (i > 0) {
+        const xPos = exitPos(stuChain[i - 1], "student");
+        if (!(await animateSegment(prevPos, xPos, COLORS.cobalt, COLORS.panel, stepDelay(0.32), token))) return;
+      }
+      if (!(await animateAlongPath("student", prevId, cur.id, ePos, COLORS.cobalt, COLORS.panel, stepDelay(0.85), token))) return;
+      d.studentWalkCount++;
+      d.visitedIds.add(cur.id);
+      renderSvgGrid();
+      setWalkerDot(ePos, COLORS.cobalt, COLORS.panel);
+      const chip = document.getElementById("stuWalkChip");
+      if (chip) chip.textContent = `visited (student chain): ${d.studentWalkCount}`;
+      if (!(await sleep(stepDelay(0.4), token))) return;
+      prevId = cur.id;
+      prevPos = ePos;
+    }
+
+    // Student unlink write + straight bypass draw across still-visible node (Fix 2 & Fix 4)
+    d.activeLine = 1;
+    setWalkerDot(null);
+    if (stuPrev) stuPrev.nextOfStudent = target.nextOfStudent;
+    else stu.first = target.nextOfStudent;
+    const stuBypassFrom = stuPrev ? stuPrev.id : stu.id;
+    state.drawingArrowKey = target.nextOfStudent ? `student:${stuBypassFrom}->${target.nextOfStudent.id}` : null;
+    // Update walkedArrowKeys to include new bypass
+    const stuPostKeys = new Set();
+    const postStuChain = walkChain(stu.first, "nextOfStudent");
+    if (postStuChain.length) {
+      stuPostKeys.add(`student:${stu.id}->${postStuChain[0].id}`);
+      for (let i = 0; i < postStuChain.length - 1; i++) stuPostKeys.add(`student:${postStuChain[i].id}->${postStuChain[i + 1].id}`);
+    }
+    state.walkedArrowKeys = stuPostKeys;
+    renderAll();
+    if (state.drawingArrowKey) {
+      if (!(await animateArrowDraw("student", stuBypassFrom, target.nextOfStudent.id, stepDelay(0.95), token))) return;
+    } else if (!(await sleep(stepDelay(0.85), token))) return;
+    state.drawingArrowKey = null;
+
+    // Walk 2: Course chain along actual arrows
+    d.activeChain = "course";
+    d.activeLine = 2;
+    d.visitedIds = new Set();
+    const crsKeys = new Set();
+    if (crsChain.length) {
+      crsKeys.add(`course:${crs.id}->${crsChain[0].id}`);
+      for (let i = 0; i < crsChain.length - 1; i++) crsKeys.add(`course:${crsChain[i].id}->${crsChain[i + 1].id}`);
+    }
+    state.walkedArrowKeys = crsKeys;
+    renderAll();
+
+    prevId = crs.id;
+    prevPos = headerExitPos("course", target.c);
+    setWalkerDot(prevPos, COLORS.saffron, COLORS.saffronOutline);
+    if (!(await sleep(stepDelay(0.45), token))) return;
+
+    for (let i = 0; i <= crsIdx; i++) {
+      const cur = crsChain[i];
+      const ePos = entryPos(cur, "course");
+      if (i > 0) {
+        const xPos = exitPos(crsChain[i - 1], "course");
+        if (!(await animateSegment(prevPos, xPos, COLORS.saffron, COLORS.saffronOutline, stepDelay(0.32), token))) return;
+      }
+      if (!(await animateAlongPath("course", prevId, cur.id, ePos, COLORS.saffron, COLORS.saffronOutline, stepDelay(0.85), token))) return;
+      d.courseWalkCount++;
+      d.visitedIds.add(cur.id);
+      renderSvgGrid();
+      setWalkerDot(ePos, COLORS.saffron, COLORS.saffronOutline);
+      const chip = document.getElementById("crsWalkChip");
+      if (chip) chip.textContent = `visited (course chain): ${d.courseWalkCount}`;
+      if (!(await sleep(stepDelay(0.4), token))) return;
+      prevId = cur.id;
+      prevPos = ePos;
+    }
+
+    // Course unlink write: draw bypass AND fade deleted node out BEFORE removing it from state.nodes (Fix 5)
+    d.activeLine = 3;
+    setWalkerDot(null);
+    if (crsPrev) crsPrev.nextOfCourse = target.nextOfCourse;
+    else crs.first = target.nextOfCourse;
+    const crsBypassFrom = crsPrev ? crsPrev.id : crs.id;
+    state.drawingArrowKey = target.nextOfCourse ? `course:${crsBypassFrom}->${target.nextOfCourse.id}` : null;
+    const crsPostKeys = new Set();
+    const postCrsChain = walkChain(crs.first, "nextOfCourse");
+    if (postCrsChain.length) {
+      crsPostKeys.add(`course:${crs.id}->${postCrsChain[0].id}`);
+      for (let i = 0; i < postCrsChain.length - 1; i++) crsPostKeys.add(`course:${postCrsChain[i].id}->${postCrsChain[i + 1].id}`);
+    }
+    state.walkedArrowKeys = crsPostKeys;
+    d.fadingNodeId = target.id;
+    renderAll();
+
+    // Fade node card & content out smoothly during the course bypass draw
+    const fadeDur = stepDelay(0.95);
+    const nodeEls = [
+      document.querySelector(`#layerNodes g[data-node-id="${target.id}"]`),
+      document.querySelector(`#layerNodeContent g[data-node-content="${target.id}"]`),
+    ].filter(Boolean);
+    nodeEls.forEach((el) => {
+      if (!reducedMotion()) {
+        el.style.transition = `opacity ${fadeDur}ms ease-out`;
+        requestAnimationFrame(() => { el.style.opacity = "0"; });
+      } else {
+        el.style.opacity = "0.2";
+      }
+    });
+    if (state.drawingArrowKey) {
+      if (!(await animateArrowDraw("course", crsBypassFrom, target.nextOfCourse.id, fadeDur, token))) return;
+    } else if (!(await sleep(fadeDur, token))) return;
+
+    // Now remove node from state.nodes
+    state.nodes = state.nodes.filter((n) => n.id !== target.id);
+    state.drawingArrowKey = null;
+    state.walkedArrowKeys = null;
+    d.fadingNodeId = null;
+    d.visitedIds = new Set();
+    d.activeChain = null;
+    d.selectedNodeId = null;
+
+    const totalWalked = d.studentWalkCount + d.courseWalkCount;
+    d.summaryText = `Walked ${totalWalked} node${totalWalked === 1 ? "" : "s"} (${d.studentWalkCount} student + ${d.courseWalkCount} course) to delete 1. Insert took 4 writes and no walk.`;
+
+    state.isAnimating = false;
+    renderAll();
+    setAnnouncement(d.summaryText, "good");
+  }
+
+  // ------------------------------------------------------------------
+  // Step 4 Handlers
+  // ------------------------------------------------------------------
+  async function onFindVirtanen() {
+    if (state.isAnimating || state.step !== 3) return;
+    const token = ++state.animToken;
+    state.isAnimating = true;
+    scrollGridIntoView();
+
+    const t = state.teacher;
+    t.visitedCount = 0;
+    t.visitedIds = new Set();
+    t.matchedIds = new Set();
+
+    if (!t.enabled) {
+      for (let r = 0; r < 3; r++) {
+        const stu = state.students[r];
+        const chain = walkChain(stu.first, "nextOfStudent");
+        const keys = new Set();
+        if (chain.length) {
+          keys.add(`student:${stu.id}->${chain[0].id}`);
+          for (let i = 0; i < chain.length - 1; i++) keys.add(`student:${chain[i].id}->${chain[i + 1].id}`);
+        }
+        state.walkedArrowKeys = keys;
+        renderSvgGrid();
+
+        let prevId = stu.id;
+        let prevPos = headerExitPos("student", r);
+        setWalkerDot(prevPos, COLORS.cobalt, COLORS.panel);
+        if (!(await sleep(stepDelay(0.35), token))) return;
+
+        for (let i = 0; i < chain.length; i++) {
+          const node = chain[i];
+          const ePos = entryPos(node, "student");
+          if (i > 0) {
+            const xPos = exitPos(chain[i - 1], "student");
+            if (!(await animateSegment(prevPos, xPos, COLORS.cobalt, COLORS.panel, stepDelay(0.28), token))) return;
+          }
+          if (!(await animateAlongPath("student", prevId, node.id, ePos, COLORS.cobalt, COLORS.panel, stepDelay(0.75), token))) return;
+
+          t.visitedCount++;
+          t.visitedIds.add(node.id);
+          if (node.teacher === "V") t.matchedIds.add(node.id);
+          renderSvgGrid();
+          setWalkerDot(ePos, node.teacher === "V" ? COLORS.moss : COLORS.cobalt, COLORS.panel);
+          const vc = document.getElementById("teacherVisitedChip");
+          if (vc) vc.textContent = `visited: ${t.visitedCount}`;
+          if (!(await sleep(stepDelay(0.35), token))) return;
+          prevId = node.id;
+          prevPos = ePos;
+        }
+      }
+      setWalkerDot(null);
+      state.walkedArrowKeys = null;
+      t.offVisited = t.visitedCount;
+      t.resultText = `Teacher chain Off: visited all ${t.visitedCount} nodes to find Virtanen's 3 grades.`;
+    } else {
+      const vHeader = state.teachers[0];
+      const vChain = walkChain(vHeader.first, "nextOfTeacher");
+      const keys = new Set();
+      if (vChain.length) {
+        keys.add(`teacher:${vHeader.id}->${vChain[0].id}`);
+        for (let i = 0; i < vChain.length - 1; i++) keys.add(`teacher:${vChain[i].id}->${vChain[i + 1].id}`);
+      }
+      state.walkedArrowKeys = keys;
+      renderSvgGrid();
+
+      let prevId = vHeader.id;
+      let prevPos = headerExitPos("teacher", 0);
+      setWalkerDot(prevPos, COLORS.moss, COLORS.panel);
+      if (!(await sleep(stepDelay(0.35), token))) return;
+
+      for (let i = 0; i < vChain.length; i++) {
+        const node = vChain[i];
+        const ePos = entryPos(node, "teacher");
+        if (i > 0) {
+          const xPos = exitPos(vChain[i - 1], "teacher");
+          if (!(await animateSegment(prevPos, xPos, COLORS.moss, COLORS.panel, stepDelay(0.28), token))) return;
+        }
+        if (!(await animateAlongPath("teacher", prevId, node.id, ePos, COLORS.moss, COLORS.panel, stepDelay(0.85), token))) return;
+
+        t.visitedCount++;
+        t.visitedIds.add(node.id);
+        t.matchedIds.add(node.id);
+        renderSvgGrid();
+        setWalkerDot(ePos, COLORS.moss, COLORS.panel);
+        const vc = document.getElementById("teacherVisitedChip");
+        if (vc) vc.textContent = `visited: ${t.visitedCount}`;
+        if (!(await sleep(stepDelay(0.4), token))) return;
+        prevId = node.id;
+        prevPos = ePos;
+      }
+      if (vChain.length > 0) {
+        const lastN = vChain[vChain.length - 1];
+        const xPos = exitPos(lastN, "teacher");
+        if (!(await animateSegment(prevPos, xPos, COLORS.moss, COLORS.panel, stepDelay(0.28), token))) return;
+        if (!(await animateSegment(xPos, { x: xPos.x, y: xPos.y + 12 }, COLORS.moss, COLORS.panel, stepDelay(0.30), token))) return;
+      }
+      setWalkerDot(null);
+      state.walkedArrowKeys = null;
+      t.onVisited = t.visitedCount;
+      t.resultText = `Teacher chain On: visited only ${t.visitedCount} nodes on Virtanen's chain.`;
+    }
+
+    state.isAnimating = false;
+    renderAll();
+    setAnnouncement(t.resultText, "good");
+  }
+
+  // ------------------------------------------------------------------
+  // Navigation & Init
+  // ------------------------------------------------------------------
+  function switchStep(nextStep) {
+    if (state.isAnimating) return;
+    if (nextStep < 0 || nextStep > 3 || nextStep === state.step) return;
+    state.step = nextStep;
+    resetCurrentStep();
+  }
+
+  document.querySelectorAll(".step-nav .pill-btn").forEach((btn) => {
+    btn.addEventListener("click", () => switchStep(Number(btn.dataset.step)));
+  });
+
+  document.getElementById("backBtn").addEventListener("click", () => switchStep(state.step - 1));
+  document.getElementById("nextStepBtn").addEventListener("click", () => switchStep(state.step + 1));
+  document.getElementById("resetBtn").addEventListener("click", resetCurrentStep);
+  document.getElementById("speedBtn").addEventListener("click", () => {
+    state.slower = !state.slower;
+    renderTopBar();
+  });
+
+  resetCurrentStep();
+})();
+</script>
+</body>
+</html>
