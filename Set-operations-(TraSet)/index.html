@@ -1,0 +1,2771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Combine two sets</title>
+<style>
+  :root {
+    --paper: #FBF6EE;
+    --surface: #FFFDF9;
+    --ink: #2B1B2E;
+    --muted: rgba(43, 27, 46, 0.65);
+    --line: rgba(43, 27, 46, 0.18);
+    --plum: #7A3E7D;
+    --plum-fill: #EBDCEC;
+    --saffron: #E9A23B;
+    --saffron-fill: #FBE7C6;
+    --saffron-stroke: #C9861F;
+    --ab-fill: #F3E2D9;
+    --rust: #B9573A;
+    --rust-shade: rgba(185, 87, 58, 0.40);
+    --ok: #3E8E6A;
+    --ok-soft: rgba(62, 142, 106, 0.16);
+    --bad: #C23B4A;
+    --bad-soft: rgba(194, 59, 74, 0.16);
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    padding: 12px 14px 24px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.4;
+  }
+
+  .app {
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  .mono { font-family: var(--mono); }
+
+  button {
+    font-family: inherit;
+    color: inherit;
+    cursor: pointer;
+    border: 2px solid var(--ink);
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    min-height: 44px;
+    transition: transform 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
+  }
+
+  button:focus-visible {
+    outline: 3px solid var(--plum);
+    outline-offset: 2px;
+  }
+
+  button:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+  }
+
+  /* Top bar */
+  .topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(19px, 3vw, 24px);
+    font-weight: 750;
+    letter-spacing: -0.01em;
+  }
+
+  .steps-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .step-btn {
+    min-height: 36px;
+    padding: 5px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 999px;
+    border: 1.5px solid var(--line);
+    background: transparent;
+    color: var(--muted);
+    transition: none;
+  }
+
+  .step-btn[aria-current="step"] {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  .step-btn:not(:disabled):not([aria-current="step"]):hover {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+
+  .step-btn .step-short { display: none; }
+
+  @media (max-width: 600px) {
+    .step-btn .step-full { display: none; }
+    .step-btn .step-short { display: inline; }
+    .step-btn { padding: 5px 11px; }
+  }
+
+  /* Stage */
+  #stage {
+    position: relative;
+    width: 100%;
+    height: 280px;
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 12px;
+    user-select: none;
+  }
+
+  #stage-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  #chip-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .chip-btn {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    font-weight: 750;
+    pointer-events: auto;
+    transform: translate(-50%, -50%);
+    background: var(--surface);
+  }
+
+  .chip-btn.kind-A {
+    border: 2.5px solid var(--plum);
+    background: var(--plum-fill);
+  }
+
+  .chip-btn.kind-B {
+    border: 2.5px solid var(--saffron-stroke);
+    background: var(--saffron-fill);
+  }
+
+  .chip-btn.kind-AB {
+    border: 2.5px solid transparent;
+    background:
+      linear-gradient(var(--ab-fill), var(--ab-fill)) padding-box,
+      linear-gradient(90deg, var(--plum) 50%, var(--saffron-stroke) 50%) border-box;
+  }
+
+  .chip-btn.kind-neutral {
+    border: 2px solid var(--ink);
+    background: var(--surface);
+  }
+
+  .chip-btn:hover:not(:disabled) {
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+
+  /* Step 4 tags & boxes view inside #stage */
+  #ref-layer {
+    position: absolute;
+    inset: 0;
+    display: none;
+    padding: 16px 14px;
+  }
+
+  #ref-layer.active {
+    display: block;
+  }
+
+  #ref-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .ref-grid {
+    position: relative;
+    z-index: 1;
+    height: 100%;
+    display: grid;
+    grid-template-columns: minmax(76px, 118px) 1fr minmax(132px, 228px);
+    grid-template-rows: 1fr 1fr 1fr;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ref-tag {
+    grid-column: 1;
+    justify-self: start;
+    padding: 7px 12px;
+    border-radius: 12px;
+    border: 2.5px solid var(--ink);
+    background: var(--paper);
+    font-family: var(--mono);
+    font-size: clamp(14px, 3vw, 17px);
+    font-weight: 700;
+    transition: opacity 0.25s ease, border-color 0.25s ease;
+  }
+
+  .ref-tag.tag-A { grid-row: 1; border-color: var(--plum); color: var(--plum); }
+  .ref-tag.tag-common { grid-row: 2; border-color: var(--ink); color: var(--ink); }
+  .ref-tag.tag-B { grid-row: 3; border-color: var(--saffron-stroke); color: var(--ink); }
+  .ref-tag.hidden { opacity: 0; pointer-events: none; }
+
+  .ref-box {
+    grid-column: 3;
+    justify-self: end;
+    width: 100%;
+    max-width: 228px;
+    min-height: 54px;
+    padding: 8px 10px;
+    border-radius: 14px;
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    position: relative;
+    transition: opacity 0.25s ease, transform 0.45s ease;
+  }
+
+  .ref-box.box-A { grid-row: 1; border-color: var(--plum); }
+  .ref-box.box-common { grid-row: 2; border-color: var(--ink); }
+  .ref-box.box-B { grid-row: 3; border-color: var(--saffron-stroke); }
+  .ref-box.hidden { opacity: 0; pointer-events: none; }
+
+  .mini-chip {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 750;
+    border: 2px solid var(--ink);
+    background: var(--surface);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .mini-chip.kind-A { border-color: var(--plum); background: var(--plum-fill); }
+  .mini-chip.kind-B { border-color: var(--saffron-stroke); background: var(--saffron-fill); }
+  .mini-chip.kind-AB {
+    border: 2.5px solid transparent;
+    background:
+      linear-gradient(var(--ab-fill), var(--ab-fill)) padding-box,
+      linear-gradient(90deg, var(--plum) 50%, var(--saffron-stroke) 50%) border-box;
+  }
+  .mini-chip.faded { opacity: 0.18; transform: scale(0.8); }
+
+  .unchanged-pill {
+    position: absolute;
+    top: -11px;
+    right: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--ok);
+    color: #fff;
+  }
+
+  /* Task panel */
+  .decl-line {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    min-height: 18px;
+  }
+
+  .task-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .task-main {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .task-question {
+    font-size: clamp(16px, 2.5vw, 18px);
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .method-pill {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 8px;
+    background: rgba(43, 27, 46, 0.08);
+    border: 1px solid var(--line);
+  }
+
+  .task-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .thumb-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .thumb-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  /* Yes/No & Step 4 controls */
+  .choice-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .choice-btn {
+    min-width: 110px;
+    font-size: 16px;
+  }
+
+  .choice-btn.picked {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  /* Tray */
+  .tray-wrap {
+    margin-bottom: 10px;
+  }
+
+  .tray-box {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-height: 60px;
+    padding: 8px 12px;
+    border-radius: 14px;
+    border: 2px solid var(--ink);
+    background: var(--surface);
+  }
+
+  .tray-label {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin-right: 4px;
+  }
+
+  .tray-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-height: 44px;
+  }
+
+  .tray-chip {
+    position: static;
+    transform: none;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    font-weight: 750;
+  }
+
+  .tray-chip:hover:not(:disabled) {
+    transform: scale(1.06);
+  }
+
+  .tray-chip.kind-A { border: 2.5px solid var(--plum); background: var(--plum-fill); }
+  .tray-chip.kind-B { border: 2.5px solid var(--saffron-stroke); background: var(--saffron-fill); }
+  .tray-chip.kind-AB {
+    border: 2.5px solid transparent;
+    background:
+      linear-gradient(var(--ab-fill), var(--ab-fill)) padding-box,
+      linear-gradient(90deg, var(--plum) 50%, var(--saffron-stroke) 50%) border-box;
+  }
+  .tray-chip.kind-neutral { border: 2px solid var(--ink); background: var(--surface); }
+
+  .empty-btn {
+    border-radius: 999px;
+    padding: 6px 13px;
+    font-size: 14px;
+    border: 1.5px dashed var(--muted);
+    background: transparent;
+    margin-left: auto;
+  }
+
+  .empty-btn[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--paper);
+    border-style: solid;
+    border-color: var(--ink);
+  }
+
+  .palette-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .palette-row .tray-chip {
+    border: 2px solid var(--ink);
+    background: var(--surface);
+  }
+
+  /* Step 4 code block */
+  .code-block {
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    font-family: var(--mono);
+    font-size: 14px;
+  }
+
+  .code-line-item {
+    padding: 4px 8px;
+    border-radius: 6px;
+    border-left: 3px solid transparent;
+  }
+
+  .code-line-item.active {
+    background: rgba(122, 62, 125, 0.12);
+    border-left-color: var(--plum);
+    font-weight: 700;
+  }
+
+  .code-line-item.done {
+    color: var(--muted);
+  }
+
+  /* Actions */
+  .action-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .btn-primary {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  .btn-link {
+    background: transparent;
+    border: none;
+    color: var(--plum);
+    text-decoration: underline;
+    padding: 8px 6px;
+  }
+
+  .btn-secondary {
+    background: var(--surface);
+    border: 1.5px solid var(--ink);
+    min-height: 38px;
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+
+  /* Feedback & code output */
+  #feedback {
+    margin: 4px 0 6px;
+    min-height: 24px;
+    font-weight: 650;
+    font-size: 15px;
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+  }
+
+  #feedback svg.fb-icon {
+    flex: 0 0 16px;
+    margin-top: 3px;
+  }
+
+  #feedback.ok { color: var(--ok); }
+  #feedback.bad { color: var(--bad); }
+
+  #code-out {
+    font-family: var(--mono);
+    font-size: 14px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(43, 27, 46, 0.06);
+    border: 1px solid var(--line);
+    margin-bottom: 10px;
+    min-height: 38px;
+  }
+
+  #code-out.hidden { display: none; }
+  .code-muted { color: var(--muted); display: block; }
+
+  /* Cheat table */
+  .cheat-wrap {
+    margin: 12px 0;
+    overflow-x: auto;
+  }
+
+  table.cheat {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    font-size: 14px;
+  }
+
+  table.cheat th, table.cheat td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+  }
+
+  @media (max-width: 480px) {
+    table.cheat { font-size: 12px; }
+    table.cheat th, table.cheat td { padding: 6px 6px; }
+  }
+
+  table.cheat th {
+    font-weight: 700;
+    background: rgba(43, 27, 46, 0.05);
+  }
+
+  /* Bottom navigation */
+  .bottom-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+
+  /* Animations */
+  @keyframes shakeChip {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+  }
+
+  .shake {
+    animation: shakeChip 0.28s ease 2;
+    border-color: var(--bad) !important;
+  }
+
+  .static-bad-ring {
+    box-shadow: 0 0 0 3px var(--bad);
+    border-color: var(--bad) !important;
+  }
+
+  .fly-clone {
+    position: fixed;
+    z-index: 999;
+    margin: 0;
+    pointer-events: none;
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .flip-group {
+    transition: transform 0.8s ease-in-out;
+  }
+
+  .venn-circle {
+    transition: cx 0.8s ease-in-out, cy 0.8s ease-in-out, r 0.8s ease-in-out;
+  }
+
+  .s3-chip {
+    transition: transform 0.5s ease, opacity 0.5s ease;
+  }
+
+  .s3-c-grp {
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+
+  .s3-c-chip {
+    transition: opacity 0.25s ease;
+  }
+
+  .s3-unchanged {
+    transition: opacity 0.35s ease;
+  }
+
+  .s3-lbl-a {
+    transition: transform 0.8s ease-in-out;
+  }
+
+  .reduced * {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  #selftest {
+    display: none;
+    white-space: pre-wrap;
+    font-family: var(--mono);
+    font-size: 13px;
+    background: #fff;
+    border: 2px solid var(--ink);
+    padding: 12px;
+    border-radius: 10px;
+    margin-top: 16px;
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="topbar">
+    <h1>Combine two sets</h1>
+    <nav class="steps-nav" aria-label="Steps">
+      <button type="button" class="step-btn" data-step="1" aria-label="1 Tap the result"><span class="step-full">1 Tap the result</span><span class="step-short">1</span></button>
+      <button type="button" class="step-btn" data-step="2" aria-label="2 Flip it"><span class="step-full">2 Flip it</span><span class="step-short">2</span></button>
+      <button type="button" class="step-btn" data-step="3" aria-label="3 New or changed?"><span class="step-full">3 New or changed?</span><span class="step-short">3</span></button>
+      <button type="button" class="step-btn" data-step="4" aria-label="4 Copy first"><span class="step-full">4 Copy first</span><span class="step-short">4</span></button>
+      <button type="button" class="step-btn" data-step="5" aria-label="Practice"><span class="step-full">Practice</span><span class="step-short">Practice</span></button>
+    </nav>
+  </header>
+
+  <section id="stage" aria-label="Set diagram">
+    <svg id="stage-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="chip-layer"></div>
+    <div id="ref-layer" aria-label="Name tags and set boxes">
+      <svg id="ref-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="ref-grid">
+        <div class="ref-tag tag-A" id="ref-tag-A">A</div>
+        <div class="ref-tag tag-common hidden" id="ref-tag-common">common</div>
+        <div class="ref-tag tag-B" id="ref-tag-B">B</div>
+
+        <div class="ref-box box-A" id="ref-box-A"></div>
+        <div class="ref-box box-common hidden" id="ref-box-common"></div>
+        <div class="ref-box box-B" id="ref-box-B"></div>
+      </div>
+    </div>
+  </section>
+
+  <main>
+    <div class="decl-line" id="decl-line"></div>
+    <div class="task-row">
+      <div class="task-main">
+        <p class="task-question" id="task-question"></p>
+        <span class="method-pill" id="method-pill"></span>
+      </div>
+      <div class="task-meta" id="task-meta"></div>
+    </div>
+
+    <div class="thumb-strip" id="thumb-strip" hidden></div>
+
+    <div class="choice-row" id="choice-row" hidden></div>
+
+    <div class="code-block" id="step4-code" hidden></div>
+
+    <div class="tray-wrap" id="tray-wrap">
+      <div class="tray-box">
+        <span class="tray-label" id="tray-label">Result</span>
+        <div class="tray-chips" id="tray-chips"></div>
+        <button type="button" class="empty-btn" id="empty-btn" aria-pressed="false" aria-label="Empty set">&#8709; empty set</button>
+      </div>
+      <div class="palette-row" id="palette-row" hidden></div>
+    </div>
+
+    <div class="action-row" id="action-row">
+      <button type="button" class="btn-primary" id="check-btn">Check</button>
+      <button type="button" class="btn-link" id="show-answer-btn" hidden>Show answer</button>
+    </div>
+
+    <p id="feedback" aria-live="polite"></p>
+    <div id="code-out" class="hidden"></div>
+
+    <div class="cheat-wrap" id="cheat-wrap" hidden>
+      <table class="cheat">
+        <thead>
+          <tr><th>Idea</th><th>New set (TraSet)</th><th>Changes the set (java.util)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>union</td><td class="mono">A.union(B)</td><td class="mono">addAll</td></tr>
+          <tr><td>intersection</td><td class="mono">A.intersection(B)</td><td class="mono">retainAll</td></tr>
+          <tr><td>difference</td><td class="mono">A.difference(B)</td><td class="mono">removeAll</td></tr>
+          <tr><td>subset</td><td>(java.util only)</td><td class="mono">containsAll</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <footer class="bottom-nav">
+    <button type="button" id="back-btn">Back</button>
+    <button type="button" id="next-btn" class="btn-primary">Next</button>
+  </footer>
+
+  <pre id="selftest"></pre>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const params = new URLSearchParams(location.search);
+  const FORCE_REDUCED = params.get('reduced') === '1';
+  const reducedMotion = () =>
+    FORCE_REDUCED || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  if (reducedMotion()) {
+    document.getElementById('app').classList.add('reduced');
+  }
+
+  // ---- Pure set helpers ----
+  const sortNums = (arr) => [...new Set(arr)].sort((a, b) => a - b);
+  const union = (a, b) => sortNums([...a, ...b]);
+  const inter = (a, b) => sortNums(a.filter((x) => b.includes(x)));
+  const diff = (a, b) => sortNums(a.filter((x) => !b.includes(x)));
+  const eq = (a, b) => {
+    const sa = sortNums(a), sb = sortNums(b);
+    return sa.length === sb.length && sa.every((v, i) => v === sb[i]);
+  };
+  const fmt = (s) => (s.length ? `{${sortNums(s).join(', ')}}` : '\u2205');
+  const fmtCode = (s) => (s.length ? `{${sortNums(s).join(', ')}}` : '{}');
+
+  function listWords(arr) {
+    const s = sortNums(arr);
+    if (s.length === 0) return '';
+    if (s.length === 1) return String(s[0]);
+    if (s.length === 2) return `${s[0]} and ${s[1]}`;
+    return `${s.slice(0, -1).join(', ')} and ${s[s.length - 1]}`;
+  }
+
+  function answer(task) {
+    const X = task.sets[task.X];
+    const Y = task.sets[task.Y];
+    if (task.op === 'union') return union(X, Y);
+    if (task.op === 'inter') return inter(X, Y);
+    return diff(X, Y);
+  }
+
+  function methodName(task) {
+    const map = { union: 'union', inter: 'intersection', diff: 'difference' };
+    return `${task.X}.${map[task.op]}(${task.Y})`;
+  }
+
+  function symbolText(task) {
+    const map = { union: '\u222a', inter: '\u2229', diff: '\\' };
+    return `${task.X} ${map[task.op]} ${task.Y}`;
+  }
+
+  function feedbackFor(task, given) {
+    const Xset = task.sets[task.X];
+    const Yset = task.sets[task.Y];
+    const g = sortNums(given);
+    if (task.op === 'union') {
+      const yOnly = diff(Yset, Xset);
+      if (yOnly.some((v) => !g.includes(v))) {
+        return `Almost. Union takes elements from ${task.Y} too.`;
+      }
+      if (Xset.some((v) => !g.includes(v))) {
+        return `Almost. Union keeps everything from ${task.X} too.`;
+      }
+    } else if (task.op === 'inter') {
+      const both = inter(Xset, Yset);
+      if (g.some((v) => !both.includes(v))) {
+        return 'Only elements in both circles belong here.';
+      }
+    } else if (task.op === 'diff') {
+      const both = inter(Xset, Yset);
+      if (both.length > 0 && g.some((v) => both.includes(v))) {
+        const plural = both.length > 1;
+        return `${listWords(both)} ${plural ? 'are' : 'is'} also in ${task.Y}, so ${plural ? 'they are' : 'it is'} taken away.`;
+      }
+      const extraY = inter(g, diff(Yset, Xset));
+      if (extraY.length > 0) {
+        const plural = extraY.length > 1;
+        return `${listWords(extraY)} ${plural ? 'were' : 'was'} never in ${task.X}. Difference only keeps elements of ${task.X}.`;
+      }
+    }
+    return 'Not quite. Look at which region the question asks about.';
+  }
+
+  function correctMsg(task) {
+    if (task.op === 'union') return 'Correct. Union: in either set.';
+    if (task.op === 'inter') return 'Correct. Intersection: in both sets.';
+    return `Correct. Difference: in ${task.X}, not in ${task.Y}.`;
+  }
+
+  function shortRule(task) {
+    if (task.op === 'union') return 'Union: in either set';
+    if (task.op === 'inter') return 'Intersection: in both sets';
+    return `Difference: in ${task.X}, not in ${task.Y}`;
+  }
+
+  // ---- Geometry & chip placement ----
+  function layout(shape, W, H) {
+    const topPad = 32;
+    const botPad = 26;
+    const availH = Math.max(150, H - topPad - botPad);
+    const cy = topPad + availH * 0.50;
+    const midX = W * 0.50;
+
+    if (shape === 'overlap') {
+      const r = Math.min((W - 24) / 3.1, availH / 2);
+      const d = 1.1 * r;
+      return {
+        shape,
+        A: { cx: midX - d / 2, cy, r },
+        B: { cx: midX + d / 2, cy, r },
+      };
+    }
+    if (shape === 'disjoint') {
+      const r = Math.min((W - 32) / 4.2, availH / 2);
+      const gap = 0.2 * r;
+      const offset = r + gap / 2;
+      return {
+        shape,
+        A: { cx: midX - offset, cy, r },
+        B: { cx: midX + offset, cy, r },
+      };
+    }
+    if (shape === 'subset') {
+      const rA = Math.min(availH / 2, (W - 24) / 2);
+      const rB = 0.6 * rA;
+      return {
+        shape,
+        A: { cx: midX, cy, r: rA },
+        B: { cx: midX + 0.33 * rA, cy, r: rB },
+      };
+    }
+    // equal
+    const r = Math.min(availH / 2, (W - 24) / 2);
+    return {
+      shape: 'equal',
+      A: { cx: midX, cy, r },
+      B: { cx: midX, cy, r },
+    };
+  }
+
+  function compactLayout(W, H) {
+    const topPad = 32;
+    const botPad = 14;
+    const availH = Math.max(160, H - topPad - botPad);
+    const cy = topPad + availH * 0.50;
+    const r3 = Math.min((W - 24) / 5.45, availH / 3.15);
+    const d = 1.1 * r3;
+    const totalW = r3 + d + 2.2 * r3 + r3;
+    const leftEdge = Math.max(12, (W - totalW) * 0.5);
+    const cxA = leftEdge + r3;
+    const cxB = cxA + d;
+    const cxC = cxB + 2.2 * r3;
+    return {
+      shape: 'compact',
+      r3,
+      A: { cx: cxA, cy, r: r3 },
+      B: { cx: cxB, cy, r: r3 },
+      C: { cx: cxC, cy, r: r3 + 4 },
+      grownA: { cx: (cxA + cxB) / 2, cy, r: d / 2 + r3 + 12 },
+    };
+  }
+
+  function regionAnchors(geom) {
+    const { A, B, shape } = geom;
+    if (shape === 'equal') {
+      return {
+        Aonly: { x: A.cx, y: A.cy },
+        both: { x: A.cx, y: A.cy },
+        Bonly: { x: B.cx, y: B.cy },
+      };
+    }
+    if (shape === 'subset') {
+      return {
+        Aonly: { x: A.cx - 0.52 * A.r, y: A.cy },
+        both: { x: B.cx, y: B.cy },
+        Bonly: { x: B.cx, y: B.cy },
+      };
+    }
+    if (shape === 'disjoint') {
+      return {
+        Aonly: { x: A.cx, y: A.cy },
+        both: { x: (A.cx + B.cx) / 2, y: A.cy },
+        Bonly: { x: B.cx, y: B.cy },
+      };
+    }
+    // overlap
+    return {
+      Aonly: { x: A.cx - 0.36 * A.r, y: A.cy },
+      both: { x: (A.cx + B.cx) / 2, y: A.cy },
+      Bonly: { x: B.cx + 0.36 * B.r, y: B.cy },
+    };
+  }
+
+  function pointInRegion(x, y, region, geom, margin) {
+    const dA = Math.hypot(x - geom.A.cx, y - geom.A.cy);
+    const dB = Math.hypot(x - geom.B.cx, y - geom.B.cy);
+    const inA = dA <= geom.A.r - margin;
+    const outA = dA >= geom.A.r + margin;
+    const inB = dB <= geom.B.r - margin;
+    const outB = dB >= geom.B.r + margin;
+    if (geom.shape === 'equal') {
+      return region === 'both' ? inA : false;
+    }
+    if (region === 'Aonly') return inA && outB;
+    if (region === 'Bonly') return inB && outA;
+    return inA && inB;
+  }
+
+  function hexCandidates(anchor, radiusBound, spacing) {
+    const pts = [];
+    const dy = spacing * 0.8660254;
+    const rows = Math.ceil(radiusBound / dy) + 1;
+    const cols = Math.ceil(radiusBound / spacing) + 1;
+    for (let r = -rows; r <= rows; r++) {
+      const y = anchor.y + r * dy;
+      const xShift = (Math.abs(r) % 2 === 1) ? spacing * 0.5 : 0;
+      for (let c = -cols; c <= cols; c++) {
+        const x = anchor.x + c * spacing + xShift;
+        pts.push({ x, y });
+      }
+    }
+    return pts;
+  }
+
+  function placeChips(sets, geom, opts = {}) {
+    const margin = opts.margin ?? 24;
+    const spacing = opts.spacing ?? 48;
+    const aOnly = diff(sets.A, sets.B);
+    const both = inter(sets.A, sets.B);
+    const bOnly = diff(sets.B, sets.A);
+    const anchors = regionAnchors(geom);
+
+    const regions = [
+      { key: 'Aonly', kind: 'A', vals: aOnly },
+      { key: 'both', kind: 'AB', vals: both },
+      { key: 'Bonly', kind: 'B', vals: bOnly },
+    ];
+
+    const placed = [];
+    const bound = Math.max(geom.A.r, geom.B.r) * 1.3;
+
+    for (const reg of regions) {
+      if (reg.vals.length === 0) continue;
+      let valid = [];
+      const anc = anchors[reg.key];
+      for (const sp of [spacing, spacing - 4, spacing - 8]) {
+        const minSp = opts.minSpacing ?? 40;
+        if (sp < minSp) continue;
+        const mTry = sp === spacing ? margin : Math.max(margin - 3, 18);
+        const dy = sp * 0.8660254;
+        for (const shiftY of [0, dy * 0.5]) {
+          const cands = hexCandidates({ x: anc.x, y: anc.y + shiftY }, bound, sp).filter((p) =>
+            pointInRegion(p.x, p.y, reg.key, geom, mTry)
+          );
+          if (cands.length >= reg.vals.length) {
+            valid = cands;
+            break;
+          }
+        }
+        if (valid.length >= reg.vals.length) break;
+        // Fallback vertical column for narrow lenses
+        const col = [];
+        for (let i = 0; i < reg.vals.length; i++) {
+          const py = anc.y + (i - (reg.vals.length - 1) / 2) * sp;
+          if (pointInRegion(anc.x, py, reg.key, geom, Math.max(mTry - 2, 18))) {
+            col.push({ x: anc.x, y: py });
+          }
+        }
+        if (col.length >= reg.vals.length) {
+          valid = col;
+          break;
+        }
+      }
+      if (valid.length < reg.vals.length) return null;
+
+      valid.sort((p, q) => {
+        const dp = Math.hypot(p.x - anchors[reg.key].x, p.y - anchors[reg.key].y);
+        const dq = Math.hypot(q.x - anchors[reg.key].x, q.y - anchors[reg.key].y);
+        return dp - dq;
+      });
+      const chosen = valid.slice(0, reg.vals.length);
+      chosen.sort((p, q) => (Math.abs(p.y - q.y) > 8 ? p.y - q.y : p.x - q.x));
+
+      reg.vals.forEach((v, idx) => {
+        placed.push({ val: v, kind: reg.kind, x: chosen[idx].x, y: chosen[idx].y });
+      });
+    }
+    return placed;
+  }
+
+  // ---- SVG helpers ----
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  function svgEl(tag, attrs = {}) {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      el.setAttribute(k, String(v));
+    }
+    return el;
+  }
+
+  function circleIntersections(A, B) {
+    const dx = B.cx - A.cx;
+    const dy = B.cy - A.cy;
+    const d = Math.hypot(dx, dy);
+    if (d <= 1e-6 || d >= A.r + B.r || d <= Math.abs(A.r - B.r)) return null;
+    const a = (A.r * A.r - B.r * B.r + d * d) / (2 * d);
+    const h = Math.sqrt(Math.max(0, A.r * A.r - a * a));
+    const xm = A.cx + (a * dx) / d;
+    const ym = A.cy + (a * dy) / d;
+    const rx = (-dy * h) / d;
+    const ry = (dx * h) / d;
+    return [
+      { x: xm + rx, y: ym + ry }, // bottom when B is right of A
+      { x: xm - rx, y: ym - ry }, // top when B is right of A
+    ];
+  }
+
+  function regionOutlinePaths(opKey, geom) {
+    const { A, B, shape } = geom;
+    const circlePath = (c) =>
+      `M ${c.cx - c.r} ${c.cy} A ${c.r} ${c.r} 0 1 0 ${c.cx + c.r} ${c.cy} A ${c.r} ${c.r} 0 1 0 ${c.cx - c.r} ${c.cy} Z`;
+
+    if (shape === 'equal') {
+      if (opKey === 'union' || opKey === 'inter') return [circlePath(A)];
+      return [];
+    }
+    if (shape === 'disjoint') {
+      if (opKey === 'union') return [circlePath(A), circlePath(B)];
+      if (opKey === 'AminusB') return [circlePath(A)];
+      if (opKey === 'BminusA') return [circlePath(B)];
+      return [];
+    }
+    if (shape === 'subset') {
+      if (opKey === 'union') return [circlePath(A)];
+      if (opKey === 'inter') return [circlePath(B)];
+      if (opKey === 'AminusB') return [circlePath(A), circlePath(B)];
+      return [];
+    }
+
+    // overlap
+    const pts = circleIntersections(A, B);
+    if (!pts) return [];
+    const [pBot, pTop] = pts[0].y > pts[1].y ? [pts[0], pts[1]] : [pts[1], pts[0]];
+    if (opKey === 'union') {
+      // Top -> outer arc on A (CCW large=1 sweep=0) -> Bot -> outer arc on B (CCW large=1 sweep=0) -> Top
+      return [
+        `M ${pTop.x} ${pTop.y} A ${A.r} ${A.r} 0 1 0 ${pBot.x} ${pBot.y} A ${B.r} ${B.r} 0 1 0 ${pTop.x} ${pTop.y} Z`,
+      ];
+    }
+    if (opKey === 'inter') {
+      // Top -> right boundary of A (CW large=0 sweep=1) -> Bot -> left boundary of B (CW large=0 sweep=1) -> Top
+      return [
+        `M ${pTop.x} ${pTop.y} A ${A.r} ${A.r} 0 0 1 ${pBot.x} ${pBot.y} A ${B.r} ${B.r} 0 0 1 ${pTop.x} ${pTop.y} Z`,
+      ];
+    }
+    if (opKey === 'AminusB') {
+      // Top -> outer A (CCW large=1 sweep=0) -> Bot -> inner B arc (left arc of B: large=0 sweep=1) -> Top
+      return [
+        `M ${pTop.x} ${pTop.y} A ${A.r} ${A.r} 0 1 0 ${pBot.x} ${pBot.y} A ${B.r} ${B.r} 0 0 1 ${pTop.x} ${pTop.y} Z`,
+      ];
+    }
+    // BminusA
+    return [
+      `M ${pTop.x} ${pTop.y} A ${B.r} ${B.r} 0 1 1 ${pBot.x} ${pBot.y} A ${A.r} ${A.r} 0 0 0 ${pTop.x} ${pTop.y} Z`,
+    ];
+  }
+
+  function opToKey(task) {
+    if (task.op === 'union') return 'union';
+    if (task.op === 'inter') return 'inter';
+    return task.X === 'A' ? 'AminusB' : 'BminusA';
+  }
+
+  function shadeThumb(opKey) {
+    const W = 64, H = 40;
+    const g = {
+      shape: 'overlap',
+      A: { cx: 23, cy: 20, r: 15 },
+      B: { cx: 41, cy: 20, r: 15 },
+    };
+    const svg = svgEl('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, 'aria-hidden': 'true' });
+    const defs = svgEl('defs');
+    const pat = svgEl('pattern', {
+      id: `th-hatch-${opKey}`,
+      width: 6, height: 6, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)',
+    });
+    pat.appendChild(svgEl('line', { x1: 0, y1: 0, x2: 0, y2: 6, stroke: '#2B1B2E', 'stroke-opacity': 0.35, 'stroke-width': 1.5 }));
+    defs.appendChild(pat);
+    svg.appendChild(defs);
+
+    svg.appendChild(svgEl('circle', { cx: g.A.cx, cy: g.A.cy, r: g.A.r, fill: '#7A3E7D', 'fill-opacity': 0.16, stroke: '#7A3E7D', 'stroke-width': 1.2 }));
+    svg.appendChild(svgEl('circle', { cx: g.B.cx, cy: g.B.cy, r: g.B.r, fill: '#E9A23B', 'fill-opacity': 0.16, stroke: '#C9861F', 'stroke-width': 1.2 }));
+
+    const paths = regionOutlinePaths(opKey, g);
+    paths.forEach((d) => {
+      svg.appendChild(svgEl('path', { d, fill: '#B9573A', 'fill-opacity': 0.40, stroke: 'none' }));
+      svg.appendChild(svgEl('path', { d, fill: `url(#th-hatch-${opKey})`, stroke: '#2B1B2E', 'stroke-width': 1.4 }));
+    });
+    return svg;
+  }
+
+  // ---- Guided data ----
+  const BASE_A = [1, 2, 3, 4];
+  const BASE_B = [3, 4, 5];
+
+  const STEP1_TASKS = [
+    { op: 'union', X: 'A', Y: 'B', sets: { A: BASE_A, B: BASE_B } },
+    { op: 'inter', X: 'A', Y: 'B', sets: { A: BASE_A, B: BASE_B } },
+    { op: 'diff',  X: 'A', Y: 'B', sets: { A: BASE_A, B: BASE_B } },
+  ];
+
+  const STEP2_TASK = { op: 'diff', X: 'B', Y: 'A', sets: { A: BASE_A, B: BASE_B } };
+
+  const STEP3_PARTS = [
+    {
+      id: '3a',
+      decl: 'TraSet<Integer> A, B',
+      code: 'TraSet<Integer> C = A.union(B);',
+      hint: '',
+      expected: sortNums(BASE_A),
+      revealCode: 'TraSet<Integer> C = A.union(B);',
+      specialWrong: {
+        key: sortNums(union(BASE_A, BASE_B)).join(','),
+        msg: 'union builds a new set C. A itself is untouched.',
+      },
+      okMsg: 'Correct. union builds a new set C, so A stays {1, 2, 3, 4}.',
+    },
+    {
+      id: '3b',
+      decl: 'Set<Integer> A, B   // java.util',
+      code: 'A.addAll(B);',
+      hint: '',
+      expected: sortNums(union(BASE_A, BASE_B)),
+      revealCode: 'A.addAll(B);   // returned true: A changed',
+      specialWrong: {
+        key: sortNums(BASE_A).join(','),
+        msg: 'addAll does not build a new set. It writes into A itself.',
+      },
+      okMsg: 'Correct. addAll adds B into A itself.',
+    },
+    {
+      id: '3c',
+      decl: 'Set<Integer> A, B   // java.util',
+      code: 'A.retainAll(B);',
+      hint: 'Someone wants the intersection of the original sets.',
+      expected: sortNums(inter(union(BASE_A, BASE_B), BASE_B)),
+      revealCode: 'A.retainAll(B);',
+      specialWrong: {
+        key: sortNums(inter(BASE_A, BASE_B)).join(','),
+        msg: 'That is the intersection of the original sets. But addAll already changed A.',
+      },
+      okMsg: 'Correct. addAll already added 5 to A, so retainAll keeps {3, 4, 5}.',
+    },
+  ];
+
+  // ---- Practice generator ----
+  function pickSample(arr, k, rng) {
+    const pool = [...arr];
+    const out = [];
+    for (let i = 0; i < k && pool.length; i++) {
+      const idx = Math.floor(rng() * pool.length);
+      out.push(pool.splice(idx, 1)[0]);
+    }
+    return sortNums(out);
+  }
+
+  function shuffle(arr, rng) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function generateDealSets(shape, rng) {
+    const universe = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    if (shape === 'overlap') {
+      const nA = 1 + Math.floor(rng() * 2); // 1..2
+      const nBoth = 1 + Math.floor(rng() * 2); // 1..2
+      const nB = 1 + Math.floor(rng() * 2); // 1..2
+      const pool = shuffle(universe, rng);
+      const aOnly = pool.slice(0, nA);
+      const both = pool.slice(nA, nA + nBoth);
+      const bOnly = pool.slice(nA + nBoth, nA + nBoth + nB);
+      return { A: union(aOnly, both), B: union(both, bOnly) };
+    }
+    if (shape === 'disjoint') {
+      const sA = 2 + Math.floor(rng() * 3); // 2..4
+      const sB = 2 + Math.floor(rng() * 3); // 2..4
+      const pool = shuffle(universe, rng);
+      return { A: sortNums(pool.slice(0, sA)), B: sortNums(pool.slice(sA, sA + sB)) };
+    }
+    if (shape === 'subset') {
+      const sB = 2 + Math.floor(rng() * 2); // 2..3
+      const extra = 1 + Math.floor(rng() * (5 - sB)); // so |A| <= 5 and B != A
+      const pool = shuffle(universe, rng);
+      const B = sortNums(pool.slice(0, sB));
+      const A = union(B, pool.slice(sB, sB + extra));
+      return { A, B };
+    }
+    // equal
+    const sz = 2 + Math.floor(rng() * 4); // 2..5
+    const S = pickSample(universe, sz, rng);
+    return { A: [...S], B: [...S] };
+  }
+
+  function createPracticeDeck(rng = Math.random) {
+    const firstShapes = shuffle(['overlap', 'disjoint', 'subset', 'equal'], rng);
+    const ops = [
+      { op: 'union', X: 'A', Y: 'B' },
+      { op: 'inter', X: 'A', Y: 'B' },
+      { op: 'diff', X: 'A', Y: 'B' },
+      { op: 'diff', X: 'B', Y: 'A' },
+    ];
+    const deals = firstShapes.map((shape) => {
+      const sets = generateDealSets(shape, rng);
+      const spec = ops[Math.floor(rng() * ops.length)];
+      return { shape, task: { ...spec, sets } };
+    });
+    const hasEmpty = deals.some((d) => answer(d.task).length === 0);
+    if (!hasEmpty) {
+      const nonOverlapIdxs = deals
+        .map((d, i) => (d.shape !== 'overlap' ? i : -1))
+        .filter((i) => i >= 0);
+      const pickIdx = nonOverlapIdxs[Math.floor(rng() * nonOverlapIdxs.length)];
+      const chosen = deals[pickIdx];
+      if (chosen.shape === 'disjoint') {
+        chosen.task = { op: 'inter', X: 'A', Y: 'B', sets: chosen.task.sets };
+      } else if (chosen.shape === 'subset') {
+        chosen.task = { op: 'diff', X: 'B', Y: 'A', sets: chosen.task.sets };
+      } else {
+        chosen.task = { op: 'diff', X: 'A', Y: 'B', sets: chosen.task.sets };
+      }
+    }
+    return deals;
+  }
+
+  function nextPracticeDeal(state, W, H, rng = Math.random) {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      let shape, task;
+      if (state.practiceQueue.length > 0) {
+        const next = state.practiceQueue.shift();
+        shape = next.shape;
+        task = next.task;
+      } else {
+        const r = rng();
+        shape = r < 0.50 ? 'overlap' : r < 0.67 ? 'disjoint' : r < 0.84 ? 'subset' : 'equal';
+        const ops = [
+          { op: 'union', X: 'A', Y: 'B' },
+          { op: 'inter', X: 'A', Y: 'B' },
+          { op: 'diff', X: 'A', Y: 'B' },
+          { op: 'diff', X: 'B', Y: 'A' },
+        ];
+        const spec = ops[Math.floor(rng() * ops.length)];
+        task = { ...spec, sets: generateDealSets(shape, rng) };
+      }
+      const geom = layout(shape, W, H);
+      if (placeChips(task.sets, geom)) {
+        return { shape, task };
+      }
+    }
+    // Safe fallback
+    const sets = { A: [1, 2, 3], B: [4, 5] };
+    return { shape: 'disjoint', task: { op: 'inter', X: 'A', Y: 'B', sets } };
+  }
+
+  // ---- App State ----
+  const state = {
+    step: 1,
+    maxReached: 1,
+    completedSteps: new Set(),
+
+    // Tray
+    tray: [],
+    emptySelected: false,
+    wrongTries: 0,
+    taskDone: false,
+    locked: false,
+
+    // Step 1
+    s1Idx: 0,
+    s1Thumbs: [],
+
+    // Step 2
+    s2Choice: null, // 'yes' | 'no' | null
+
+    // Step 3
+    s3Idx: 0,
+    s3RevealedC: false,
+    s3GrownA: false,
+    s3Faded12: false,
+    s3JustRevealed: null, // '3a' | '3b' | '3c' | null
+
+    // Step 4
+    s4Part: 1, // 1 or 2
+    s4Line: 0, // 0, 1, 2
+    s4Prediction: null, // 'A_orig' | 'A_shrunk' | null
+    s4Done: false,
+
+    // Practice
+    practiceQueue: createPracticeDeck(),
+    practiceCurrent: null,
+    streak: 0,
+
+    // Geometry cache
+    stageW: 600,
+    stageH: 280,
+  };
+
+  // URL param support
+  const startStepParam = parseInt(params.get('step') || '', 10);
+  if (startStepParam >= 1 && startStepParam <= 5) {
+    state.step = startStepParam;
+    state.maxReached = startStepParam;
+  }
+
+  // ---- DOM refs ----
+  const el = {
+    stage: document.getElementById('stage'),
+    svg: document.getElementById('stage-svg'),
+    chipLayer: document.getElementById('chip-layer'),
+    refLayer: document.getElementById('ref-layer'),
+    refSvg: document.getElementById('ref-svg'),
+    refTagA: document.getElementById('ref-tag-A'),
+    refTagCommon: document.getElementById('ref-tag-common'),
+    refTagB: document.getElementById('ref-tag-B'),
+    refBoxA: document.getElementById('ref-box-A'),
+    refBoxCommon: document.getElementById('ref-box-common'),
+    refBoxB: document.getElementById('ref-box-B'),
+    declLine: document.getElementById('decl-line'),
+    taskQuestion: document.getElementById('task-question'),
+    methodPill: document.getElementById('method-pill'),
+    taskMeta: document.getElementById('task-meta'),
+    thumbStrip: document.getElementById('thumb-strip'),
+    choiceRow: document.getElementById('choice-row'),
+    step4Code: document.getElementById('step4-code'),
+    trayWrap: document.getElementById('tray-wrap'),
+    trayLabel: document.getElementById('tray-label'),
+    trayChips: document.getElementById('tray-chips'),
+    emptyBtn: document.getElementById('empty-btn'),
+    paletteRow: document.getElementById('palette-row'),
+    actionRow: document.getElementById('action-row'),
+    checkBtn: document.getElementById('check-btn'),
+    showAnswerBtn: document.getElementById('show-answer-btn'),
+    feedback: document.getElementById('feedback'),
+    codeOut: document.getElementById('code-out'),
+    cheatWrap: document.getElementById('cheat-wrap'),
+    backBtn: document.getElementById('back-btn'),
+    nextBtn: document.getElementById('next-btn'),
+    stepBtns: [...document.querySelectorAll('.step-btn')],
+  };
+
+  function currentTask() {
+    if (state.step === 1) return STEP1_TASKS[state.s1Idx];
+    if (state.step === 2) return STEP2_TASK;
+    if (state.step === 5) return state.practiceCurrent.task;
+    return null;
+  }
+
+  function currentShape() {
+    if (state.step === 1 || state.step === 2) return 'overlap';
+    if (state.step === 5) return state.practiceCurrent.shape;
+    return 'compact';
+  }
+
+  function kindOfValue(val, sets) {
+    const inA = sets.A.includes(val);
+    const inB = sets.B.includes(val);
+    if (inA && inB) return 'AB';
+    if (inA) return 'A';
+    if (inB) return 'B';
+    return 'neutral';
+  }
+
+  function setFeedback(text, tone = '') {
+    el.feedback.className = tone;
+    el.feedback.innerHTML = '';
+    if (!text) return;
+    if (tone === 'ok' || tone === 'bad') {
+      const icon = svgEl('svg', {
+        class: 'fb-icon',
+        width: 16,
+        height: 16,
+        viewBox: '0 0 16 16',
+        'aria-hidden': 'true',
+      });
+      if (tone === 'ok') {
+        icon.appendChild(svgEl('path', {
+          d: 'M 2.5 8.5 L 6.2 12.2 L 13.5 4.2',
+          fill: 'none',
+          stroke: '#3E8E6A',
+          'stroke-width': 2.3,
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+        }));
+      } else {
+        icon.appendChild(svgEl('path', {
+          d: 'M 3.5 3.5 L 12.5 12.5 M 12.5 3.5 L 3.5 12.5',
+          fill: 'none',
+          stroke: '#C23B4A',
+          'stroke-width': 2.3,
+          'stroke-linecap': 'round',
+        }));
+      }
+      el.feedback.appendChild(icon);
+    }
+    el.feedback.appendChild(document.createTextNode(text));
+  }
+
+  function showCode(content, isHtml = false) {
+    if (isHtml) el.codeOut.innerHTML = content;
+    else el.codeOut.textContent = content;
+    el.codeOut.classList.remove('hidden');
+  }
+
+  function hideCode() {
+    el.codeOut.innerHTML = '';
+    el.codeOut.classList.add('hidden');
+  }
+
+  // ---- Stage rendering ----
+  function addSvgDefs(svg) {
+    const defs = svgEl('defs');
+    const pat = svgEl('pattern', {
+      id: 'hatch-pat',
+      width: 8, height: 8, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)',
+    });
+    pat.appendChild(svgEl('line', {
+      x1: 0, y1: 0, x2: 0, y2: 8,
+      stroke: '#2B1B2E', 'stroke-opacity': 0.30, 'stroke-width': 1.8,
+    }));
+    defs.appendChild(pat);
+    svg.appendChild(defs);
+  }
+
+  function renderShadeOverlay(svg, opKey, geom, opts = {}) {
+    const paths = regionOutlinePaths(opKey, geom);
+    if (paths.length === 0) return null;
+    const grp = svgEl('g', { class: opts.flipClass || '' });
+    if (opts.originX !== undefined) {
+      grp.style.transformOrigin = `${opts.originX}px ${opts.originY}px`;
+    }
+    paths.forEach((d) => {
+      grp.appendChild(svgEl('path', {
+        d,
+        fill: '#B9573A',
+        'fill-opacity': 0.40,
+        'fill-rule': geom.shape === 'subset' && opKey === 'AminusB' ? 'evenodd' : 'nonzero',
+        stroke: 'none',
+      }));
+      grp.appendChild(svgEl('path', {
+        d,
+        fill: 'url(#hatch-pat)',
+        'fill-rule': geom.shape === 'subset' && opKey === 'AminusB' ? 'evenodd' : 'nonzero',
+        stroke: '#2B1B2E',
+        'stroke-width': 2,
+      }));
+    });
+    svg.appendChild(grp);
+    return grp;
+  }
+
+  function renderVennStage() {
+    const W = state.stageW;
+    const H = state.stageH;
+    const svg = el.svg;
+    svg.setAttribute('width', W);
+    svg.setAttribute('height', H);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    if (state.step === 3) {
+      el.chipLayer.innerHTML = '';
+      renderStep3Stage(svg, W, H);
+      return;
+    }
+
+    s3Dom = null;
+    clearS3Timers();
+    svg.innerHTML = '';
+    el.chipLayer.innerHTML = '';
+
+    addSvgDefs(svg);
+
+    const shape = currentShape();
+    const geom = layout(shape, W, H);
+    const task = currentTask();
+
+    // Base circles
+    const cA = svgEl('circle', {
+      cx: geom.A.cx, cy: geom.A.cy, r: geom.A.r,
+      fill: '#7A3E7D', 'fill-opacity': 0.25,
+      stroke: '#7A3E7D', 'stroke-width': 2.5,
+    });
+    const cB = svgEl('circle', {
+      cx: geom.B.cx, cy: geom.B.cy, r: geom.B.r,
+      fill: '#E9A23B', 'fill-opacity': 0.25,
+      stroke: '#C9861F', 'stroke-width': 2.5,
+    });
+    if (shape === 'equal') {
+      cB.setAttribute('stroke-dasharray', '7 5');
+    }
+    svg.appendChild(cA);
+    svg.appendChild(cB);
+
+    // Shading if taskDone
+    if (state.taskDone && task) {
+      if (state.step === 2) {
+        const midX = (geom.A.cx + geom.B.cx) / 2;
+        const midY = geom.A.cy;
+        const grp = renderShadeOverlay(svg, 'AminusB', geom, {
+          flipClass: 'flip-group',
+          originX: midX,
+          originY: midY,
+        });
+        if (grp) {
+          if (reducedMotion() || state._flipInstant) {
+            grp.style.transform = 'scaleX(-1)';
+          } else {
+            grp.style.transform = 'scaleX(1)';
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                grp.style.transform = 'scaleX(-1)';
+              });
+            });
+          }
+        }
+      } else {
+        renderShadeOverlay(svg, opToKey(task), geom);
+      }
+
+      const res = answer(task);
+      const lbl = svgEl('text', {
+        x: W / 2,
+        y: H - 6,
+        'text-anchor': 'middle',
+        fill: '#2B1B2E',
+        'font-size': 13,
+        'font-weight': 700,
+      });
+      lbl.textContent = `${symbolText(task)} = ${fmt(res)}`;
+      svg.appendChild(lbl);
+    }
+
+    // Labels above circles
+    if (shape === 'equal') {
+      const lA = svgEl('text', {
+        x: geom.A.cx - 28, y: geom.A.cy - geom.A.r - 8,
+        'text-anchor': 'middle', fill: '#7A3E7D', 'font-size': 16, 'font-weight': 800,
+      });
+      lA.textContent = 'A';
+      const lEq = svgEl('text', {
+        x: geom.A.cx, y: geom.A.cy - geom.A.r - 8,
+        'text-anchor': 'middle', fill: '#2B1B2E', 'font-size': 14, 'font-weight': 700,
+      });
+      lEq.textContent = '=';
+      const lB = svgEl('text', {
+        x: geom.A.cx + 28, y: geom.A.cy - geom.A.r - 8,
+        'text-anchor': 'middle', fill: '#C9861F', 'font-size': 16, 'font-weight': 800,
+      });
+      lB.textContent = 'B';
+      svg.append(lA, lEq, lB);
+    } else {
+      const lA = svgEl('text', {
+        x: geom.A.cx, y: geom.A.cy - geom.A.r - 8,
+        'text-anchor': 'middle', fill: '#7A3E7D', 'font-size': 16, 'font-weight': 800,
+      });
+      lA.textContent = 'A';
+      const lB = svgEl('text', {
+        x: geom.B.cx, y: geom.B.cy - geom.B.r - 8,
+        'text-anchor': 'middle', fill: '#C9861F', 'font-size': 16, 'font-weight': 800,
+      });
+      lB.textContent = 'B';
+      svg.append(lA, lB);
+    }
+
+    // Chips
+    const sets = task ? task.sets : { A: BASE_A, B: BASE_B };
+    const placed = placeChips(sets, geom) || [];
+    const disabled = state.locked || (state.step === 2 && !state.s2Choice);
+
+    placed.forEach((p) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `chip-btn kind-${p.kind}`;
+      btn.style.left = `${p.x}px`;
+      btn.style.top = `${p.y}px`;
+      btn.textContent = String(p.val);
+      btn.dataset.val = String(p.val);
+      btn.disabled = disabled;
+      btn.setAttribute('aria-label', `Add ${p.val} to the result`);
+      btn.addEventListener('click', () => onSourceChipClick(p.val, btn, sets));
+      el.chipLayer.appendChild(btn);
+    });
+  }
+
+  let s3Dom = null;
+  let s3Timers = [];
+  let s3Raf = 0;
+  function clearS3Timers() {
+    s3Timers.forEach((id) => clearTimeout(id));
+    s3Timers = [];
+    if (s3Raf) {
+      cancelAnimationFrame(s3Raf);
+      s3Raf = 0;
+    }
+  }
+
+  function makeChipRingLayer(kind, chipR) {
+    const layer = svgEl('g');
+    if (kind === 'AB') {
+      layer.appendChild(svgEl('circle', {
+        cx: 0, cy: 0, r: chipR,
+        fill: '#F3E2D9', stroke: 'none',
+      }));
+      layer.appendChild(svgEl('path', {
+        d: `M 0 ${-chipR} A ${chipR} ${chipR} 0 0 0 0 ${chipR}`,
+        fill: 'none', stroke: '#7A3E7D', 'stroke-width': 2.4,
+      }));
+      layer.appendChild(svgEl('path', {
+        d: `M 0 ${-chipR} A ${chipR} ${chipR} 0 0 1 0 ${chipR}`,
+        fill: 'none', stroke: '#C9861F', 'stroke-width': 2.4,
+      }));
+    } else {
+      const style = kind === 'A'
+        ? { fill: '#EBDCEC', stroke: '#7A3E7D' }
+        : { fill: '#FBE7C6', stroke: '#C9861F' };
+      layer.appendChild(svgEl('circle', {
+        cx: 0, cy: 0, r: chipR,
+        fill: style.fill, stroke: style.stroke, 'stroke-width': 2.4,
+      }));
+    }
+    return layer;
+  }
+
+  function makeStep3SvgChip(val, kind, chipR, extraClass = '') {
+    const g = svgEl('g', { class: extraClass });
+    g.appendChild(svgEl('circle', {
+      cx: 0, cy: 0, r: chipR,
+      fill: '#FFFDF9', stroke: 'none',
+    }));
+    g.appendChild(makeChipRingLayer(kind, chipR));
+    const t = svgEl('text', {
+      x: 0, y: 5,
+      'text-anchor': 'middle', fill: '#2B1B2E',
+      'font-size': Math.max(12, chipR - 1), 'font-weight': 750,
+    });
+    t.textContent = String(val);
+    g.appendChild(t);
+    return g;
+  }
+
+  function renderStep3Stage(svg, W, H) {
+    const cg = compactLayout(W, H);
+    const r3 = cg.r3;
+    const midX = (cg.A.cx + cg.B.cx) / 2;
+    const spreadY = Math.min(20, r3 * 0.36);
+    const chipR = Math.max(13, Math.min(17, Math.floor(r3 * 0.26)));
+
+    if (!s3Dom || s3Dom.W !== W || s3Dom.H !== H || s3Dom.root.parentNode !== svg) {
+      svg.innerHTML = '';
+      addSvgDefs(svg);
+      const root = svgEl('g');
+
+      const cA = svgEl('circle', {
+        class: 'venn-circle',
+        cx: cg.A.cx, cy: cg.A.cy, r: cg.A.r,
+        fill: '#7A3E7D', 'fill-opacity': 0.25,
+        stroke: '#7A3E7D', 'stroke-width': 2.5,
+      });
+      const cB = svgEl('circle', {
+        class: 'venn-circle',
+        cx: cg.B.cx, cy: cg.B.cy, r: cg.B.r,
+        fill: '#E9A23B', 'fill-opacity': 0.25,
+        stroke: '#C9861F', 'stroke-width': 2.5,
+      });
+      root.append(cA, cB);
+
+      const lblA = svgEl('text', {
+        class: 's3-lbl-a',
+        x: 0, y: 0,
+        'text-anchor': 'middle', fill: '#7A3E7D', 'font-size': 15, 'font-weight': 800,
+      });
+      lblA.textContent = 'A';
+      lblA.style.transform = `translate(${cg.A.cx}px, ${cg.A.cy - cg.A.r - 8}px)`;
+
+      const lblB = svgEl('text', {
+        x: cg.B.cx, y: cg.B.cy - cg.B.r - 8,
+        'text-anchor': 'middle', fill: '#C9861F', 'font-size': 15, 'font-weight': 800,
+      });
+      lblB.textContent = 'B';
+      root.append(lblA, lblB);
+
+      // Persistent circle C group (hidden until 3a reveal)
+      const cGrp = svgEl('g', { class: 's3-c-grp' });
+      cGrp.style.transformOrigin = `${cg.C.cx}px ${cg.C.cy}px`;
+      cGrp.style.opacity = '0';
+      cGrp.style.transform = 'scale(0.78)';
+      const cCircle = svgEl('circle', {
+        cx: cg.C.cx, cy: cg.C.cy, r: cg.C.r,
+        fill: 'rgba(43, 27, 46, 0.06)',
+        stroke: '#2B1B2E', 'stroke-width': 2.2,
+      });
+      const lblC = svgEl('text', {
+        x: cg.C.cx, y: cg.C.cy - cg.C.r - 8,
+        'text-anchor': 'middle', fill: '#2B1B2E', 'font-size': 15, 'font-weight': 800,
+      });
+      lblC.textContent = 'C';
+      cGrp.append(cCircle, lblC);
+
+      const cr = cg.C.r * 0.50;
+      const angles = [-2.3, -0.8, 0.2, 1.3, 2.4];
+      const cChips = [1, 2, 3, 4, 5].map((v, i) => {
+        const px = cg.C.cx + Math.cos(angles[i]) * cr;
+        const py = cg.C.cy + Math.sin(angles[i]) * cr;
+        const ch = makeStep3SvgChip(v, kindOfValue(v, { A: BASE_A, B: BASE_B }), chipR, 's3-c-chip');
+        ch.setAttribute('transform', `translate(${px}, ${py})`);
+        ch.style.opacity = '0';
+        cGrp.appendChild(ch);
+        return ch;
+      });
+      root.appendChild(cGrp);
+
+      // Unchanged pills (74 x 20 px, 11 px font)
+      const unchangedGrp = svgEl('g', { class: 's3-unchanged' });
+      unchangedGrp.style.opacity = '0';
+      const addTag = (x, y) => {
+        const pill = svgEl('rect', {
+          x: x - 37, y: y - 10, width: 74, height: 20, rx: 10,
+          fill: '#3E8E6A',
+        });
+        const txt = svgEl('text', {
+          x, y: y + 4, 'text-anchor': 'middle', fill: '#fff',
+          'font-size': 11, 'font-weight': 700,
+        });
+        txt.textContent = 'unchanged';
+        unchangedGrp.append(pill, txt);
+      };
+      addTag(cg.A.cx - 8, cg.A.cy + cg.A.r + 14);
+      addTag(cg.B.cx + 8, cg.B.cy + cg.B.r + 14);
+      root.appendChild(unchangedGrp);
+
+      // Persistent A & B chips 1..5 (chip 5 has solo + both ring layers)
+      const chips = {};
+      [1, 2, 3, 4].forEach((v) => {
+        const ch = makeStep3SvgChip(v, kindOfValue(v, { A: BASE_A, B: BASE_B }), chipR, 's3-chip');
+        chips[v] = ch;
+        root.appendChild(ch);
+      });
+
+      const ch5 = svgEl('g', { class: 's3-chip' });
+      ch5.appendChild(svgEl('circle', {
+        cx: 0, cy: 0, r: chipR,
+        fill: '#FFFDF9', stroke: 'none',
+      }));
+      const chip5Solo = makeChipRingLayer('B', chipR);
+      chip5Solo.style.transition = 'opacity 0.4s ease';
+      chip5Solo.style.opacity = '1';
+      const chip5Both = makeChipRingLayer('AB', chipR);
+      chip5Both.style.transition = 'opacity 0.4s ease';
+      chip5Both.style.opacity = '0';
+      const t5 = svgEl('text', {
+        x: 0, y: 5,
+        'text-anchor': 'middle', fill: '#2B1B2E',
+        'font-size': Math.max(12, chipR - 1), 'font-weight': 750,
+      });
+      t5.textContent = '5';
+      ch5.append(chip5Solo, chip5Both, t5);
+      chips[5] = ch5;
+      root.appendChild(ch5);
+
+      svg.appendChild(root);
+      s3Dom = { W, H, root, cA, cB, lblA, lblB, cGrp, cChips, unchangedGrp, chips, chip5Solo, chip5Both };
+    }
+
+    const posStart = {
+      1: [cg.A.cx - 0.42 * r3, cg.A.cy - spreadY],
+      2: [cg.A.cx - 0.42 * r3, cg.A.cy + spreadY],
+      3: [midX, cg.A.cy - spreadY],
+      4: [midX, cg.A.cy + spreadY],
+      5: [cg.B.cx + 0.50 * r3, cg.B.cy],
+    };
+    const ringX = cg.grownA.cx - cg.grownA.r * 0.66;
+    const posGrown = {
+      1: [ringX, cg.A.cy - spreadY],
+      2: [ringX, cg.A.cy + spreadY],
+      3: [midX, cg.A.cy - spreadY],
+      4: [midX, cg.A.cy + spreadY],
+      5: [cg.B.cx + 0.08 * r3, cg.B.cy],
+    };
+
+    const setCircleA = (circleGeom) => {
+      s3Dom.cA.setAttribute('cx', circleGeom.cx);
+      s3Dom.cA.setAttribute('cy', circleGeom.cy);
+      s3Dom.cA.setAttribute('r', circleGeom.r);
+      s3Dom.cA.style.cx = `${circleGeom.cx}px`;
+      s3Dom.cA.style.cy = `${circleGeom.cy}px`;
+      s3Dom.cA.style.r = `${circleGeom.r}px`;
+      s3Dom.lblA.style.transform = `translate(${circleGeom.cx}px, ${circleGeom.cy - circleGeom.r - 8}px)`;
+    };
+
+    const setChipPos = (val, xy) => {
+      s3Dom.chips[val].style.transform = `translate(${xy[0]}px, ${xy[1]}px)`;
+    };
+
+    const setChip5Both = (on) => {
+      s3Dom.chip5Both.style.opacity = on ? '1' : '0';
+      s3Dom.chip5Solo.style.opacity = on ? '0' : '1';
+    };
+
+    // Place chips at posStart without initial (0,0)->posStart transition on first build
+    if (!s3Dom.initialized) {
+      s3Dom.initialized = true;
+      [1, 2, 3, 4, 5].forEach((v) => {
+        s3Dom.chips[v].style.transition = 'none';
+        setChipPos(v, posStart[v]);
+      });
+      s3Dom.cA.style.transition = 'none';
+      s3Dom.lblA.style.transition = 'none';
+      setCircleA(cg.A);
+      void s3Dom.root.getBoundingClientRect();
+      [1, 2, 3, 4, 5].forEach((v) => { s3Dom.chips[v].style.transition = ''; });
+      s3Dom.cA.style.transition = '';
+      s3Dom.lblA.style.transition = '';
+    }
+
+    const just = state.s3JustRevealed;
+    state.s3JustRevealed = null;
+
+    // 3a C-circle state
+    if (!state.s3RevealedC) {
+      clearS3Timers();
+      s3Dom.cGrp.style.transition = 'none';
+      s3Dom.cGrp.style.opacity = '0';
+      s3Dom.cGrp.style.transform = 'scale(0.78)';
+      s3Dom.cChips.forEach((ch) => { ch.style.transition = 'none'; ch.style.opacity = '0'; });
+      s3Dom.unchangedGrp.style.transition = 'none';
+      s3Dom.unchangedGrp.style.opacity = '0';
+      void s3Dom.cGrp.getBoundingClientRect();
+      s3Dom.cGrp.style.transition = '';
+      s3Dom.cChips.forEach((ch) => { ch.style.transition = ''; });
+      s3Dom.unchangedGrp.style.transition = '';
+    } else if (just === '3a' && !reducedMotion()) {
+      clearS3Timers();
+      s3Raf = requestAnimationFrame(() => {
+        s3Raf = 0;
+        if (state.step !== 3 || !state.s3RevealedC) return;
+        s3Dom.cGrp.style.opacity = '1';
+        s3Dom.cGrp.style.transform = 'scale(1)';
+      });
+      s3Dom.cChips.forEach((ch, idx) => {
+        s3Timers.push(setTimeout(() => {
+          if (state.step === 3 && state.s3RevealedC) ch.style.opacity = '1';
+        }, 400 + idx * 80));
+      });
+      s3Timers.push(setTimeout(() => {
+        if (state.step === 3 && state.s3RevealedC) s3Dom.unchangedGrp.style.opacity = '1';
+      }, 820));
+    } else {
+      clearS3Timers();
+      s3Dom.cGrp.style.opacity = '1';
+      s3Dom.cGrp.style.transform = 'scale(1)';
+      s3Dom.cChips.forEach((ch) => { ch.style.opacity = '1'; });
+      s3Dom.unchangedGrp.style.opacity = '1';
+    }
+
+    // 3b & 3c circle A + chips 1..5 state
+    if (!state.s3GrownA) {
+      setCircleA(cg.A);
+      setChip5Both(false);
+      [1, 2, 3, 4, 5].forEach((v) => {
+        setChipPos(v, posStart[v]);
+        s3Dom.chips[v].style.opacity = '1';
+      });
+    } else if (just === '3b' && !reducedMotion()) {
+      clearS3Timers();
+      setChip5Both(false);
+      // Step 1: chip 5 slides from B's region to its new spot (0.5 s)
+      s3Raf = requestAnimationFrame(() => {
+        s3Raf = 0;
+        if (state.step !== 3 || !state.s3GrownA) return;
+        setChipPos(5, posGrown[5]);
+      });
+      // Step 2: A grows around B (0.8 s ease-in-out) and 1, 2 glide into left ring
+      s3Timers.push(setTimeout(() => {
+        if (state.step !== 3 || !state.s3GrownA) return;
+        setCircleA(cg.grownA);
+        setChipPos(1, posGrown[1]);
+        setChipPos(2, posGrown[2]);
+      }, 500));
+      // Step 3: after chip 5 has moved and A finished growing, switch 5 to both-ring
+      s3Timers.push(setTimeout(() => {
+        if (state.step === 3 && state.s3GrownA) setChip5Both(true);
+      }, 1300));
+    } else {
+      clearS3Timers();
+      setCircleA(cg.grownA);
+      setChip5Both(true);
+      [1, 2, 3, 4, 5].forEach((v) => setChipPos(v, posGrown[v]));
+      const op12 = state.s3Faded12 ? '0.16' : '1';
+      if (just === '3c' && !reducedMotion()) {
+        s3Raf = requestAnimationFrame(() => {
+          s3Raf = 0;
+          if (state.step !== 3 || !state.s3Faded12) return;
+          s3Dom.chips[1].style.opacity = op12;
+          s3Dom.chips[2].style.opacity = op12;
+        });
+      } else {
+        s3Dom.chips[1].style.opacity = op12;
+        s3Dom.chips[2].style.opacity = op12;
+      }
+      [3, 4, 5].forEach((v) => { s3Dom.chips[v].style.opacity = '1'; });
+    }
+  }
+
+  // ---- Step 4: Tags and Boxes ----
+  function renderStep4Stage() {
+    el.svg.innerHTML = '';
+    el.chipLayer.innerHTML = '';
+    el.refLayer.classList.add('active');
+
+    const fillBox = (box, vals, fadedVals = [], unchanged = false) => {
+      box.innerHTML = '';
+      vals.forEach((v) => {
+        const span = document.createElement('span');
+        const kind = kindOfValue(v, { A: BASE_A, B: BASE_B });
+        span.className = `mini-chip kind-${kind}` + (fadedVals.includes(v) ? ' faded' : '');
+        span.textContent = String(v);
+        box.appendChild(span);
+      });
+      if (unchanged) {
+        const pill = document.createElement('span');
+        pill.className = 'unchanged-pill';
+        pill.textContent = 'unchanged';
+        box.appendChild(pill);
+      }
+    };
+
+    const showCommonTag = state.s4Line >= 1;
+    const showCommonBox = state.s4Part === 2 && state.s4Line >= 1;
+    const shrinkShared = state.s4Part === 1 && state.s4Line >= 2;
+    const shrinkCopy = state.s4Part === 2 && state.s4Line >= 2;
+
+    el.refTagCommon.classList.toggle('hidden', !showCommonTag);
+    el.refBoxCommon.classList.toggle('hidden', !showCommonBox);
+
+    fillBox(el.refBoxA, BASE_A, shrinkShared ? [1, 2] : [], shrinkCopy);
+    fillBox(el.refBoxB, BASE_B);
+    if (showCommonBox) {
+      fillBox(el.refBoxCommon, BASE_A, shrinkCopy ? [1, 2] : []);
+    }
+
+    requestAnimationFrame(() => drawRefArrows());
+  }
+
+  function drawRefArrows() {
+    if (state.step !== 4) return;
+    const svg = el.refSvg;
+    const rect = el.refLayer.getBoundingClientRect();
+    const W = rect.width || state.stageW;
+    const H = rect.height || state.stageH;
+    svg.setAttribute('width', W);
+    svg.setAttribute('height', H);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.innerHTML = '';
+
+    const defs = svgEl('defs');
+    const mkArrow = (id, color) => {
+      const m = svgEl('marker', {
+        id, viewBox: '0 0 10 10', refX: 8, refY: 5,
+        markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse',
+      });
+      m.appendChild(svgEl('path', { d: 'M 0 1.5 L 8.5 5 L 0 8.5 z', fill: color }));
+      defs.appendChild(m);
+    };
+    mkArrow('arr-plum', '#7A3E7D');
+    mkArrow('arr-ink', '#2B1B2E');
+    mkArrow('arr-saff', '#C9861F');
+    mkArrow('arr-bad', '#C23B4A');
+    svg.appendChild(defs);
+
+    const anchor = (tagEl, boxEl, color, markerId, yOff = 0, pulse = false) => {
+      const tr = tagEl.getBoundingClientRect();
+      const br = boxEl.getBoundingClientRect();
+      if (!tr.width || !br.width) return;
+      const x1 = tr.right - rect.left + 4;
+      const y1 = tr.top - rect.top + tr.height / 2;
+      const x2 = br.left - rect.left - 5;
+      const y2 = br.top - rect.top + br.height / 2 + yOff;
+      const cx = (x1 + x2) / 2;
+      const path = svgEl('path', {
+        d: `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`,
+        fill: 'none',
+        stroke: pulse ? '#C23B4A' : color,
+        'stroke-width': pulse ? 4 : 2.6,
+        'marker-end': `url(#${pulse ? 'arr-bad' : markerId})`,
+      });
+      svg.appendChild(path);
+    };
+
+    const pulseBoth = state.s4Part === 1 && state.s4Line === 2;
+    anchor(el.refTagA, el.refBoxA, '#7A3E7D', 'arr-plum', state.s4Part === 1 && state.s4Line >= 1 ? -7 : 0, pulseBoth);
+    anchor(el.refTagB, el.refBoxB, '#C9861F', 'arr-saff');
+
+    if (state.s4Line >= 1) {
+      if (state.s4Part === 1) {
+        anchor(el.refTagCommon, el.refBoxA, '#2B1B2E', 'arr-ink', 7, pulseBoth);
+      } else {
+        anchor(el.refTagCommon, el.refBoxCommon, '#2B1B2E', 'arr-ink');
+      }
+    }
+  }
+
+  // ---- Tray & Chip interaction ----
+  function renderTray(setsForStyle = { A: BASE_A, B: BASE_B }, neutralChips = false) {
+    el.trayChips.innerHTML = '';
+    const sorted = sortNums(state.tray);
+    sorted.forEach((v) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const kind = neutralChips ? 'neutral' : kindOfValue(v, setsForStyle);
+      btn.className = `tray-chip kind-${kind}`;
+      btn.textContent = String(v);
+      btn.dataset.val = String(v);
+      btn.disabled = state.locked || (state.step === 2 && !state.s2Choice);
+      btn.setAttribute('aria-label', `Remove ${v} from the result`);
+      btn.addEventListener('click', () => removeFromTray(v, setsForStyle, neutralChips));
+      el.trayChips.appendChild(btn);
+    });
+
+    el.emptyBtn.setAttribute('aria-pressed', state.emptySelected ? 'true' : 'false');
+    el.emptyBtn.disabled = state.locked || (state.step === 2 && !state.s2Choice);
+
+    const hasInput = state.tray.length > 0 || state.emptySelected;
+    if (state.step === 1 || state.step === 2 || state.step === 3 || state.step === 5) {
+      if (state.taskDone) {
+        el.checkBtn.disabled = false;
+      } else {
+        el.checkBtn.disabled = !hasInput || (state.step === 2 && !state.s2Choice);
+      }
+    }
+  }
+
+  function animateFly(sourceBtn, targetBtn, onArrive) {
+    if (reducedMotion() || !sourceBtn || !targetBtn) {
+      onArrive();
+      return;
+    }
+    const sr = sourceBtn.getBoundingClientRect();
+    const tr = targetBtn.getBoundingClientRect();
+    const clone = sourceBtn.cloneNode(true);
+    clone.classList.add('fly-clone');
+    clone.style.position = 'fixed';
+    clone.style.left = `${sr.left}px`;
+    clone.style.top = `${sr.top}px`;
+    clone.style.width = `${sr.width}px`;
+    clone.style.height = `${sr.height}px`;
+    clone.style.transform = 'none';
+    document.body.appendChild(clone);
+
+    requestAnimationFrame(() => {
+      const dx = tr.left - sr.left;
+      const dy = tr.top - sr.top;
+      clone.style.transform = `translate(${dx}px, ${dy}px)`;
+    });
+    setTimeout(() => {
+      clone.remove();
+      onArrive();
+    }, 300);
+  }
+
+  function onSourceChipClick(val, sourceBtn, setsForStyle, neutralChips = false) {
+    if (state.locked) return;
+    if (state.step === 2 && !state.s2Choice) return;
+
+    if (state.tray.includes(val)) {
+      const existing = el.trayChips.querySelector(`[data-val="${val}"]`);
+      if (existing) {
+        const cls = reducedMotion() ? 'static-bad-ring' : 'shake';
+        existing.classList.remove('shake', 'static-bad-ring');
+        void existing.offsetWidth;
+        existing.classList.add(cls);
+        setTimeout(() => existing.classList.remove(cls), 600);
+      }
+      setFeedback('Already in the set. A set holds each element once.', 'bad');
+      return;
+    }
+
+    state.emptySelected = false;
+    state.tray = sortNums([...state.tray, val]);
+    renderTray(setsForStyle, neutralChips);
+
+    const destBtn = el.trayChips.querySelector(`[data-val="${val}"]`);
+    if (destBtn && !reducedMotion()) {
+      destBtn.style.opacity = '0';
+      animateFly(sourceBtn, destBtn, () => {
+        if (destBtn) destBtn.style.opacity = '1';
+      });
+    }
+  }
+
+  function removeFromTray(val, setsForStyle, neutralChips = false) {
+    if (state.locked) return;
+    const prevIdx = state.tray.indexOf(val);
+    state.tray = state.tray.filter((x) => x !== val);
+    renderTray(setsForStyle, neutralChips);
+
+    const remaining = [...el.trayChips.querySelectorAll('button')];
+    if (remaining.length > 0) {
+      const nextEl = remaining[Math.min(prevIdx, remaining.length - 1)];
+      nextEl.focus();
+    } else {
+      el.emptyBtn.focus();
+    }
+  }
+
+  el.emptyBtn.addEventListener('click', () => {
+    if (state.locked) return;
+    if (state.step === 2 && !state.s2Choice) return;
+    state.tray = [];
+    state.emptySelected = !state.emptySelected;
+    const sets = state.step === 3 ? { A: BASE_A, B: BASE_B } : (currentTask()?.sets || { A: BASE_A, B: BASE_B });
+    renderTray(sets, state.step === 3);
+  });
+
+  // ---- Check & Show answer ----
+  function runCheck() {
+    if (state.taskDone) {
+      advanceWithinStep();
+      return;
+    }
+
+    const given = state.emptySelected ? [] : sortNums(state.tray);
+
+    if (state.step === 3) {
+      const part = STEP3_PARTS[state.s3Idx];
+      if (eq(given, part.expected)) {
+        finishStep3Part(part, false);
+      } else {
+        state.wrongTries += 1;
+        if (state.wrongTries >= 2) el.showAnswerBtn.hidden = false;
+        const gKey = given.join(',');
+        if (part.specialWrong && gKey === part.specialWrong.key) {
+          setFeedback(part.specialWrong.msg, 'bad');
+        } else {
+          setFeedback('Not quite. Follow the code one line at a time.', 'bad');
+        }
+      }
+      return;
+    }
+
+    const task = currentTask();
+    if (!task) return;
+    const exp = answer(task);
+    if (eq(given, exp)) {
+      finishStandardTask(task, false);
+    } else {
+      state.wrongTries += 1;
+      if (state.wrongTries >= 2) el.showAnswerBtn.hidden = false;
+      if (state.step === 5) state.streak = 0;
+      setFeedback(feedbackFor(task, given), 'bad');
+      updateTaskMeta();
+    }
+  }
+
+  function runShowAnswer() {
+    if (state.step === 3) {
+      const part = STEP3_PARTS[state.s3Idx];
+      state.tray = [...part.expected];
+      state.emptySelected = part.expected.length === 0;
+      renderTray({ A: BASE_A, B: BASE_B }, true);
+      finishStep3Part(part, true);
+      return;
+    }
+
+    const task = currentTask();
+    if (!task) return;
+    const exp = answer(task);
+    state.tray = [...exp];
+    state.emptySelected = exp.length === 0;
+    if (state.step === 5) state.streak = 0;
+    renderTray(task.sets, false);
+    finishStandardTask(task, true);
+  }
+
+  function finishStandardTask(task, wasShown) {
+    state.taskDone = true;
+    state.locked = true;
+    el.showAnswerBtn.hidden = true;
+    const exp = answer(task);
+
+    if (state.step === 1) {
+      setFeedback(
+        wasShown ? `Here is the answer. ${shortRule(task)}.` : correctMsg(task),
+        'ok'
+      );
+      showCode(`${methodName(task)} \u2192 ${fmtCode(exp)}`);
+      state.s1Thumbs[state.s1Idx] = { opKey: opToKey(task), sym: symbolText(task) };
+      renderThumbs();
+
+      if (state.s1Idx < STEP1_TASKS.length - 1) {
+        el.checkBtn.textContent = 'Next task';
+      } else {
+        state.completedSteps.add(1);
+        state.maxReached = Math.max(state.maxReached, 2);
+        el.checkBtn.hidden = true;
+        setFeedback('Union: in either. Intersection: in both. Difference: in the first, not the second.', 'ok');
+      }
+    } else if (state.step === 2) {
+      state.completedSteps.add(2);
+      state.maxReached = Math.max(state.maxReached, 3);
+      el.checkBtn.hidden = true;
+      const prefix = wasShown
+        ? 'Here is the answer. Difference: in B, not in A.'
+        : (state.s2Choice === 'yes'
+          ? 'Surprise: the order matters for difference.'
+          : 'Right, the order matters.');
+      setFeedback(`${prefix} Union and intersection give the same result in either order. Difference does not.`, 'ok');
+      showCode(
+        `<span class="code-muted">A.difference(B) \u2192 ${fmtCode(diff(BASE_A, BASE_B))}</span>` +
+        `B.difference(A) \u2192 ${fmtCode(exp)}`,
+        true
+      );
+    } else if (state.step === 5) {
+      if (!wasShown) state.streak += 1;
+      setFeedback(
+        wasShown ? `Here is the answer. ${shortRule(task)}.` : correctMsg(task),
+        'ok'
+      );
+      showCode(`${methodName(task)} \u2192 ${fmtCode(exp)}`);
+      el.checkBtn.textContent = 'New sets';
+      updateTaskMeta();
+    }
+
+    renderTray(task.sets, false);
+    renderVennStage();
+    updateNavButtons();
+  }
+
+  function finishStep3Part(part, wasShown) {
+    state.taskDone = true;
+    state.locked = true;
+    el.showAnswerBtn.hidden = true;
+
+    if (part.id === '3a') {
+      state.s3RevealedC = true;
+      state.s3JustRevealed = '3a';
+    } else if (part.id === '3b') {
+      state.s3GrownA = true;
+      state.s3JustRevealed = '3b';
+    } else if (part.id === '3c') {
+      state.s3Faded12 = true;
+      state.s3JustRevealed = '3c';
+    }
+
+    showCode(part.revealCode);
+
+    if (state.s3Idx < STEP3_PARTS.length - 1) {
+      setFeedback(
+        wasShown ? `Here is the answer: ${fmt(part.expected)}.` : part.okMsg,
+        'ok'
+      );
+      el.checkBtn.textContent = 'Next part';
+    } else {
+      state.completedSteps.add(3);
+      state.maxReached = Math.max(state.maxReached, 4);
+      el.checkBtn.hidden = true;
+      const head = wasShown ? `Here is the answer: ${fmt(part.expected)}.` : part.okMsg;
+      setFeedback(`${head} TraSet operations return a new set. java.util operations change the calling set.`, 'ok');
+    }
+
+    renderTray({ A: BASE_A, B: BASE_B }, true);
+    renderVennStage();
+    updateNavButtons();
+  }
+
+  function advanceWithinStep() {
+    if (state.step === 1 && state.s1Idx < STEP1_TASKS.length - 1) {
+      state.s1Idx += 1;
+      resetTaskFlags();
+      renderCurrentStep();
+    } else if (state.step === 3 && state.s3Idx < STEP3_PARTS.length - 1) {
+      state.s3Idx += 1;
+      if (state.s3Idx === 1) state.s3RevealedC = false;
+      resetTaskFlags();
+      renderCurrentStep();
+    } else if (state.step === 5) {
+      state.practiceCurrent = nextPracticeDeal(state, state.stageW, state.stageH);
+      resetTaskFlags();
+      renderCurrentStep();
+    }
+  }
+
+  el.checkBtn.addEventListener('click', runCheck);
+  el.showAnswerBtn.addEventListener('click', runShowAnswer);
+
+  // ---- Step 4 logic ----
+  function renderStep4Controls() {
+    const lines = state.s4Part === 1
+      ? ['Set<Integer> common = A;', 'common.retainAll(B);']
+      : ['Set<Integer> common = new TreeSet<>(A);', 'common.retainAll(B);'];
+
+    el.step4Code.hidden = false;
+    el.step4Code.innerHTML = lines
+      .map((ln, idx) => {
+        const cls = idx < state.s4Line ? 'done' : (idx === state.s4Line ? 'active' : '');
+        return `<div class="code-line-item ${cls}">${ln.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+      })
+      .join('');
+
+    el.actionRow.hidden = false;
+    el.checkBtn.hidden = false;
+    el.showAnswerBtn.hidden = true;
+
+    if (state.s4Part === 1) {
+      if (state.s4Line === 0) {
+        el.choiceRow.hidden = true;
+        el.checkBtn.textContent = 'Run next line';
+        el.checkBtn.disabled = false;
+      } else if (state.s4Line === 1) {
+        el.choiceRow.hidden = false;
+        el.choiceRow.innerHTML = '';
+        const qLbl = document.createElement('span');
+        qLbl.style.cssText = 'width:100%;font-weight:700;';
+        qLbl.textContent = 'After common.retainAll(B), what does A hold?';
+        el.choiceRow.appendChild(qLbl);
+
+        [
+          { key: 'orig', label: '{1, 2, 3, 4}' },
+          { key: 'shrunk', label: '{3, 4}' },
+        ].forEach((opt) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'choice-btn' + (state.s4Prediction === opt.key ? ' picked' : '');
+          b.textContent = opt.label;
+          b.addEventListener('click', () => {
+            state.s4Prediction = opt.key;
+            renderStep4Controls();
+          });
+          el.choiceRow.appendChild(b);
+        });
+
+        el.checkBtn.textContent = 'Run next line';
+        el.checkBtn.disabled = !state.s4Prediction;
+      } else {
+        el.choiceRow.hidden = true;
+        el.checkBtn.textContent = 'Reset and fix';
+        el.checkBtn.disabled = false;
+      }
+    } else {
+      el.choiceRow.hidden = true;
+      if (state.s4Line < 2) {
+        el.checkBtn.textContent = 'Run next line';
+        el.checkBtn.disabled = false;
+      } else {
+        el.checkBtn.hidden = true;
+        el.cheatWrap.hidden = false;
+      }
+    }
+  }
+
+  function onStep4Action() {
+    if (state.s4Part === 1) {
+      if (state.s4Line === 0) {
+        state.s4Line = 1;
+        setFeedback('common points to the same set as A.');
+      } else if (state.s4Line === 1) {
+        state.s4Line = 2;
+        if (state.s4Prediction === 'orig') {
+          setFeedback('common and A are two names for one set, so A shrank too.', 'bad');
+        } else {
+          setFeedback('Right. One set, two names.', 'ok');
+        }
+      } else {
+        state.s4Part = 2;
+        state.s4Line = 0;
+        state.s4Prediction = null;
+        setFeedback('Now copy first, then change the copy.');
+      }
+    } else {
+      if (state.s4Line === 0) {
+        state.s4Line = 1;
+        setFeedback('new TreeSet<>(A) creates a separate copy.');
+      } else if (state.s4Line === 1) {
+        state.s4Line = 2;
+        state.s4Done = true;
+        state.completedSteps.add(4);
+        state.maxReached = Math.max(state.maxReached, 5);
+        setFeedback('TraSet does not need this: A.intersection(B) already returns a new set.', 'ok');
+      }
+    }
+    renderStep4Stage();
+    renderStep4Controls();
+    if (state.step === 4) {
+      el.taskQuestion.textContent = state.s4Part === 1
+        ? 'Two names for one set?'
+        : 'Copy first, then change the copy.';
+    }
+    updateNavButtons();
+  }
+
+  // Override checkBtn click for step 4 seamlessly
+  el.checkBtn.removeEventListener('click', runCheck);
+  el.checkBtn.addEventListener('click', () => {
+    if (state.step === 4) onStep4Action();
+    else runCheck();
+  });
+
+  // ---- Render step & UI ----
+  function resetTaskFlags() {
+    state.tray = [];
+    state.emptySelected = false;
+    state.wrongTries = 0;
+    state.taskDone = false;
+    state.locked = false;
+    el.showAnswerBtn.hidden = true;
+    el.checkBtn.hidden = false;
+    el.checkBtn.textContent = 'Check';
+    setFeedback('');
+    hideCode();
+  }
+
+  function renderThumbs() {
+    if (state.step !== 1 || state.s1Thumbs.length === 0) {
+      el.thumbStrip.hidden = true;
+      el.thumbStrip.innerHTML = '';
+      return;
+    }
+    el.thumbStrip.hidden = false;
+    el.thumbStrip.innerHTML = '';
+    state.s1Thumbs.forEach((th) => {
+      if (!th) return;
+      const item = document.createElement('div');
+      item.className = 'thumb-item';
+      item.appendChild(shadeThumb(th.opKey));
+      const sp = document.createElement('span');
+      sp.textContent = th.sym;
+      item.appendChild(sp);
+      el.thumbStrip.appendChild(item);
+    });
+  }
+
+  function updateTaskMeta() {
+    if (state.step === 1) {
+      el.taskMeta.textContent = `${state.s1Idx + 1} of ${STEP1_TASKS.length}`;
+    } else if (state.step === 3) {
+      el.taskMeta.textContent = `${state.s3Idx + 1} of ${STEP3_PARTS.length}`;
+    } else if (state.step === 5) {
+      el.taskMeta.innerHTML = '';
+      const streak = document.createElement('span');
+      streak.textContent = `${state.streak} in a row`;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-secondary';
+      btn.textContent = 'New sets';
+      btn.addEventListener('click', () => {
+        state.practiceCurrent = nextPracticeDeal(state, state.stageW, state.stageH);
+        resetTaskFlags();
+        renderCurrentStep();
+      });
+      el.taskMeta.append(streak, btn);
+    } else {
+      el.taskMeta.textContent = '';
+    }
+  }
+
+  function updateNavButtons() {
+    el.stepBtns.forEach((b) => {
+      const n = parseInt(b.dataset.step, 10);
+      b.disabled = n > state.maxReached;
+      if (n === state.step) b.setAttribute('aria-current', 'step');
+      else b.removeAttribute('aria-current');
+    });
+
+    el.backBtn.disabled = state.step <= 1;
+    const canNext = state.step < 5 && (state.completedSteps.has(state.step) || state.maxReached > state.step);
+    el.nextBtn.disabled = !canNext;
+  }
+
+  function renderStep3Palette() {
+    el.paletteRow.innerHTML = '';
+    [1, 2, 3, 4, 5].forEach((v) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tray-chip kind-neutral';
+      btn.textContent = String(v);
+      btn.disabled = state.locked;
+      btn.setAttribute('aria-label', `Add ${v} to A after`);
+      btn.addEventListener('click', () => onSourceChipClick(v, btn, { A: BASE_A, B: BASE_B }, true));
+      el.paletteRow.appendChild(btn);
+    });
+  }
+
+  function renderCurrentStep() {
+    el.refLayer.classList.remove('active');
+    el.thumbStrip.hidden = true;
+    el.choiceRow.hidden = true;
+    el.step4Code.hidden = true;
+    el.paletteRow.hidden = true;
+    el.cheatWrap.hidden = true;
+    el.trayWrap.hidden = false;
+    el.declLine.textContent = '';
+
+    if (state.step === 1) {
+      const t = STEP1_TASKS[state.s1Idx];
+      el.taskQuestion.textContent = `Which elements are in ${symbolText(t)}?`;
+      el.methodPill.textContent = methodName(t);
+      el.methodPill.hidden = false;
+      el.trayLabel.textContent = 'Result';
+      renderThumbs();
+      renderTray(t.sets, false);
+      renderVennStage();
+    } else if (state.step === 2) {
+      el.taskQuestion.textContent = state.s2Choice
+        ? 'Now tap the elements of B \\ A.'
+        : 'Will B \\ A give the same result as A \\ B?';
+      el.methodPill.textContent = 'B.difference(A)';
+      el.methodPill.hidden = false;
+      el.trayLabel.textContent = 'Result';
+
+      el.choiceRow.hidden = false;
+      el.choiceRow.innerHTML = '';
+      [
+        { k: 'yes', label: 'Yes' },
+        { k: 'no', label: 'No' },
+      ].forEach((opt) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'choice-btn' + (state.s2Choice === opt.k ? ' picked' : '');
+        b.textContent = opt.label;
+        b.disabled = state.taskDone;
+        b.addEventListener('click', () => {
+          state.s2Choice = opt.k;
+          renderCurrentStep();
+        });
+        el.choiceRow.appendChild(b);
+      });
+
+      renderTray(STEP2_TASK.sets, false);
+      renderVennStage();
+    } else if (state.step === 3) {
+      const p = STEP3_PARTS[state.s3Idx];
+      el.declLine.textContent = p.decl;
+      el.taskQuestion.textContent = 'What does A hold afterwards?';
+      el.methodPill.textContent = p.code;
+      el.methodPill.hidden = false;
+      el.trayLabel.textContent = 'A after';
+      if (p.hint && !state.taskDone) setFeedback(p.hint);
+      el.paletteRow.hidden = false;
+      renderStep3Palette();
+      renderTray({ A: BASE_A, B: BASE_B }, true);
+      renderVennStage();
+    } else if (state.step === 4) {
+      el.trayWrap.hidden = true;
+      el.taskQuestion.textContent = state.s4Part === 1
+        ? 'Two names for one set?'
+        : 'Copy first, then change the copy.';
+      el.methodPill.hidden = true;
+      hideCode();
+      renderStep4Stage();
+      renderStep4Controls();
+    } else if (state.step === 5) {
+      if (!state.practiceCurrent) {
+        state.practiceCurrent = nextPracticeDeal(state, state.stageW, state.stageH);
+      }
+      const t = state.practiceCurrent.task;
+      el.taskQuestion.textContent = `Which elements are in ${symbolText(t)}?`;
+      el.methodPill.textContent = methodName(t);
+      el.methodPill.hidden = false;
+      el.trayLabel.textContent = 'Result';
+      renderTray(t.sets, false);
+      renderVennStage();
+    }
+
+    updateTaskMeta();
+    updateNavButtons();
+  }
+
+  function goToStep(n) {
+    if (n < 1 || n > 5 || n > state.maxReached) return;
+    state.step = n;
+    resetTaskFlags();
+    if (n === 1) {
+      state.s1Idx = 0;
+      state.s1Thumbs = [];
+    } else if (n === 2) {
+      state.s2Choice = null;
+    } else if (n === 3) {
+      state.s3Idx = 0;
+      state.s3RevealedC = false;
+      state.s3GrownA = false;
+      state.s3Faded12 = false;
+    } else if (n === 4) {
+      state.s4Part = 1;
+      state.s4Line = 0;
+      state.s4Prediction = null;
+      state.s4Done = false;
+    } else if (n === 5) {
+      state.practiceCurrent = nextPracticeDeal(state, state.stageW, state.stageH);
+    }
+    renderCurrentStep();
+  }
+
+  el.stepBtns.forEach((b) => {
+    b.addEventListener('click', () => goToStep(parseInt(b.dataset.step, 10)));
+  });
+  el.backBtn.addEventListener('click', () => goToStep(state.step - 1));
+  el.nextBtn.addEventListener('click', () => {
+    if (state.step < 5) goToStep(state.step + 1);
+  });
+
+  // ResizeObserver keeps #stage height strictly fixed per width
+  let resizeRaf = 0;
+  const ro = new ResizeObserver((entries) => {
+    const w = Math.round(entries[0].contentRect.width);
+    if (!w) return;
+    const h = Math.round(Math.max(250, Math.min(340, 0.62 * w)));
+    state.stageW = w;
+    state.stageH = h;
+    el.stage.style.height = `${h}px`;
+    cancelAnimationFrame(resizeRaf);
+    resizeRaf = requestAnimationFrame(() => {
+      if (state.step === 4) drawRefArrows();
+      else renderVennStage();
+    });
+  });
+  ro.observe(el.stage);
+
+  // Initial measure & render
+  const initW = Math.round(el.stage.getBoundingClientRect().width) || 600;
+  const initH = Math.round(Math.max(250, Math.min(340, 0.62 * initW)));
+  state.stageW = initW;
+  state.stageH = initH;
+  el.stage.style.height = `${initH}px`;
+  renderCurrentStep();
+
+  // ---- Self-test harness (?selftest=1) ----
+  if (params.get('selftest') === '1') {
+    const out = document.getElementById('selftest');
+    out.style.display = 'block';
+    const results = [];
+    const assert = (name, cond, detail = '') => {
+      const line = `${cond ? 'PASS' : 'FAIL'}: ${name}${detail ? ' — ' + detail : ''}`;
+      results.push(line);
+      if (!cond) console.error(line);
+      else console.log(line);
+    };
+
+    const sAB = { A: [1, 2, 3, 4], B: [3, 4, 5] };
+    assert('Example union', eq(answer({ op: 'union', X: 'A', Y: 'B', sets: sAB }), [1, 2, 3, 4, 5]));
+    assert('Example inter', eq(answer({ op: 'inter', X: 'A', Y: 'B', sets: sAB }), [3, 4]));
+    assert('Example A\\B', eq(answer({ op: 'diff', X: 'A', Y: 'B', sets: sAB }), [1, 2]));
+    assert('Example B\\A', eq(answer({ op: 'diff', X: 'B', Y: 'A', sets: sAB }), [5]));
+    assert('Example addAll', eq(union(sAB.A, sAB.B), [1, 2, 3, 4, 5]));
+    assert('Example addAll then retainAll', eq(inter(union(sAB.A, sAB.B), sAB.B), [3, 4, 5]));
+
+    const tUnion = { op: 'union', X: 'A', Y: 'B', sets: sAB };
+    const tInter = { op: 'inter', X: 'A', Y: 'B', sets: sAB };
+    const tDiff = { op: 'diff', X: 'A', Y: 'B', sets: sAB };
+    assert('FB union missing 5', feedbackFor(tUnion, [1, 2, 3, 4]) === 'Almost. Union takes elements from B too.');
+    assert('FB union missing 1/2', feedbackFor(tUnion, [2, 3, 4, 5]) === 'Almost. Union keeps everything from A too.');
+    assert('FB inter extra', feedbackFor(tInter, [2, 3, 4]) === 'Only elements in both circles belong here.');
+    assert('FB inter extra 5', feedbackFor(tInter, [3, 4, 5]) === 'Only elements in both circles belong here.');
+    assert('FB diff overlap', feedbackFor(tDiff, [1, 2, 3]) === '3 and 4 are also in B, so they are taken away.');
+    assert('FB diff 5', feedbackFor(tDiff, [1, 2, 5]) === '5 was never in A. Difference only keeps elements of A.');
+    assert('FB fallback', feedbackFor(tInter, [3]) === 'Not quite. Look at which region the question asks about.');
+
+    assert('3a expected', eq(STEP3_PARTS[0].expected, [1, 2, 3, 4]));
+    assert('3b expected', eq(STEP3_PARTS[1].expected, [1, 2, 3, 4, 5]));
+    assert('3c expected', eq(STEP3_PARTS[2].expected, [3, 4, 5]));
+    assert('3a wrong msg', STEP3_PARTS[0].specialWrong.msg === 'union builds a new set C. A itself is untouched.');
+    assert('3b wrong msg', STEP3_PARTS[1].specialWrong.msg === 'addAll does not build a new set. It writes into A itself.');
+    assert('3c wrong msg', STEP3_PARTS[2].specialWrong.msg === 'That is the intersection of the original sets. But addAll already changed A.');
+
+    let allShapesOk = true;
+    let emptyOk = true;
+    let layout340Ok = true;
+    let layout1000Ok = true;
+    for (let trial = 0; trial < 300; trial++) {
+      const deck = createPracticeDeck();
+      const shapes = new Set(deck.map((d) => d.shape));
+      if (shapes.size !== 4) allShapesOk = false;
+      if (!deck.some((d) => answer(d.task).length === 0)) emptyOk = false;
+      for (const d of deck) {
+        if (!placeChips(d.task.sets, layout(d.shape, 340, 250))) layout340Ok = false;
+        if (!placeChips(d.task.sets, layout(d.shape, 1000, 340))) layout1000Ok = false;
+      }
+    }
+    assert('300 practice: all 4 shapes in first 4', allShapesOk);
+    assert('300 practice: >=1 empty set in first 4', emptyOk);
+    assert('300 practice: placeChips W=340', layout340Ok);
+    assert('300 practice: placeChips W=1000', layout1000Ok);
+
+    out.textContent = results.join('\n');
+  }
+})();
+</script>
+</body>
+</html>
