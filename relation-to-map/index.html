@@ -1,0 +1,1966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>From a set to a relation to a map</title>
+<style>
+  :root {
+    --bg: #1F2428;
+    --panel: #2A3036;
+    --ink: #E8E6E1;
+    --muted: #8A9096;
+    --amber: #F2A900;
+    --sky: #5BB8F5;
+    --coral: #FF6B5B;
+
+    --amber-tint: rgba(242, 169, 0, 0.14);
+    --sky-tint: rgba(91, 184, 245, 0.14);
+    --coral-tint: rgba(255, 107, 91, 0.14);
+    --border-subtle: rgba(138, 144, 150, 0.35);
+
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SFMono-Regular", Consolas, "Cascadia Mono", "Liberation Mono", Menlo, monospace;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+
+  html {
+    color-scheme: dark;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  body {
+    margin: 0;
+    padding: 12px 12px 28px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.45;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (min-width: 600px) {
+    body {
+      padding: 18px 20px 34px;
+    }
+  }
+
+  .app {
+    max-width: 780px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .mono {
+    font-family: var(--mono);
+  }
+
+  /* Header & progress */
+  .page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 4px 2px;
+  }
+
+  .page-title {
+    margin: 0;
+    font-size: clamp(18px, 3.8vw, 22px);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+
+  .progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .progress-label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .progress-dots {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .progress-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: transparent;
+    border: 2px solid var(--muted);
+    transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
+  }
+
+  .progress-dot.is-done {
+    background: var(--sky);
+    border-color: var(--sky);
+  }
+
+  .progress-dot.is-active {
+    background: var(--amber);
+    border-color: var(--amber);
+    transform: scale(1.18);
+  }
+
+  /* Main card */
+  .step-card {
+    background: var(--panel);
+    border: 1.5px solid var(--border-subtle);
+    border-radius: 16px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  @media (min-width: 600px) {
+    .step-card {
+      padding: 18px 20px;
+      gap: 14px;
+    }
+  }
+
+  .step-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .step-title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  /* Buttons */
+  button {
+    font-family: inherit;
+    color: var(--ink);
+    background: var(--bg);
+    border: 2px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 10px 14px;
+    min-height: 44px;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 120ms ease, opacity 160ms ease, box-shadow 160ms ease;
+  }
+
+  button:focus-visible {
+    outline: 3px solid var(--amber);
+    outline-offset: 2px;
+  }
+
+  button:not(:disabled):active {
+    transform: scale(0.97);
+  }
+
+  button:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+  }
+
+  .btn-reset {
+    background: transparent;
+    border-color: var(--border-subtle);
+    color: var(--ink);
+    font-size: 13.5px;
+    padding: 8px 12px;
+    flex-shrink: 0;
+  }
+
+  .btn-primary {
+    background: var(--amber);
+    border-color: var(--amber);
+    color: var(--bg);
+    font-weight: 700;
+    padding: 10px 20px;
+  }
+
+  .btn-primary:disabled {
+    background: var(--bg);
+    border-color: var(--border-subtle);
+    color: var(--muted);
+    opacity: 0.55;
+  }
+
+  .btn-secondary {
+    background: var(--bg);
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+
+  .btn-secondary.is-tried {
+    border-color: var(--sky);
+    color: var(--sky);
+    background: var(--sky-tint);
+  }
+
+  .btn-sky {
+    background: var(--sky-tint);
+    border-color: var(--sky);
+    color: var(--sky);
+  }
+
+  .btn-coral {
+    background: var(--coral-tint);
+    border-color: var(--coral);
+    color: var(--coral);
+  }
+
+  @keyframes pulse-amber {
+    0% { box-shadow: 0 0 0 0 rgba(242, 169, 0, 0.75); }
+    65% { box-shadow: 0 0 0 11px rgba(242, 169, 0, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(242, 169, 0, 0); }
+  }
+
+  .pulse-amber {
+    animation: pulse-amber 900ms ease-out 1;
+  }
+
+  @keyframes shake-x {
+    0%, 100% { transform: translateX(0); }
+    22% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    78% { transform: translateX(-3px); }
+  }
+
+  .shake {
+    animation: shake-x 320ms ease-in-out;
+  }
+
+  /* Instruction line */
+  .instruction {
+    margin: 0;
+    padding: 9px 12px;
+    border-left: 4px solid var(--amber);
+    background: var(--bg);
+    border-radius: 0 10px 10px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  /* Transcript card in Step 1 */
+  .transcript-card {
+    background: var(--bg);
+    border: 1.5px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .transcript-heading {
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+  }
+
+  .transcript-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+  }
+
+  .transcript-row {
+    font-size: 14px;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .transcript-pair {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px;
+    border-radius: 8px;
+    background: var(--panel);
+    border: 1px solid var(--border-subtle);
+    font-size: 13.5px;
+  }
+
+  .transcript-pair.is-done {
+    border-color: var(--sky);
+    color: var(--sky);
+  }
+
+  /* Two-column diagram stage */
+  .diagram-stage {
+    position: relative;
+    background: var(--bg);
+    border: 1.5px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 14px 10px;
+    overflow: hidden;
+  }
+
+  @media (min-width: 600px) {
+    .diagram-stage {
+      padding: 18px 16px;
+    }
+  }
+
+  .arrow-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    transition: opacity 200ms ease;
+  }
+
+  .columns-grid {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr);
+    align-items: start;
+    gap: 4px;
+  }
+
+  @media (min-width: 520px) {
+    .columns-grid {
+      grid-template-columns: minmax(0, 1fr) 88px minmax(0, 1fr);
+      gap: 8px;
+    }
+  }
+
+  .step2-grid {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto;
+    row-gap: 10px;
+    column-gap: 4px;
+    align-items: center;
+  }
+
+  @media (min-width: 520px) {
+    .step2-grid {
+      grid-template-columns: minmax(0, 1fr) 88px minmax(0, 1fr);
+      column-gap: 8px;
+    }
+  }
+
+  .col-box {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: transform 400ms ease-in-out, opacity 150ms ease;
+  }
+
+  .col-box.is-sliding {
+    opacity: 0.55;
+  }
+
+  .col-label {
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 2px;
+  }
+
+  .pill-btn {
+    width: 100%;
+    min-height: 46px;
+    padding: 8px 10px;
+    border-radius: 999px;
+    background: var(--panel);
+    border: 2px solid var(--border-subtle);
+    color: var(--ink);
+    font-size: 14.5px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-align: center;
+    word-break: break-word;
+  }
+
+  .record-card-btn {
+    border-radius: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 8px 10px;
+    gap: 2px;
+    text-align: left;
+    min-height: 54px;
+  }
+
+  .record-main {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.25;
+  }
+
+  .record-tag {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 1px 6px;
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--muted);
+    border: 1px solid var(--border-subtle);
+  }
+
+  .record-tag.is-new {
+    color: var(--sky);
+    border-color: var(--sky);
+  }
+
+  .pill-btn.is-selected {
+    border-color: var(--amber);
+    background: var(--amber-tint);
+    color: var(--amber);
+  }
+
+  .pill-btn.is-coral {
+    border-color: var(--coral);
+    background: var(--coral-tint);
+    color: var(--coral);
+  }
+
+  .pill-btn.is-sky {
+    border-color: var(--sky);
+    background: var(--sky-tint);
+    color: var(--sky);
+  }
+
+  .pill-btn.is-sky:disabled,
+  .pill-btn.is-coral:disabled,
+  .pair-chip.is-coral:disabled {
+    opacity: 0.94;
+  }
+
+  .pill-btn.is-static:disabled,
+  .pair-chip.is-static:disabled {
+    opacity: 1;
+    cursor: default;
+  }
+
+  /* Keep short pill labels (e.g. "DSA1") on one line next to their badge */
+  .pill-btn:not(.record-card-btn) > span:first-child {
+    white-space: nowrap;
+  }
+
+  @media (max-width: 340px) {
+    .pill-btn:not(.record-card-btn) {
+      padding: 8px 6px;
+      gap: 4px;
+    }
+    .pill-btn .mini-badge {
+      padding: 1px 4px;
+      font-size: 11px;
+    }
+  }
+
+  .pill-btn.is-replaced {
+    opacity: 0.38;
+  }
+
+  /* Inline pill status badge */
+  .mini-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.3;
+    flex-shrink: 0;
+  }
+
+  .mini-badge.coral {
+    background: var(--coral);
+    color: var(--bg);
+  }
+
+  .mini-badge.sky {
+    background: var(--sky);
+    color: var(--bg);
+  }
+
+  /* Action strip inside stage (Flip, get buttons, code chip) */
+  .stage-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 2px;
+  }
+
+  .code-chip {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: var(--bg);
+    border: 2px solid var(--sky);
+    font-family: var(--mono);
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ink);
+    max-width: 100%;
+    word-break: break-word;
+  }
+
+  .code-chip.is-null {
+    border-color: var(--muted);
+  }
+
+  /* Step 3 cards */
+  .classify-card {
+    background: var(--bg);
+    border: 1.5px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .classify-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .card-counter {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  .card-name {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .pairs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .pair-chip {
+    min-height: 46px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--panel);
+    border: 2px solid var(--border-subtle);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 13.5px;
+    font-weight: 700;
+    text-align: center;
+    word-break: break-word;
+  }
+
+  .pair-chip.is-selected {
+    border-color: var(--amber);
+    background: var(--amber-tint);
+    color: var(--amber);
+  }
+
+  .pair-chip.is-coral {
+    border-color: var(--coral);
+    background: var(--coral-tint);
+    color: var(--coral);
+  }
+
+  .verdict-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .verdict-buttons button {
+    font-size: 15px;
+    min-height: 48px;
+  }
+
+  /* Fixed message area (never jumps layout) */
+  .message-area {
+    min-height: 122px;
+    background: var(--bg);
+    border: 1.5px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  @media (min-width: 520px) {
+    .message-area {
+      min-height: 94px;
+    }
+  }
+
+  .message-area.is-coral {
+    border-color: var(--coral);
+    background: rgba(255, 107, 91, 0.08);
+  }
+
+  .message-area.is-sky {
+    border-color: var(--sky);
+    background: rgba(91, 184, 245, 0.08);
+  }
+
+  .message-area.is-amber {
+    border-color: var(--amber);
+    background: rgba(242, 169, 0, 0.08);
+  }
+
+  .verdict-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    align-self: flex-start;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+
+  .verdict-tag.sky {
+    background: var(--sky);
+    color: var(--bg);
+  }
+
+  .verdict-tag.coral {
+    background: var(--coral);
+    color: var(--bg);
+  }
+
+  .message-text {
+    margin: 0;
+    font-size: 14.5px;
+    color: var(--ink);
+  }
+
+  /* Footer */
+  .step-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .footer-spacer {
+    flex: 1;
+  }
+
+  /* Summary view */
+  .summary-prose {
+    margin: 0;
+    font-size: 15.5px;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+
+  .adt-box {
+    background: var(--bg);
+    border: 1.5px solid var(--sky);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .adt-title {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--sky);
+  }
+
+  .adt-ops {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .adt-ops li {
+    font-family: var(--mono);
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 8px;
+    background: var(--panel);
+    border: 1px solid var(--border-subtle);
+    color: var(--ink);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="page-header">
+    <h1 class="page-title">From a set to a relation to a map</h1>
+    <div class="progress-wrap" aria-label="Progress">
+      <span class="progress-label" id="progressLabel">Step 1 of 3</span>
+      <div class="progress-dots" id="progressDots" aria-hidden="true">
+        <span class="progress-dot is-active"></span>
+        <span class="progress-dot"></span>
+        <span class="progress-dot"></span>
+      </div>
+    </div>
+  </header>
+
+  <section class="step-card" id="stepCard" aria-live="off">
+    <div class="step-top">
+      <h2 class="step-title" id="stepTitle">Step 1: Draw who passed what</h2>
+      <button type="button" class="btn-reset" id="resetBtn">Reset step</button>
+    </div>
+
+    <p class="instruction" id="instructionLine" aria-live="polite"></p>
+
+    <!-- STEP 1 STAGE -->
+    <div id="stageStep1" hidden>
+      <div class="transcript-card" aria-label="Transcript">
+        <div class="transcript-heading">Transcript</div>
+        <div class="transcript-list" id="transcriptList"></div>
+      </div>
+
+      <div class="diagram-stage" id="stage1Diagram" style="margin-top: 12px;">
+        <svg class="arrow-svg" id="step1Svg" aria-hidden="true">
+          <defs>
+            <marker id="s1ArrowInk" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#E8E6E1"></path>
+            </marker>
+            <marker id="s1ArrowCoral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#FF6B5B"></path>
+            </marker>
+          </defs>
+        </svg>
+        <div class="columns-grid" id="step1Columns">
+          <div class="col-box" id="s1LeftCol"></div>
+          <div></div>
+          <div class="col-box" id="s1RightCol"></div>
+        </div>
+      </div>
+
+      <div class="stage-actions" id="step1Actions" style="margin-top: 12px;" hidden>
+        <button type="button" class="btn-secondary" id="flipBtn">Flip direction (course &#8594; student)</button>
+      </div>
+    </div>
+
+    <!-- STEP 2 STAGE -->
+    <div id="stageStep2" hidden>
+      <div class="diagram-stage" id="stage2Diagram">
+        <svg class="arrow-svg" id="step2Svg" aria-hidden="true">
+          <defs>
+            <marker id="s2ArrowInk" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#E8E6E1"></path>
+            </marker>
+            <marker id="s2ArrowCoral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#FF6B5B"></path>
+            </marker>
+            <marker id="s2ArrowSky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#5BB8F5"></path>
+            </marker>
+          </defs>
+        </svg>
+        <div class="step2-grid" id="step2Columns"></div>
+      </div>
+
+      <div class="stage-actions" id="step2ChipRow" style="margin-top: 12px;" hidden>
+        <div class="code-chip" id="step2Chip"></div>
+      </div>
+
+      <div class="stage-actions" id="step2GetRow" style="margin-top: 10px;" hidden>
+        <button type="button" class="btn-secondary mono" id="get1042Btn">get(1042)</button>
+        <button type="button" class="btn-secondary mono" id="get1044Btn">get(1044)</button>
+      </div>
+    </div>
+
+    <!-- STEP 3 STAGE -->
+    <div id="stageStep3" hidden>
+      <div class="classify-card" id="classifyCard">
+        <div class="classify-meta">
+          <span class="card-counter" id="cardCounter">Card 1 of 5</span>
+        </div>
+        <h3 class="card-name" id="cardName"></h3>
+        <div class="pairs-grid" id="cardPairsGrid"></div>
+        <div class="verdict-buttons">
+          <button type="button" class="btn-sky" id="btnChooseFunction">Function &#10003;</button>
+          <button type="button" class="btn-coral" id="btnChooseNotFunction">Not a function &#10007;</button>
+        </div>
+        <div class="stage-actions" id="step3CardNextWrap" hidden>
+          <button type="button" class="btn-secondary" id="nextCardBtn">Next card &#8594;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUMMARY STAGE -->
+    <div id="stageSummary" hidden>
+      <p class="summary-prose">
+        A relation is any set of pairs <span class="mono">(a, b)</span>. A function allows at most one pair per first member. A Map is a function you store: <span class="mono">put(k, x)</span> sets or replaces, <span class="mono">get(k)</span> finds the one value or returns <span class="mono">null</span>.
+      </p>
+      <div class="adt-box" style="margin-top: 12px;">
+        <div class="adt-title">Map&lt;K, E&gt;()</div>
+        <ul class="adt-ops">
+          <li>put(k, x)</li>
+          <li>get(k)</li>
+          <li>containsKey(k)</li>
+          <li>remove(k)</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- FIXED INLINE MESSAGE AREA -->
+    <div class="message-area" id="messageArea" role="status" aria-live="polite">
+      <div class="verdict-tag" id="verdictTag" hidden></div>
+      <p class="message-text" id="messageText"></p>
+    </div>
+
+    <div class="step-footer">
+      <div class="footer-spacer"></div>
+      <button type="button" class="btn-primary" id="nextBtn" disabled>Next &#8594;</button>
+      <button type="button" class="btn-primary" id="startAgainBtn" hidden>Start again</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  const CHECK = "\u2713";
+  const CROSS = "\u2717";
+  const ARROW = "\u2192";
+
+  const PALETTE = {
+    ink: "#E8E6E1",
+    muted: "#8A9096",
+    amber: "#F2A900",
+    sky: "#5BB8F5",
+    coral: "#FF6B5B"
+  };
+
+  // DOM refs
+  const progressLabel = document.getElementById("progressLabel");
+  const progressDots = document.getElementById("progressDots").children;
+  const stepTitle = document.getElementById("stepTitle");
+  const resetBtn = document.getElementById("resetBtn");
+  const instructionLine = document.getElementById("instructionLine");
+  const messageArea = document.getElementById("messageArea");
+  const verdictTag = document.getElementById("verdictTag");
+  const messageText = document.getElementById("messageText");
+  const nextBtn = document.getElementById("nextBtn");
+  const startAgainBtn = document.getElementById("startAgainBtn");
+
+  const stageStep1 = document.getElementById("stageStep1");
+  const stageStep2 = document.getElementById("stageStep2");
+  const stageStep3 = document.getElementById("stageStep3");
+  const stageSummary = document.getElementById("stageSummary");
+
+  // Step 1 refs
+  const transcriptList = document.getElementById("transcriptList");
+  const stage1Diagram = document.getElementById("stage1Diagram");
+  const step1Svg = document.getElementById("step1Svg");
+  const s1LeftCol = document.getElementById("s1LeftCol");
+  const s1RightCol = document.getElementById("s1RightCol");
+  const step1Actions = document.getElementById("step1Actions");
+  const flipBtn = document.getElementById("flipBtn");
+
+  // Step 2 refs
+  const stage2Diagram = document.getElementById("stage2Diagram");
+  const step2Svg = document.getElementById("step2Svg");
+  const step2Columns = document.getElementById("step2Columns");
+  const step2ChipRow = document.getElementById("step2ChipRow");
+  const step2Chip = document.getElementById("step2Chip");
+  const step2GetRow = document.getElementById("step2GetRow");
+  const get1042Btn = document.getElementById("get1042Btn");
+  const get1044Btn = document.getElementById("get1044Btn");
+
+  // Step 3 refs
+  const cardCounter = document.getElementById("cardCounter");
+  const cardName = document.getElementById("cardName");
+  const cardPairsGrid = document.getElementById("cardPairsGrid");
+  const btnChooseFunction = document.getElementById("btnChooseFunction");
+  const btnChooseNotFunction = document.getElementById("btnChooseNotFunction");
+  const step3CardNextWrap = document.getElementById("step3CardNextWrap");
+  const nextCardBtn = document.getElementById("nextCardBtn");
+
+  // State
+  let currentStep = 1; // 1, 2, 3, or 4 (summary)
+
+  // Step 1 state
+  const STUDENTS = ["Matti", "Maija", "Pekka"];
+  const COURSES = ["Progr", "DSA1", "DSA2"];
+  const VALID_PAIRS = [
+    ["Matti", "Progr"],
+    ["Matti", "DSA1"],
+    ["Maija", "DSA1"],
+    ["Pekka", "DSA2"]
+  ];
+  let s1 = {};
+
+  // Step 2 state
+  const S2_KEYS = ["1041", "1042", "1043"];
+  const S2_RECORDS = [
+    { id: "r_matti", label: "Matti, Joensuu", tag: null, key: "1041" },
+    { id: "r_maija_old", label: "Maija, Kuopio", tag: "old", key: "1042" },
+    { id: "r_maija_new", label: "Maija, Joensuu", tag: "new", key: "1042" },
+    { id: "r_pekka", label: "Pekka, Helsinki", tag: null, key: "1043" }
+  ];
+  let s2 = {};
+  let s2AnimFrame = null;
+
+  // Step 3 state
+  const CARDS = [
+    {
+      name: "sqr(a) = a\u00B2",
+      pairs: [
+        { text: "(1, 1)", first: "1" },
+        { text: "(2, 4)", first: "2" },
+        { text: "(3, 9)", first: "3" },
+        { text: "(\u22122, 4)", first: "-2" }
+      ],
+      isFunction: true,
+      reveal: "Function. Note (2, 4) and (\u22122, 4): values may repeat. sqr is computed, not stored, so there's get but no put."
+    },
+    {
+      name: "Student id \u2192 personal data",
+      pairs: [
+        { text: "(1041, Matti\u2026)", first: "1041" },
+        { text: "(1042, Maija\u2026)", first: "1042" },
+        { text: "(1043, Pekka\u2026)", first: "1043" },
+        { text: "(1045, Aino\u2026)", first: "1045" }
+      ],
+      isFunction: true,
+      reveal: "Function. One record per id: this is what a Map stores."
+    },
+    {
+      name: "a < b on integers",
+      pairs: [
+        { text: "(1, 2)", first: "1" },
+        { text: "(1, 3)", first: "1" },
+        { text: "(2, 3)", first: "2" },
+        { text: "(2, 5)", first: "2" }
+      ],
+      isFunction: false,
+      revealByFirst: {
+        "1": "1 < 2 and 1 < 3: input 1 has two outputs.",
+        "2": "2 < 3 and 2 < 5: input 2 has two outputs."
+      }
+    },
+    {
+      name: "Square root as a relation",
+      pairs: [
+        { text: "(4, 2)", first: "4" },
+        { text: "(4, \u22122)", first: "4" },
+        { text: "(9, 3)", first: "9" },
+        { text: "(9, \u22123)", first: "9" }
+      ],
+      isFunction: false,
+      reveal: "Not a function. It's sqr flipped, and flipping broke it."
+    },
+    {
+      name: "Array index \u2192 element",
+      pairs: [
+        { text: "(0, A)", first: "0" },
+        { text: "(1, B)", first: "1" },
+        { text: "(2, A)", first: "2" },
+        { text: "(3, C)", first: "3" }
+      ],
+      isFunction: true,
+      reveal: "Function. An array is a map from index to element; put works like set(i, x)."
+    }
+  ];
+  let s3 = {};
+
+  function setMessage(text, tone, verdict) {
+    messageArea.classList.remove("is-coral", "is-sky", "is-amber");
+    if (tone) {
+      messageArea.classList.add("is-" + tone);
+    }
+    if (verdict) {
+      verdictTag.hidden = false;
+      verdictTag.className = "verdict-tag " + (verdict.ok ? "sky" : "coral");
+      verdictTag.textContent = (verdict.ok ? CHECK + " " : CROSS + " ") + verdict.label;
+    } else {
+      verdictTag.hidden = true;
+      verdictTag.textContent = "";
+    }
+    messageText.textContent = text;
+  }
+
+  function triggerShake(el) {
+    if (!el) return;
+    el.classList.remove("shake");
+    void el.offsetWidth;
+    el.classList.add("shake");
+  }
+
+  function unlockNext(label) {
+    if (label) {
+      nextBtn.textContent = label;
+    }
+    const wasDisabled = nextBtn.disabled;
+    nextBtn.disabled = false;
+    if (wasDisabled) {
+      nextBtn.classList.remove("pulse-amber");
+      void nextBtn.offsetWidth;
+      nextBtn.classList.add("pulse-amber");
+    }
+  }
+
+  function lockNext(label) {
+    nextBtn.disabled = true;
+    nextBtn.classList.remove("pulse-amber");
+    nextBtn.textContent = label || "Next \u2192";
+  }
+
+  function updateProgress() {
+    const shownStep = Math.min(currentStep, 3);
+    if (currentStep <= 3) {
+      progressLabel.textContent = "Step " + shownStep + " of 3";
+    } else {
+      progressLabel.textContent = "Summary";
+    }
+    for (let i = 0; i < 3; i++) {
+      const dot = progressDots[i];
+      dot.classList.remove("is-active", "is-done");
+      if (currentStep === 4 || i + 1 < currentStep) {
+        dot.classList.add("is-done");
+      } else if (i + 1 === currentStep) {
+        dot.classList.add("is-active");
+      }
+    }
+  }
+
+  function computeArrowLine(stageEl, fromEl, toEl) {
+    const sr = stageEl.getBoundingClientRect();
+    const fr = fromEl.getBoundingClientRect();
+    const tr = toEl.getBoundingClientRect();
+    const fromLeft = fr.left <= tr.left;
+    const x1 = (fromLeft ? fr.right : fr.left) - sr.left;
+    const y1 = fr.top + fr.height / 2 - sr.top;
+    const x2 = (fromLeft ? tr.left : tr.right) - sr.left;
+    const y2 = tr.top + tr.height / 2 - sr.top;
+    // Small gap for crisp arrowhead clearance
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.hypot(dx, dy) || 1;
+    const padStart = 4;
+    const padEnd = 6;
+    return {
+      x1: x1 + (dx / len) * padStart,
+      y1: y1 + (dy / len) * padStart,
+      x2: x2 - (dx / len) * padEnd,
+      y2: y2 - (dy / len) * padEnd
+    };
+  }
+
+  // =========================================================================
+  // STEP 1: Draw who passed what
+  // =========================================================================
+  let s1FlipToken = 0;
+
+  function initStep1() {
+    s1FlipToken += 1;
+    if (s1 && s1.flipTimer) {
+      clearTimeout(s1.flipTimer);
+    }
+    if (s1 && s1.onTransitionEnd) {
+      s1LeftCol.removeEventListener("transitionend", s1.onTransitionEnd);
+    }
+    s1LeftCol.style.transition = "none";
+    s1RightCol.style.transition = "none";
+    s1LeftCol.classList.remove("is-sliding");
+    s1RightCol.classList.remove("is-sliding");
+    s1LeftCol.style.transform = "";
+    s1RightCol.style.transform = "";
+    void s1LeftCol.offsetWidth;
+    s1LeftCol.style.transition = "";
+    s1RightCol.style.transition = "";
+    step1Svg.style.opacity = "1";
+
+    s1 = {
+      phase: "draw", // "draw" | "find-breaker" | "ready-flip" | "flipped"
+      selectedStudent: null,
+      arrows: [], // { student, course }
+      flipped: false,
+      isFlipping: false,
+      flipTimer: null,
+      onTransitionEnd: null
+    };
+    lockNext("Next \u2192");
+    step1Actions.hidden = true;
+    renderStep1();
+    setMessage("Tap a student on the left, then tap each course they passed.", null, null);
+  }
+
+  function hasS1Arrow(student, course) {
+    return s1.arrows.some(function (a) {
+      return a.student === student && a.course === course;
+    });
+  }
+
+  function isValidTranscriptPair(student, course) {
+    return VALID_PAIRS.some(function (p) {
+      return p[0] === student && p[1] === course;
+    });
+  }
+
+  function renderTranscript() {
+    transcriptList.innerHTML = "";
+    STUDENTS.forEach(function (stu) {
+      const row = document.createElement("div");
+      row.className = "transcript-row";
+      const label = document.createElement("strong");
+      label.textContent = stu + ":";
+      row.appendChild(label);
+
+      const expected = VALID_PAIRS.filter(function (p) { return p[0] === stu; }).map(function (p) { return p[1]; });
+      expected.forEach(function (course) {
+        const chip = document.createElement("span");
+        const done = hasS1Arrow(stu, course);
+        chip.className = "transcript-pair" + (done ? " is-done" : "");
+        chip.textContent = course + (done ? " " + CHECK : "");
+        row.appendChild(chip);
+      });
+      transcriptList.appendChild(row);
+    });
+  }
+
+  function renderStep1Columns() {
+    s1LeftCol.innerHTML = "";
+    s1RightCol.innerHTML = "";
+
+    const leftTitle = document.createElement("div");
+    leftTitle.className = "col-label";
+    leftTitle.textContent = s1.flipped ? "Input set: courses" : "Input set: students";
+
+    const rightTitle = document.createElement("div");
+    rightTitle.className = "col-label";
+    rightTitle.textContent = s1.flipped ? "Output set: students" : "Output set: courses";
+
+    s1LeftCol.appendChild(leftTitle);
+    s1RightCol.appendChild(rightTitle);
+
+    const makeStudentPill = function (stu) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "pill-btn";
+      btn.dataset.kind = "student";
+      btn.dataset.val = stu;
+
+      const labelSpan = document.createElement("span");
+      labelSpan.textContent = stu;
+      btn.appendChild(labelSpan);
+
+      if (s1.phase === "draw") {
+        btn.disabled = false;
+        if (s1.selectedStudent === stu) {
+          btn.classList.add("is-selected");
+        }
+      } else if (s1.phase === "find-breaker") {
+        btn.disabled = false;
+      } else {
+        btn.disabled = true;
+        btn.classList.add("is-static");
+      }
+
+      if ((s1.phase === "ready-flip" || s1.phase === "flipped") && !s1.flipped && stu === "Matti") {
+        btn.classList.add("is-coral");
+        const badge = document.createElement("span");
+        badge.className = "mini-badge coral";
+        badge.textContent = CROSS + " 2";
+        btn.appendChild(badge);
+      }
+
+      btn.addEventListener("click", function () {
+        handleStudentTap(stu, btn);
+      });
+      return btn;
+    };
+
+    const makeCoursePill = function (course) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "pill-btn";
+      btn.dataset.kind = "course";
+      btn.dataset.val = course;
+
+      const labelSpan = document.createElement("span");
+      labelSpan.textContent = course;
+      btn.appendChild(labelSpan);
+
+      if (s1.phase === "draw") {
+        btn.disabled = false;
+      } else {
+        btn.disabled = true;
+        btn.classList.add("is-static");
+      }
+
+      if (s1.flipped && course === "DSA1") {
+        btn.classList.add("is-coral");
+        const badge = document.createElement("span");
+        badge.className = "mini-badge coral";
+        badge.textContent = CROSS + " 2";
+        btn.appendChild(badge);
+      }
+
+      btn.addEventListener("click", function () {
+        handleCourseTap(course, btn);
+      });
+      return btn;
+    };
+
+    if (!s1.flipped) {
+      STUDENTS.forEach(function (stu) { s1LeftCol.appendChild(makeStudentPill(stu)); });
+      COURSES.forEach(function (c) { s1RightCol.appendChild(makeCoursePill(c)); });
+    } else {
+      COURSES.forEach(function (c) { s1LeftCol.appendChild(makeCoursePill(c)); });
+      STUDENTS.forEach(function (stu) { s1RightCol.appendChild(makeStudentPill(stu)); });
+    }
+  }
+
+  function drawStep1Arrows() {
+    const defs = step1Svg.querySelector("defs");
+    step1Svg.innerHTML = "";
+    if (defs) step1Svg.appendChild(defs);
+
+    s1.arrows.forEach(function (a) {
+      const stuBtn = stage1Diagram.querySelector('[data-kind="student"][data-val="' + a.student + '"]');
+      const crsBtn = stage1Diagram.querySelector('[data-kind="course"][data-val="' + a.course + '"]');
+      if (!stuBtn || !crsBtn) return;
+
+      const fromEl = s1.flipped ? crsBtn : stuBtn;
+      const toEl = s1.flipped ? stuBtn : crsBtn;
+      const coords = computeArrowLine(stage1Diagram, fromEl, toEl);
+
+      const isConflict =
+        (!s1.flipped && (s1.phase === "ready-flip" || s1.phase === "flipped") && a.student === "Matti") ||
+        (s1.flipped && a.course === "DSA1");
+
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", coords.x1.toFixed(1));
+      line.setAttribute("y1", coords.y1.toFixed(1));
+      line.setAttribute("x2", coords.x2.toFixed(1));
+      line.setAttribute("y2", coords.y2.toFixed(1));
+      line.setAttribute("stroke", isConflict ? PALETTE.coral : PALETTE.ink);
+      line.setAttribute("stroke-width", isConflict ? "3.2" : "2.6");
+      line.setAttribute("stroke-linecap", "round");
+      line.setAttribute("marker-end", isConflict ? "url(#s1ArrowCoral)" : "url(#s1ArrowInk)");
+      step1Svg.appendChild(line);
+    });
+  }
+
+  function renderStep1() {
+    if (s1.phase === "draw") {
+      instructionLine.textContent = "Tap a student, then a course they passed.";
+    } else if (s1.phase === "find-breaker") {
+      instructionLine.textContent = "Which student breaks the 'at most one arrow' rule? Tap them.";
+    } else if (s1.phase === "ready-flip") {
+      instructionLine.textContent = "Flip the direction so courses become the inputs.";
+    } else {
+      instructionLine.textContent = "Courses are now the inputs. Check the flipped arrows.";
+    }
+
+    renderTranscript();
+    renderStep1Columns();
+    step1Actions.hidden = s1.phase !== "ready-flip";
+    flipBtn.disabled = s1.phase !== "ready-flip" || s1.isFlipping;
+
+    requestAnimationFrame(drawStep1Arrows);
+  }
+
+  function handleStudentTap(stu, btn) {
+    if (s1.phase === "draw") {
+      s1.selectedStudent = (s1.selectedStudent === stu) ? null : stu;
+      renderStep1();
+      if (s1.selectedStudent) {
+        setMessage("Selected " + stu + ". Now tap a course they passed.", "amber", null);
+      } else {
+        setMessage("Selection cleared. Tap a student to begin.", null, null);
+      }
+    } else if (s1.phase === "find-breaker") {
+      if (stu === "Matti") {
+        s1.phase = "ready-flip";
+        renderStep1();
+        setMessage(
+          "Matti has two arrows. This is a relation, but not a function.",
+          "coral",
+          { ok: false, label: "Not a function" }
+        );
+      } else {
+        triggerShake(btn);
+        setMessage("Count the arrows leaving each student.", "amber", null);
+      }
+    }
+  }
+
+  function handleCourseTap(course, btn) {
+    if (s1.phase !== "draw") return;
+    if (!s1.selectedStudent) {
+      triggerShake(btn);
+      setMessage("Tap a student first.", "amber", null);
+      return;
+    }
+    const stu = s1.selectedStudent;
+
+    if (!isValidTranscriptPair(stu, course)) {
+      triggerShake(btn);
+      setMessage("That one isn't on the transcript.", "amber", null);
+      return;
+    }
+
+    if (hasS1Arrow(stu, course)) {
+      s1.arrows = s1.arrows.filter(function (a) {
+        return !(a.student === stu && a.course === course);
+      });
+      s1.selectedStudent = null;
+      renderStep1();
+      setMessage("Removed arrow " + stu + " " + ARROW + " " + course + ".", null, null);
+      return;
+    }
+
+    s1.arrows.push({ student: stu, course: course });
+    s1.selectedStudent = null;
+
+    if (s1.arrows.length === VALID_PAIRS.length) {
+      s1.phase = "find-breaker";
+      renderStep1();
+      setMessage("All 4 arrows drawn. Now check which student breaks the rule.", "sky", null);
+    } else {
+      renderStep1();
+      setMessage("Added " + stu + " " + ARROW + " " + course + ". (" + s1.arrows.length + " of 4)", null, null);
+    }
+  }
+
+  flipBtn.addEventListener("click", function () {
+    if (s1.phase !== "ready-flip" || s1.isFlipping) return;
+    const token = s1FlipToken;
+    const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function finishFlip() {
+      if (s1.flipTimer) {
+        clearTimeout(s1.flipTimer);
+        s1.flipTimer = null;
+      }
+      if (s1.onTransitionEnd) {
+        s1LeftCol.removeEventListener("transitionend", s1.onTransitionEnd);
+        s1.onTransitionEnd = null;
+      }
+      if (token !== s1FlipToken || currentStep !== 1) return;
+
+      s1.isFlipping = false;
+      s1.flipped = true;
+      s1.phase = "flipped";
+
+      s1LeftCol.style.transition = "none";
+      s1RightCol.style.transition = "none";
+      s1LeftCol.classList.remove("is-sliding");
+      s1RightCol.classList.remove("is-sliding");
+      s1LeftCol.style.transform = "";
+      s1RightCol.style.transform = "";
+      void s1LeftCol.offsetWidth;
+      s1LeftCol.style.transition = "";
+      s1RightCol.style.transition = "";
+
+      renderStep1();
+      requestAnimationFrame(function () {
+        step1Svg.style.opacity = "1";
+      });
+      setMessage(
+        "Flipped, it's still not a function: DSA1 has two arrows. The direction decides which side is the key.",
+        "coral",
+        { ok: false, label: "Not a function" }
+      );
+      unlockNext("Next \u2192");
+    }
+
+    if (reduceMotion) {
+      finishFlip();
+      return;
+    }
+
+    s1.isFlipping = true;
+    flipBtn.disabled = true;
+    step1Svg.style.opacity = "0";
+
+    const dx = s1RightCol.getBoundingClientRect().left - s1LeftCol.getBoundingClientRect().left;
+    s1.onTransitionEnd = function (e) {
+      if (e.target === s1LeftCol && e.propertyName === "transform") {
+        finishFlip();
+      }
+    };
+    s1LeftCol.addEventListener("transitionend", s1.onTransitionEnd);
+    s1.flipTimer = setTimeout(finishFlip, 450);
+
+    requestAnimationFrame(function () {
+      if (token !== s1FlipToken) return;
+      s1LeftCol.classList.add("is-sliding");
+      s1RightCol.classList.add("is-sliding");
+      s1LeftCol.style.transform = "translateX(" + dx + "px)";
+      s1RightCol.style.transform = "translateX(" + (-dx) + "px)";
+    });
+  });
+
+  // =========================================================================
+  // STEP 2: Student id -> personal data
+  // =========================================================================
+  function initStep2() {
+    if (s2AnimFrame) {
+      cancelAnimationFrame(s2AnimFrame);
+      s2AnimFrame = null;
+    }
+    s2 = {
+      phase: "choose-record", // "choose-record" | "try-gets"
+      keptId: null,
+      tried1042: false,
+      tried1044: false,
+      lastGet: null
+    };
+    lockNext("Next \u2192");
+    step2ChipRow.hidden = true;
+    step2GetRow.hidden = true;
+    get1042Btn.classList.remove("is-tried");
+    get1044Btn.classList.remove("is-tried");
+    get1042Btn.textContent = "get(1042)";
+    get1044Btn.textContent = "get(1044)";
+    renderStep2();
+    setMessage(
+      "1042 has two arrows: not a function yet.",
+      "coral",
+      { ok: false, label: "Not a function" }
+    );
+  }
+
+  function renderStep2() {
+    if (s2.phase === "choose-record") {
+      instructionLine.textContent = "Keep one record for 1042. Tap the one that should stay.";
+    } else {
+      instructionLine.textContent = "Try both get buttons to look up keys in the map.";
+    }
+
+    step2Columns.innerHTML = "";
+
+    const leftTitle = document.createElement("div");
+    leftTitle.className = "col-label";
+    leftTitle.style.gridColumn = "1";
+    leftTitle.style.gridRow = "1";
+    leftTitle.textContent = "Input set: ids (keys)";
+    step2Columns.appendChild(leftTitle);
+
+    const rightTitle = document.createElement("div");
+    rightTitle.className = "col-label";
+    rightTitle.style.gridColumn = "3";
+    rightTitle.style.gridRow = "1";
+    rightTitle.textContent = "Output set: records (values)";
+    step2Columns.appendChild(rightTitle);
+
+    const keyGridRows = {
+      "1041": "2",
+      "1042": "3 / span 2",
+      "1043": "5"
+    };
+
+    S2_KEYS.forEach(function (k) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "pill-btn mono is-static";
+      btn.dataset.key = k;
+      btn.disabled = true;
+      btn.style.gridColumn = "1";
+      btn.style.gridRow = keyGridRows[k];
+      if (k === "1042") {
+        btn.style.alignSelf = "center";
+      }
+
+      const txt = document.createElement("span");
+      txt.textContent = k;
+      btn.appendChild(txt);
+
+      if (k === "1042") {
+        if (s2.phase === "choose-record") {
+          btn.classList.add("is-coral");
+          const b = document.createElement("span");
+          b.className = "mini-badge coral";
+          b.textContent = CROSS + " 2";
+          btn.appendChild(b);
+        } else {
+          btn.classList.add("is-sky");
+          const b = document.createElement("span");
+          b.className = "mini-badge sky";
+          b.textContent = CHECK;
+          btn.appendChild(b);
+        }
+      }
+      step2Columns.appendChild(btn);
+    });
+
+    S2_RECORDS.forEach(function (rec, idx) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "pill-btn record-card-btn";
+      btn.dataset.recId = rec.id;
+      btn.style.gridColumn = "3";
+      btn.style.gridRow = String(idx + 2);
+
+      const main = document.createElement("span");
+      main.className = "record-main";
+      main.textContent = rec.label;
+      btn.appendChild(main);
+
+      if (rec.tag) {
+        const tag = document.createElement("span");
+        tag.className = "record-tag" + (rec.tag === "new" ? " is-new" : "");
+        tag.textContent = rec.tag;
+        btn.appendChild(tag);
+      }
+
+      if (s2.phase === "choose-record" && rec.key === "1042") {
+        btn.disabled = false;
+      } else {
+        btn.disabled = true;
+      }
+
+      let isReplaced = false;
+      if (s2.keptId) {
+        if (rec.id === s2.keptId) {
+          btn.classList.add("is-sky");
+        } else if (rec.key === "1042") {
+          btn.classList.add("is-replaced");
+          isReplaced = true;
+        }
+      }
+
+      if (btn.disabled && !isReplaced) {
+        btn.classList.add("is-static");
+      }
+
+      btn.addEventListener("click", function () {
+        handleStep2RecordTap(rec);
+      });
+      step2Columns.appendChild(btn);
+    });
+
+    requestAnimationFrame(function () {
+      drawStep2Arrows();
+    });
+  }
+
+  function drawStep2Arrows(travelProgress) {
+    const defs = step2Svg.querySelector("defs");
+    step2Svg.innerHTML = "";
+    if (defs) step2Svg.appendChild(defs);
+
+    const arrowSpecs = [
+      { key: "1041", recId: "r_matti" },
+      { key: "1042", recId: "r_maija_old" },
+      { key: "1042", recId: "r_maija_new" },
+      { key: "1043", recId: "r_pekka" }
+    ];
+
+    let keptCoords = null;
+
+    arrowSpecs.forEach(function (sp) {
+      const kEl = stage2Diagram.querySelector('[data-key="' + sp.key + '"]');
+      const rEl = stage2Diagram.querySelector('[data-rec-id="' + sp.recId + '"]');
+      if (!kEl || !rEl) return;
+
+      const coords = computeArrowLine(stage2Diagram, kEl, rEl);
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", coords.x1.toFixed(1));
+      line.setAttribute("y1", coords.y1.toFixed(1));
+      line.setAttribute("x2", coords.x2.toFixed(1));
+      line.setAttribute("y2", coords.y2.toFixed(1));
+      line.setAttribute("stroke-linecap", "round");
+
+      if (sp.key === "1042") {
+        if (s2.phase === "choose-record") {
+          line.setAttribute("stroke", PALETTE.coral);
+          line.setAttribute("stroke-width", "3.2");
+          line.setAttribute("marker-end", "url(#s2ArrowCoral)");
+        } else if (sp.recId === s2.keptId) {
+          line.setAttribute("stroke", PALETTE.sky);
+          line.setAttribute("stroke-width", "3.2");
+          line.setAttribute("marker-end", "url(#s2ArrowSky)");
+          keptCoords = coords;
+        } else {
+          line.setAttribute("stroke", PALETTE.muted);
+          line.setAttribute("stroke-width", "2.0");
+          line.setAttribute("stroke-opacity", "0.14");
+        }
+      } else {
+        line.setAttribute("stroke", PALETTE.ink);
+        line.setAttribute("stroke-width", "2.6");
+        line.setAttribute("marker-end", "url(#s2ArrowInk)");
+      }
+      step2Svg.appendChild(line);
+    });
+
+    if (typeof travelProgress === "number" && keptCoords) {
+      const cx = keptCoords.x1 + (keptCoords.x2 - keptCoords.x1) * travelProgress;
+      const cy = keptCoords.y1 + (keptCoords.y2 - keptCoords.y1) * travelProgress;
+      const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      dot.setAttribute("cx", cx.toFixed(1));
+      dot.setAttribute("cy", cy.toFixed(1));
+      dot.setAttribute("r", "6.5");
+      dot.setAttribute("fill", PALETTE.amber);
+      dot.setAttribute("stroke", "#1F2428");
+      dot.setAttribute("stroke-width", "2");
+      step2Svg.appendChild(dot);
+    }
+  }
+
+  function handleStep2RecordTap(rec) {
+    if (s2.phase !== "choose-record" || rec.key !== "1042") return;
+    const other = S2_RECORDS.find(function (r) {
+      return r.key === "1042" && r.id !== rec.id;
+    });
+    s2.keptId = rec.id;
+    s2.phase = "try-gets";
+
+    step2ChipRow.hidden = false;
+    step2Chip.classList.remove("is-null");
+    step2Chip.textContent = 'put(1042, "' + rec.label + '") ' + ARROW + ' returns "' + other.label + '"';
+
+    step2GetRow.hidden = false;
+    get1042Btn.disabled = false;
+    get1044Btn.disabled = false;
+
+    renderStep2();
+    setMessage(
+      "put replaced the old value and returned it. Now every id has at most one arrow.",
+      "sky",
+      { ok: true, label: "Function" }
+    );
+  }
+
+  get1042Btn.addEventListener("click", function () {
+    if (s2.phase !== "try-gets") return;
+    const keptRec = S2_RECORDS.find(function (r) { return r.id === s2.keptId; });
+    if (!keptRec) return;
+
+    s2.tried1042 = true;
+    get1042Btn.classList.add("is-tried");
+    get1042Btn.textContent = "get(1042) " + CHECK;
+    step2Chip.classList.remove("is-null");
+    step2Chip.textContent = 'get(1042) ' + ARROW + ' "' + keptRec.label + '"';
+    setMessage(
+      'M(1042) = "' + keptRec.label + '": get follows the single arrow.',
+      "sky",
+      { ok: true, label: "Function" }
+    );
+
+    if (s2AnimFrame) cancelAnimationFrame(s2AnimFrame);
+    const start = performance.now();
+    const duration = 520;
+    function tick(now) {
+      const t = Math.min((now - start) / duration, 1);
+      drawStep2Arrows(t);
+      if (t < 1) {
+        s2AnimFrame = requestAnimationFrame(tick);
+      } else {
+        s2AnimFrame = null;
+        drawStep2Arrows();
+      }
+    }
+    s2AnimFrame = requestAnimationFrame(tick);
+
+    if (s2.tried1042 && s2.tried1044) {
+      unlockNext("Next \u2192");
+    }
+  });
+
+  get1044Btn.addEventListener("click", function () {
+    if (s2.phase !== "try-gets") return;
+    s2.tried1044 = true;
+    get1044Btn.classList.add("is-tried");
+    get1044Btn.textContent = "get(1044) " + CHECK;
+    step2Chip.classList.add("is-null");
+    step2Chip.textContent = "get(1044) " + ARROW + " null";
+    setMessage(
+      "No arrow means no value: get returns null.",
+      "sky",
+      { ok: true, label: "Function" }
+    );
+
+    if (s2.tried1042 && s2.tried1044) {
+      unlockNext("Next \u2192");
+    }
+  });
+
+  // =========================================================================
+  // STEP 3: Function or not? (5 cards)
+  // =========================================================================
+  function initStep3() {
+    s3 = {
+      cardIdx: 0,
+      phase: "choose-verdict", // "choose-verdict" | "pick-proof" | "revealed"
+      selectedPairIdx: null,
+      proofPairIndices: []
+    };
+    lockNext("Summary \u2192");
+    renderStep3();
+    setMessage("Examine the four example pairs and decide if there is at most one output per input.", null, null);
+  }
+
+  function renderStep3() {
+    const card = CARDS[s3.cardIdx];
+    cardCounter.textContent = "Card " + (s3.cardIdx + 1) + " of " + CARDS.length;
+    cardName.textContent = card.name;
+
+    if (s3.phase === "choose-verdict") {
+      instructionLine.textContent = "Is this relation a function? Choose a verdict.";
+    } else if (s3.phase === "pick-proof") {
+      instructionLine.textContent = "Tap two pairs with the same first member.";
+    } else {
+      instructionLine.textContent = s3.cardIdx < CARDS.length - 1
+        ? "Read the explanation, then move to the next card."
+        : "Read the explanation, then open the summary.";
+    }
+
+    cardPairsGrid.innerHTML = "";
+    card.pairs.forEach(function (pair, idx) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "pair-chip";
+      btn.textContent = pair.text;
+      btn.disabled = s3.phase !== "pick-proof";
+      if (s3.phase !== "pick-proof") {
+        btn.classList.add("is-static");
+      }
+
+      if (s3.selectedPairIdx === idx) {
+        btn.classList.add("is-selected");
+      }
+      if (s3.proofPairIndices.indexOf(idx) !== -1) {
+        btn.classList.add("is-coral");
+        btn.textContent = CROSS + " " + pair.text;
+      }
+
+      btn.addEventListener("click", function () {
+        handleStep3PairTap(idx, btn);
+      });
+      cardPairsGrid.appendChild(btn);
+    });
+
+    btnChooseFunction.disabled = s3.phase !== "choose-verdict";
+    btnChooseNotFunction.disabled = s3.phase !== "choose-verdict";
+
+    const showCardNext = s3.phase === "revealed" && s3.cardIdx < CARDS.length - 1;
+    step3CardNextWrap.hidden = !showCardNext;
+    nextCardBtn.disabled = !showCardNext;
+  }
+
+  btnChooseFunction.addEventListener("click", function () {
+    if (s3.phase !== "choose-verdict") return;
+    const card = CARDS[s3.cardIdx];
+    if (card.isFunction) {
+      s3.phase = "revealed";
+      renderStep3();
+      setMessage(card.reveal, "sky", { ok: true, label: "Function" });
+      if (s3.cardIdx === CARDS.length - 1) {
+        unlockNext("Summary \u2192");
+      }
+    } else {
+      triggerShake(btnChooseFunction);
+      setMessage("Check: does any first member appear twice?", "amber", null);
+    }
+  });
+
+  btnChooseNotFunction.addEventListener("click", function () {
+    if (s3.phase !== "choose-verdict") return;
+    const card = CARDS[s3.cardIdx];
+    if (!card.isFunction) {
+      s3.phase = "pick-proof";
+      s3.selectedPairIdx = null;
+      renderStep3();
+      setMessage("Good call. Now tap two pairs that share the same first member.", "amber", null);
+    } else {
+      triggerShake(btnChooseNotFunction);
+      setMessage("Check: does any first member appear twice?", "amber", null);
+    }
+  });
+
+  function handleStep3PairTap(idx, btn) {
+    if (s3.phase !== "pick-proof") return;
+    const card = CARDS[s3.cardIdx];
+
+    if (s3.selectedPairIdx === null) {
+      s3.selectedPairIdx = idx;
+      renderStep3();
+      setMessage("Selected " + card.pairs[idx].text + ". Tap a second pair with the same first member.", "amber", null);
+      return;
+    }
+
+    if (s3.selectedPairIdx === idx) {
+      s3.selectedPairIdx = null;
+      renderStep3();
+      setMessage("Selection cleared. Tap two pairs with the same first member.", null, null);
+      return;
+    }
+
+    const firstPair = card.pairs[s3.selectedPairIdx];
+    const secondPair = card.pairs[idx];
+
+    if (firstPair.first !== secondPair.first) {
+      triggerShake(btn);
+      s3.selectedPairIdx = null;
+      renderStep3();
+      setMessage("Those two have different first members.", "amber", null);
+      return;
+    }
+
+    s3.proofPairIndices = [s3.selectedPairIdx, idx];
+    s3.selectedPairIdx = null;
+    s3.phase = "revealed";
+    renderStep3();
+
+    const revealText = card.revealByFirst
+      ? card.revealByFirst[firstPair.first]
+      : card.reveal;
+
+    setMessage(revealText, "coral", { ok: false, label: "Not a function" });
+    if (s3.cardIdx === CARDS.length - 1) {
+      unlockNext("Summary \u2192");
+    }
+  }
+
+  nextCardBtn.addEventListener("click", function () {
+    if (s3.phase !== "revealed" || s3.cardIdx >= CARDS.length - 1) return;
+    s3.cardIdx += 1;
+    s3.phase = "choose-verdict";
+    s3.selectedPairIdx = null;
+    s3.proofPairIndices = [];
+    renderStep3();
+    setMessage("Examine the four example pairs and decide if there is at most one output per input.", null, null);
+  });
+
+  // =========================================================================
+  // NAVIGATION & LIFECYCLE
+  // =========================================================================
+  function showStep(stepNum) {
+    currentStep = stepNum;
+    updateProgress();
+
+    stageStep1.hidden = stepNum !== 1;
+    stageStep2.hidden = stepNum !== 2;
+    stageStep3.hidden = stepNum !== 3;
+    stageSummary.hidden = stepNum !== 4;
+
+    resetBtn.hidden = stepNum === 4;
+    nextBtn.hidden = stepNum === 4;
+    startAgainBtn.hidden = stepNum !== 4;
+    messageArea.hidden = stepNum === 4;
+
+    if (stepNum === 1) {
+      stepTitle.textContent = "Step 1: Draw who passed what";
+      initStep1();
+    } else if (stepNum === 2) {
+      stepTitle.textContent = "Step 2: Student id \u2192 personal data";
+      initStep2();
+    } else if (stepNum === 3) {
+      stepTitle.textContent = "Step 3: Function or not?";
+      initStep3();
+    } else {
+      stepTitle.textContent = "Summary: From a set to a map";
+      instructionLine.textContent = "Key idea and Map<K, E> operations.";
+    }
+  }
+
+  resetBtn.addEventListener("click", function () {
+    showStep(currentStep);
+  });
+
+  nextBtn.addEventListener("click", function () {
+    if (nextBtn.disabled) return;
+    if (currentStep < 4) {
+      showStep(currentStep + 1);
+    }
+  });
+
+  startAgainBtn.addEventListener("click", function () {
+    showStep(1);
+  });
+
+  function redrawVisibleArrows() {
+    if (currentStep === 1) {
+      drawStep1Arrows();
+    } else if (currentStep === 2) {
+      drawStep2Arrows();
+    }
+  }
+
+  if (typeof ResizeObserver !== "undefined") {
+    const ro = new ResizeObserver(redrawVisibleArrows);
+    ro.observe(stage1Diagram);
+    ro.observe(stage2Diagram);
+  }
+  window.addEventListener("resize", redrawVisibleArrows);
+
+  showStep(1);
+})();
+</script>
+</body>
+</html>
