@@ -1,0 +1,2733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>What is a set?</title>
+<style>
+  :root {
+    --bg: #E6F4F1;
+    --surface: #F7FBFA;
+    --border: #BFDCD6;
+    --ink: #12324A;
+    --muted: #5B7A8C;
+    --sand: #F3E6CF;
+    --sand-border: #D9C6A3;
+    --mint-fill: #CFF3E4;
+    --mint-strong: #0E7A57;
+    --coral-fill: #FFE0D9;
+    --coral-strong: #C2412B;
+    --focus: #2A8FBD;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    --shadow: 0 1px 3px rgba(18, 50, 74, .12);
+    --bar-h: 70px;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    color-scheme: light;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  body {
+    margin: 0;
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(20px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.4;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (min-width: 560px) {
+    body {
+      padding:
+        max(10px, env(safe-area-inset-top))
+        max(14px, env(safe-area-inset-right))
+        max(22px, env(safe-area-inset-bottom))
+        max(14px, env(safe-area-inset-left));
+    }
+  }
+
+  .mono {
+    font-family: var(--mono);
+  }
+
+  .app {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  button {
+    font-family: inherit;
+    color: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    transition: transform 90ms ease, background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+  }
+
+  button:not(:disabled):active {
+    transform: scale(0.97);
+  }
+
+  @media (hover: hover) {
+    .tab-btn:not([aria-selected="true"]):hover {
+      color: var(--ink);
+      background: var(--surface);
+    }
+    .name-chip:not(:disabled):hover,
+    .op-btn:not(:disabled):hover,
+    .grid-cell:not(:disabled):hover,
+    .choice-big:not(:disabled):hover,
+    .reset-btn:not(:disabled):hover,
+    .step-adj:not(:disabled):hover {
+      border-color: var(--ink);
+    }
+    .code-line-btn.is-next:not(:disabled):hover {
+      background: var(--bg);
+    }
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  button:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  .ico {
+    display: inline-block;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+
+  /* Tab bar */
+  .tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 2px;
+  }
+
+  .tab-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 6px 2px;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    border-radius: 8px 8px 0 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 10.5px;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+
+  @media (min-width: 360px) {
+    .tab-btn {
+      font-size: 12px;
+      gap: 3px;
+      padding: 6px 3px;
+    }
+  }
+
+  @media (min-width: 400px) {
+    .tab-btn {
+      font-size: 13px;
+      gap: 4px;
+      padding: 6px 6px;
+    }
+  }
+
+  @media (min-width: 560px) {
+    .tab-btn {
+      font-size: 15px;
+      gap: 5px;
+      padding: 8px 12px;
+    }
+  }
+
+  .tab-btn[aria-selected="true"] {
+    color: var(--ink);
+    background: var(--surface);
+    border-bottom-color: var(--ink);
+  }
+
+  .tab-check {
+    display: none;
+    color: var(--mint-strong);
+  }
+
+  .tab-btn.is-done .tab-check {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Sticky Result Chip Bar */
+  .result-bar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--bg);
+    padding: 4px 0 5px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-height: 58px;
+  }
+
+  #latestChip {
+    max-width: 100%;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+    box-shadow: var(--shadow);
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pill-txt {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pill.is-empty {
+    color: var(--muted);
+    font-family: var(--sans);
+    font-weight: 500;
+    box-shadow: none;
+  }
+
+  .pill.is-true {
+    background: var(--mint-fill);
+    border-color: var(--mint-strong);
+    color: var(--mint-strong);
+  }
+
+  .pill.is-false {
+    background: var(--coral-fill);
+    border-color: var(--coral-strong);
+    color: var(--coral-strong);
+  }
+
+  .pill-pop {
+    animation: chipPop 280ms cubic-bezier(.22, 1, .36, 1);
+  }
+
+  @keyframes chipPop {
+    0% { transform: scale(0.9); }
+    100% { transform: scale(1); }
+  }
+
+  .result-history {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 5px;
+    width: 100%;
+    overflow: hidden;
+    min-height: 22px;
+  }
+
+  .pill-old {
+    padding: 2px 8px;
+    font-size: 11px;
+    box-shadow: none;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .pill-old.op-1 { opacity: 0.7; }
+  .pill-old.op-2 { opacity: 0.5; }
+  .pill-old.op-3 { opacity: 0.3; }
+
+  @media (max-width: 559px) {
+    .pill-old.op-3 {
+      display: none;
+    }
+  }
+
+  @media (max-height: 499px) {
+    .result-bar {
+      min-height: 36px;
+      padding: 3px 0 4px;
+      gap: 0;
+    }
+    .result-history {
+      display: none;
+    }
+    .pill {
+      padding: 4px 10px;
+      font-size: 12.5px;
+    }
+  }
+
+  /* Panels */
+  .panel {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    touch-action: manipulation;
+  }
+
+  .panel.is-active {
+    display: flex;
+  }
+
+  .code-head {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .nudge {
+    margin: 0;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--ink);
+    min-height: 22px;
+  }
+
+  /* Set cloud */
+  .cloud {
+    position: relative;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 40px 46px 44px 36px / 34px 40px 38px 44px;
+    min-height: 152px;
+    padding: 10px 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    scroll-margin-top: var(--bar-h);
+  }
+
+  @media (min-width: 560px) and (min-height: 500px) {
+    .cloud {
+      min-height: 196px;
+      padding: 14px 16px;
+    }
+  }
+
+  .cloud-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 6px;
+    pointer-events: none;
+  }
+
+  .cloud-name {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+  }
+
+  .cloud-name-muted {
+    font-family: var(--sans);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .cloud-name-sym {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .cloud-count {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+    transform-origin: center;
+    white-space: nowrap;
+  }
+
+  .cloud-stage {
+    position: relative;
+    height: 112px;
+    margin-top: 2px;
+  }
+
+  @media (min-width: 560px) and (min-height: 500px) {
+    .cloud-stage {
+      height: 146px;
+      margin-top: 4px;
+    }
+  }
+
+  @media (max-height: 499px) {
+    .panel {
+      gap: 6px;
+    }
+    .cloud {
+      min-height: 114px;
+      padding: 8px 12px;
+    }
+    .cloud-stage {
+      height: 80px;
+    }
+  }
+
+  /* Name chips */
+  .name-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 52px;
+    min-height: 44px;
+    padding: 7px 11px;
+    border-radius: 999px;
+    background: var(--sand);
+    border: 1.5px solid var(--sand-border);
+    color: var(--ink);
+    font-size: 13.5px;
+    font-weight: 700;
+    box-shadow: var(--shadow);
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  .name-chip:not(:disabled):active {
+    background: var(--sand-border);
+  }
+
+  .cloud-chip {
+    position: absolute;
+    transform: translate(-50%, -50%) rotate(var(--rot, 0deg));
+    cursor: default;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  .cloud-chip-inner {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    min-height: 34px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: var(--sand);
+    border: 1.5px solid var(--sand-border);
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: var(--shadow);
+    animation: drift 4.6s ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+  }
+
+  @keyframes drift {
+    0%, 100% { transform: translate(0px, 0px); }
+    33% { transform: translate(2.5px, -2px); }
+    66% { transform: translate(-2px, 2.5px); }
+  }
+
+  .cloud-chip.is-pulse .cloud-chip-inner {
+    border-color: var(--mint-strong);
+    outline: 3px solid var(--mint-strong);
+    outline-offset: 2px;
+    background: var(--mint-fill);
+  }
+
+  .cloud-chip.is-highlight .cloud-chip-inner {
+    border-color: var(--focus);
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-9deg); }
+    75% { transform: rotate(9deg); }
+  }
+
+  .is-wiggle {
+    animation: wiggle 380ms ease;
+  }
+
+  @keyframes headShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    55% { transform: translateX(6px); }
+    80% { transform: translateX(-4px); }
+  }
+
+  .is-shake {
+    animation: headShake 360ms ease;
+  }
+
+  /* Tray (Tab 1) */
+  .tray {
+    background: var(--sand);
+    border: 1.5px solid var(--sand-border);
+    border-radius: 14px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    scroll-margin-top: var(--bar-h);
+  }
+
+  .tray-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+  }
+
+  .tray-slots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    align-items: center;
+  }
+
+  .tray-slot {
+    min-width: 52px;
+    min-height: 44px;
+    border-radius: 999px;
+    border: 1.5px dashed transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .tray-slot.is-empty {
+    border-color: var(--sand-border);
+    background: var(--surface);
+    opacity: 0.55;
+  }
+
+  /* Segmented control */
+  .seg-ctrl {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    background: var(--border);
+    padding: 4px;
+    border-radius: 12px;
+  }
+
+  .seg-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 6px 2px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--ink);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  @media (min-width: 380px) {
+    .seg-btn {
+      font-size: 13.5px;
+      padding: 6px 4px;
+    }
+  }
+
+  .seg-btn[aria-pressed="true"] {
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    font-weight: 700;
+  }
+
+  /* Ask the set card */
+  .ask-card {
+    display: none;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 10px 12px;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .ask-card.is-visible {
+    display: flex;
+    animation: fadeUp 320ms ease;
+  }
+
+  .ask-picker-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  @media (min-width: 600px) {
+    .ask-picker-wrap {
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
+    }
+    .ask-picker-wrap .seg-ctrl {
+      flex: 1;
+    }
+  }
+
+  .ask-label {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .ops-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .op-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: var(--shadow);
+  }
+
+  .op-btn:not(:disabled):active {
+    background: var(--bg);
+  }
+
+  .op-btn.is-get {
+    border: 1.5px dashed var(--ink);
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow);
+  }
+
+  .inline-note {
+    display: none;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1.5px solid var(--coral-strong);
+    background: var(--coral-fill);
+    color: var(--coral-strong);
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+
+  .inline-note.is-visible {
+    display: block;
+  }
+
+  /* Tab 2 */
+  .seq-strip {
+    background: var(--sand);
+    border: 1.5px solid var(--sand-border);
+    border-radius: 14px;
+    padding: 6px 8px;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    align-items: center;
+    justify-content: space-between;
+    scroll-margin-top: var(--bar-h);
+  }
+
+  .seq-item {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .seq-arrow {
+    height: 12px;
+    color: var(--ink);
+    opacity: 0;
+  }
+
+  .seq-item.is-next .seq-arrow {
+    opacity: 1;
+  }
+
+  .seq-chip {
+    width: 100%;
+    max-width: 82px;
+    min-height: 30px;
+    padding: 4px 4px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1.5px solid var(--sand-border);
+    font-size: 11.5px;
+    font-weight: 700;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (min-width: 375px) {
+    .seq-chip {
+      font-size: 13px;
+      padding: 4px 6px;
+    }
+    .seq-strip {
+      gap: 6px;
+      padding: 7px 10px;
+    }
+  }
+
+  .seq-item.is-next .seq-chip {
+    border-color: var(--ink);
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+  }
+
+  .seq-item.is-done .seq-chip {
+    opacity: 0.45;
+  }
+
+  .predict-panel {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 8px 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+  }
+
+  @media (max-height: 499px) {
+    .predict-panel {
+      padding: 5px 8px;
+      gap: 6px 10px;
+    }
+  }
+
+  .predict-title {
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  .stepper-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .stepper-ctrl {
+    display: inline-flex;
+    align-items: center;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+    overflow: hidden;
+  }
+
+  .step-adj {
+    min-width: 44px;
+    min-height: 44px;
+    border: 0;
+    background: transparent;
+    font-size: 18px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .step-adj:not(:disabled):active {
+    background: var(--border);
+  }
+
+  .step-val {
+    min-width: 24px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .step-action-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .primary-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--ink);
+    background: var(--ink);
+    color: var(--surface);
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .primary-btn:not(:disabled):active {
+    opacity: 0.88;
+  }
+
+  .lock-hint {
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+
+  .vs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  @media (min-width: 560px) {
+    .vs-grid {
+      gap: 12px;
+    }
+  }
+
+  .vs-col {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+    scroll-margin-top: var(--bar-h);
+  }
+
+  @media (min-width: 560px) {
+    .vs-col {
+      padding: 12px;
+      gap: 10px;
+    }
+  }
+
+  .code-short {
+    display: inline;
+  }
+
+  .code-full {
+    display: none;
+  }
+
+  @media (min-width: 560px) {
+    .code-short {
+      display: none;
+    }
+    .code-full {
+      display: inline;
+    }
+  }
+
+  .list-boxes {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .list-row {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr);
+    align-items: center;
+    gap: 5px;
+  }
+
+  .list-idx {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  .list-cell {
+    width: 100%;
+    height: 36px;
+    border: 1.5px dashed var(--border);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 6px;
+    font-size: 13px;
+    font-weight: 700;
+    background: var(--bg);
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .list-cell.is-filled {
+    border-style: solid;
+    border-color: var(--sand-border);
+    background: var(--sand);
+  }
+
+  .cloud-small {
+    min-height: 200px;
+    height: 200px;
+    border-radius: 30px 34px 32px 28px / 28px 32px 30px 34px;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+    padding: 10px 8px;
+  }
+
+  .cloud-small .cloud-head {
+    flex-wrap: wrap;
+    gap: 2px 6px;
+  }
+
+  .cloud-small .cloud-stage {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 130px;
+    margin-top: 2px;
+  }
+
+  @media (max-height: 499px) {
+    .list-cell {
+      height: 26px;
+      font-size: 12px;
+    }
+    .cloud-small {
+      min-height: 150px;
+      height: 150px;
+      padding: 8px 8px;
+    }
+    .cloud-small .cloud-stage {
+      min-height: 100px;
+    }
+  }
+
+  .verdict-card {
+    display: none;
+    background: var(--surface);
+    border: 2px solid var(--mint-strong);
+    border-radius: 14px;
+    padding: 12px 14px;
+    gap: 5px;
+    flex-direction: column;
+    box-shadow: var(--shadow);
+    scroll-margin-top: var(--bar-h);
+  }
+
+  .verdict-card.is-visible {
+    display: flex;
+    animation: fadeUp 320ms ease;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Tab 3 */
+  .grid-2x2 {
+    display: grid;
+    grid-template-columns: minmax(90px, 1.15fr) repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    align-items: stretch;
+    scroll-margin-top: var(--bar-h);
+  }
+
+  .grid-col-head {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--muted);
+    text-align: center;
+    padding: 2px 3px;
+    align-self: end;
+  }
+
+  @media (min-width: 375px) {
+    .grid-col-head {
+      font-size: 12px;
+      padding: 2px 4px;
+    }
+  }
+
+  .grid-row-head {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 3px;
+    padding: 4px 2px 4px 0;
+  }
+
+  .grid-row-head code {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1px 4px;
+    border-radius: 4px;
+    word-break: break-word;
+  }
+
+  @media (min-width: 375px) {
+    .grid-row-head {
+      font-size: 12.5px;
+    }
+    .grid-row-head code {
+      font-size: 11.5px;
+    }
+  }
+
+  .grid-cell {
+    min-height: 48px;
+    min-width: 44px;
+    padding: 6px 8px;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    font-size: 16px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-shadow: var(--shadow);
+  }
+
+  .grid-cell:not(:disabled):active {
+    background: var(--bg);
+  }
+
+  .grid-cell.is-selected {
+    border-color: var(--focus);
+    outline: 3px solid var(--focus);
+    outline-offset: 1px;
+  }
+
+  .grid-cell.is-correct {
+    background: var(--mint-fill);
+    border-color: var(--mint-strong);
+    color: var(--mint-strong);
+  }
+
+  .grid-cell.is-wrong {
+    background: var(--coral-fill);
+    border-color: var(--coral-strong);
+    color: var(--coral-strong);
+  }
+
+  .rule-sub {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+    display: none;
+  }
+
+  .rule-sub.is-visible {
+    display: block;
+  }
+
+  .predict-t3 {
+    display: none;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .predict-t3.is-visible {
+    display: flex;
+  }
+
+  .choice-big {
+    min-width: 54px;
+    min-height: 46px;
+    padding: 6px 16px;
+    border-radius: 10px;
+    border: 1.5px solid var(--ink);
+    background: var(--bg);
+    font-size: 17px;
+    font-weight: 700;
+  }
+
+  .choice-big:not(:disabled):active {
+    background: var(--border);
+  }
+
+  .runner-wrap {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .runner-wrap.is-visible {
+    display: flex;
+  }
+
+  .reason-line {
+    display: none;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .reason-line.is-visible {
+    display: block;
+  }
+
+  .runner-main {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  @media (min-width: 700px), (min-width: 600px) and (max-height: 499px) {
+    .runner-main {
+      display: grid;
+      grid-template-columns: 1.45fr 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+  }
+
+  .mem-stage-wrap {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 6px;
+    box-shadow: var(--shadow);
+    scroll-margin-top: var(--bar-h);
+  }
+
+  .mem-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .svg-mobile {
+    display: block;
+  }
+
+  .svg-desktop {
+    display: none;
+  }
+
+  @media (min-width: 560px) {
+    .svg-mobile {
+      display: none;
+    }
+    .svg-desktop {
+      display: block;
+    }
+  }
+
+  @media (max-height: 499px) and (max-width: 559px) {
+    .svg-mobile {
+      width: auto;
+      max-width: 100%;
+      max-height: calc(100vh - 64px);
+      margin: 0 auto;
+    }
+  }
+
+  @media (max-height: 499px) and (min-width: 560px) {
+    .svg-desktop {
+      max-height: calc(100vh - 64px);
+      width: auto;
+      max-width: 100%;
+      margin: 0 auto;
+    }
+  }
+
+  .code-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 7px;
+  }
+
+  .code-line-btn {
+    width: 100%;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 5px 9px;
+    border-radius: 9px;
+    border: 1.5px solid transparent;
+    background: transparent;
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+    color: var(--muted);
+    scroll-margin-top: var(--bar-h);
+    scroll-margin-bottom: 14px;
+  }
+
+  .code-line-btn.is-ran,
+  .code-line-btn.is-ran:disabled {
+    opacity: 1;
+    color: var(--ink);
+    background: var(--bg);
+  }
+
+  .code-line-btn.is-next {
+    color: var(--ink);
+    background: var(--surface);
+    border-color: var(--focus);
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+    animation: linePulse 1.3s ease-in-out infinite;
+  }
+
+  .code-line-btn.is-next:not(:disabled):active {
+    background: var(--bg);
+  }
+
+  @keyframes linePulse {
+    0%, 100% { border-color: var(--focus); }
+    50% { border-color: var(--ink); }
+  }
+
+  .run-cue {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--focus);
+    white-space: nowrap;
+  }
+
+  .summary-t3 {
+    display: none;
+    background: var(--surface);
+    border: 2px solid var(--mint-strong);
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-weight: 700;
+    scroll-margin-top: var(--bar-h);
+  }
+
+  .summary-t3.is-visible {
+    display: block;
+    animation: fadeUp 320ms ease;
+  }
+
+  .footnote {
+    margin: 2px 0 0;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+
+  /* Bottom reset row */
+  .reset-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 2px;
+  }
+
+  .reset-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 6px 12px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .reset-btn:not(:disabled):active {
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .fly-clone {
+    position: fixed;
+    z-index: 90;
+    margin: 0;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<main class="app">
+  <!-- Global Tab Bar -->
+  <nav class="tabs" role="tablist" aria-label="Set activities">
+    <button class="tab-btn" id="tabBtn1" role="tab" aria-selected="true" aria-controls="panel1">
+      <span>1 The bouncer</span>
+      <span class="tab-check" aria-hidden="true"></span>
+    </button>
+    <button class="tab-btn" id="tabBtn2" role="tab" aria-selected="false" aria-controls="panel2">
+      <span>2 List vs set</span>
+      <span class="tab-check" aria-hidden="true"></span>
+    </button>
+    <button class="tab-btn" id="tabBtn3" role="tab" aria-selected="false" aria-controls="panel3">
+      <span>3 Who's the same?</span>
+      <span class="tab-check" aria-hidden="true"></span>
+    </button>
+  </nav>
+
+  <!-- Sticky Result Chip Bar -->
+  <section class="result-bar" aria-live="polite" aria-label="Latest call result">
+    <div id="latestChip"><span class="pill is-empty">results appear here</span></div>
+    <div class="result-history" id="historyChips"></div>
+  </section>
+
+  <!-- TAB 1: THE BOUNCER -->
+  <section class="panel is-active" id="panel1" role="tabpanel" aria-labelledby="tabBtn1">
+    <p class="code-head">TraSet&lt;String&gt; S = new TraSet&lt;&gt;();</p>
+    <p class="nudge" id="t1Nudge">Tap a name in the tray to add it. Try adding Maija twice.</p>
+
+    <div class="cloud" id="t1Cloud">
+      <div class="cloud-head">
+        <span class="cloud-name"><span class="cloud-name-muted">the set</span> <span class="cloud-name-sym">S</span></span>
+        <span class="cloud-count" id="t1Count">0 inside</span>
+      </div>
+      <div class="cloud-stage" id="t1CloudStage"></div>
+    </div>
+
+    <div class="tray" id="t1TrayBox">
+      <span class="tray-label">tray: tap a name to add it</span>
+      <div class="tray-slots" id="t1Tray"></div>
+    </div>
+
+    <div class="ask-card" id="t1AskCard">
+      <div class="ask-picker-wrap">
+        <span class="ask-label">Ask about:</span>
+        <div class="seg-ctrl" role="group" aria-label="Choose a name">
+          <button class="seg-btn pick-btn" data-name="Maija" aria-pressed="true">Maija</button>
+          <button class="seg-btn pick-btn" data-name="Leo" aria-pressed="false">Leo</button>
+          <button class="seg-btn pick-btn" data-name="Aino" aria-pressed="false">Aino</button>
+          <button class="seg-btn pick-btn" data-name="Ville" aria-pressed="false">Ville</button>
+        </div>
+      </div>
+      <div class="ops-row">
+        <button class="op-btn" id="btnContains">contains("Maija")</button>
+        <button class="op-btn" id="btnRemove">remove("Maija")</button>
+        <button class="op-btn" id="btnIsEmpty">isEmpty()</button>
+        <button class="op-btn is-get" id="btnGet2">get(2)</button>
+      </div>
+      <div class="inline-note" id="get2Note">A set has no positions, so there is no get(i).</div>
+    </div>
+
+    <div class="reset-row">
+      <button class="reset-btn" id="resetTab1">Reset tab 1</button>
+    </div>
+  </section>
+
+  <!-- TAB 2: LIST VS SET -->
+  <section class="panel" id="panel2" role="tabpanel" aria-labelledby="tabBtn2">
+    <div class="seq-strip" id="t2Strip" aria-label="Input sequence"></div>
+
+    <div class="predict-panel">
+      <span class="predict-title">Predict first:</span>
+      <div class="stepper-group">
+        <span class="mono">L.size() =</span>
+        <div class="stepper-ctrl">
+          <button class="step-adj" id="predLDec" aria-label="Decrease List size prediction">&#8722;</button>
+          <span class="step-val" id="predLVal">?</span>
+          <button class="step-adj" id="predLInc" aria-label="Increase List size prediction">+</button>
+        </div>
+      </div>
+      <div class="stepper-group">
+        <span>Names in the set:</span>
+        <div class="stepper-ctrl">
+          <button class="step-adj" id="predSDec" aria-label="Decrease Set count prediction">&#8722;</button>
+          <span class="step-val" id="predSVal">?</span>
+          <button class="step-adj" id="predSInc" aria-label="Increase Set count prediction">+</button>
+        </div>
+      </div>
+      <div class="step-action-wrap">
+        <button class="primary-btn" id="t2StepBtn" disabled>Step (1/5)</button>
+        <span class="lock-hint" id="t2LockHint">Make both predictions to start.</span>
+      </div>
+    </div>
+
+    <div class="vs-grid">
+      <div class="vs-col" id="t2ListCol">
+        <p class="code-head">
+          <span class="code-short">List&lt;String&gt; L</span>
+          <span class="code-full">List&lt;String&gt; L = new ArrayList&lt;&gt;();</span>
+        </p>
+        <div class="list-boxes" id="t2ListBoxes"></div>
+      </div>
+      <div class="vs-col" id="t2SetCol">
+        <p class="code-head">
+          <span class="code-short">TraSet&lt;String&gt; S</span>
+          <span class="code-full">TraSet&lt;String&gt; S = new TraSet&lt;&gt;();</span>
+        </p>
+        <div class="cloud cloud-small" id="t2Cloud">
+          <div class="cloud-head">
+            <span class="cloud-name"><span class="cloud-name-muted">the set</span> <span class="cloud-name-sym">S</span></span>
+            <span class="cloud-count" id="t2Count">0 inside</span>
+          </div>
+          <div class="cloud-stage" id="t2CloudStage"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="verdict-card" id="t2Verdict">
+      <div id="t2VLine1">List: 5 &#183; Set: 3</div>
+      <div id="t2VLine2"></div>
+      <div><strong>The list remembers where. The set only remembers whether.</strong></div>
+    </div>
+
+    <div class="reset-row">
+      <button class="reset-btn" id="resetTab2">Reset tab 2</button>
+    </div>
+  </section>
+
+  <!-- TAB 3: WHO'S THE SAME? -->
+  <section class="panel" id="panel3" role="tabpanel" aria-labelledby="tabBtn3">
+    <p class="code-head">class Student { int id; String name; ... }</p>
+    <p class="nudge">Tap a ? to pick a case, predict, then run the code.</p>
+
+    <div class="grid-2x2" id="t3Grid" role="grid" aria-label="Scenarios and equality rules">
+      <div></div>
+      <div class="grid-col-head">same = same object (default equals)</div>
+      <div class="grid-col-head">same = same id (our own equals)</div>
+
+      <div class="grid-row-head"><span>A: two</span> <code>new Student(7, "Maija")</code></div>
+      <button class="grid-cell" id="cell-A-obj" data-row="A" data-col="obj">?</button>
+      <button class="grid-cell" id="cell-A-id" data-row="A" data-col="id">?</button>
+
+      <div class="grid-row-head"><span>B:</span> <code>s1</code> <span>added twice</span></div>
+      <button class="grid-cell" id="cell-B-obj" data-row="B" data-col="obj">?</button>
+      <button class="grid-cell" id="cell-B-id" data-row="B" data-col="id">?</button>
+    </div>
+
+    <div class="summary-t3" id="t3Summary">
+      Same object is always a duplicate. Different objects are duplicates only if your equals says so.
+    </div>
+
+    <p class="rule-sub" id="t3RuleDesc"></p>
+
+    <div class="predict-t3" id="t3PredictRow">
+      <span>How many objects will be inside <span class="mono">S</span>?</span>
+      <button class="choice-big" id="t3Pred1">1</button>
+      <button class="choice-big" id="t3Pred2">2</button>
+    </div>
+
+    <div class="runner-wrap" id="t3Runner">
+      <p class="reason-line" id="t3ReasonLine"></p>
+
+      <div class="runner-main">
+        <div class="mem-stage-wrap" id="t3MemWrap">
+          <!-- Desktop & landscape SVG (>= 560px) -->
+          <svg class="mem-svg svg-desktop" id="t3SvgDesktop" viewBox="0 0 500 264" aria-label="Stack, heap, and set references">
+            <defs>
+              <marker id="d-arrInk" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M0 1.5L8 5L0 8.5z" fill="#12324A"/>
+              </marker>
+              <marker id="d-arrFocus" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M0 1.5L8 5L0 8.5z" fill="#2A8FBD"/>
+              </marker>
+              <marker id="d-arrMint" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M0 1.5L8 5L0 8.5z" fill="#0E7A57"/>
+              </marker>
+              <marker id="d-arrCoral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M0 1.5L8 5L0 8.5z" fill="#C2412B"/>
+              </marker>
+            </defs>
+
+            <text x="8" y="18" font-size="16.5" font-weight="700" fill="#5B7A8C">STACK</text>
+            <text x="114" y="18" font-size="16.5" font-weight="700" fill="#5B7A8C">HEAP (OBJECTS)</text>
+
+            <!-- Set S Cloud on right -->
+            <g id="d-svgSetCloud">
+              <rect x="320" y="24" width="174" height="190" rx="38" ry="38" fill="#E6F4F1" stroke="#BFDCD6" stroke-width="2.2"/>
+              <text x="334" y="48" font-size="16.5"><tspan font-weight="600" fill="#5B7A8C">the set </tspan><tspan font-family="ui-monospace, Consolas, monospace" font-size="17" font-weight="700" fill="#12324A">S</tspan></text>
+              <text id="d-svgSetCount" x="482" y="48" text-anchor="end" font-size="16.5" font-weight="700" fill="#12324A">0 inside</text>
+            </g>
+
+            <!-- Stack Tag s1 -->
+            <g id="d-svgTag1" opacity="0">
+              <rect x="8" y="46" width="66" height="42" rx="10" fill="#F3E6CF" stroke="#12324A" stroke-width="2"/>
+              <text x="38" y="73" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="17" font-weight="700" fill="#12324A">s1</text>
+              <circle cx="74" cy="67" r="4.5" fill="#12324A"/>
+            </g>
+
+            <!-- Stack Tag s2 -->
+            <g id="d-svgTag2" opacity="0">
+              <rect x="8" y="144" width="66" height="42" rx="10" fill="#F3E6CF" stroke="#12324A" stroke-width="2"/>
+              <text x="38" y="171" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="17" font-weight="700" fill="#12324A">s2</text>
+              <circle cx="74" cy="165" r="4.5" fill="#12324A"/>
+            </g>
+
+            <!-- Heap Box 1 -->
+            <g id="d-svgBox1" opacity="0">
+              <rect id="d-svgBox1Outer" x="114" y="28" width="164" height="86" rx="10" fill="#F7FBFA" stroke="#12324A" stroke-width="2"/>
+              <rect x="114" y="28" width="164" height="25" rx="8" fill="#E6F4F1" stroke="#12324A" stroke-width="1.5"/>
+              <text x="196" y="46" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="16.5" font-weight="700" fill="#12324A">Student</text>
+              <rect id="d-svgBox1IdBg" x="118" y="56" width="156" height="24" rx="4" fill="transparent"/>
+              <text x="124" y="73" font-family="ui-monospace, Consolas, monospace" font-size="16.5" fill="#12324A">id = 7</text>
+              <text x="124" y="101" font-family="ui-monospace, Consolas, monospace" font-size="16.5" fill="#12324A">name = "Maija"</text>
+              <circle cx="114" cy="67" r="4.5" fill="#D9C6A3" stroke="#12324A" stroke-width="1.5"/>
+              <circle cx="278" cy="67" r="4.5" fill="#D9C6A3" stroke="#12324A" stroke-width="1.5"/>
+            </g>
+
+            <!-- Heap Box 2 -->
+            <g id="d-svgBox2" opacity="0">
+              <rect id="d-svgBox2Outer" x="114" y="126" width="164" height="86" rx="10" fill="#F7FBFA" stroke="#12324A" stroke-width="2"/>
+              <rect x="114" y="126" width="164" height="25" rx="8" fill="#E6F4F1" stroke="#12324A" stroke-width="1.5"/>
+              <text x="196" y="144" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="16.5" font-weight="700" fill="#12324A">Student</text>
+              <rect id="d-svgBox2IdBg" x="118" y="154" width="156" height="24" rx="4" fill="transparent"/>
+              <text x="124" y="171" font-family="ui-monospace, Consolas, monospace" font-size="16.5" fill="#12324A">id = 7</text>
+              <text x="124" y="199" font-family="ui-monospace, Consolas, monospace" font-size="16.5" fill="#12324A">name = "Maija"</text>
+              <circle cx="114" cy="165" r="4.5" fill="#D9C6A3" stroke="#12324A" stroke-width="1.5"/>
+              <circle cx="278" cy="165" r="4.5" fill="#D9C6A3" stroke="#12324A" stroke-width="1.5"/>
+            </g>
+
+            <!-- Stack arrows -->
+            <path id="d-svgArrS1" d="M 79 67 L 108 67" fill="none" stroke="#12324A" stroke-width="2.6" marker-end="url(#d-arrInk)" opacity="0"/>
+            <path id="d-svgArrS2" d="M 79 165 L 108 165" fill="none" stroke="#12324A" stroke-width="2.6" marker-end="url(#d-arrInk)" opacity="0"/>
+
+            <!-- Set reference dots & arrows -->
+            <circle id="d-svgSetDot1" cx="358" cy="92" r="6" fill="#0E7A57" opacity="0"/>
+            <path id="d-svgArrSet1" d="M 352 92 C 324 92, 304 67, 285 67" fill="none" stroke="#0E7A57" stroke-width="2.8" marker-end="url(#d-arrMint)" opacity="0"/>
+
+            <circle id="d-svgSetDot2" cx="358" cy="165" r="6" fill="#2A8FBD" opacity="0"/>
+            <path id="d-svgArrSet2" d="M 352 165 C 324 165, 304 165, 285 165" fill="none" stroke="#2A8FBD" stroke-width="2.8" marker-end="url(#d-arrFocus)" opacity="0"/>
+
+            <!-- equals? bubble in dedicated bottom strip -->
+            <g id="d-svgEqBubble" opacity="0">
+              <rect x="110" y="222" width="280" height="36" rx="18" fill="#F7FBFA" stroke="#2A8FBD" stroke-width="2"/>
+              <text id="d-svgEqText" x="250" y="246" text-anchor="middle" font-size="16.5" font-weight="700" fill="#12324A">equals?</text>
+            </g>
+          </svg>
+
+          <!-- Mobile Portrait SVG (< 560px) -->
+          <svg class="mem-svg svg-mobile" id="t3SvgMobile" viewBox="0 0 354 324" aria-label="Stack, heap, and set references">
+            <defs>
+              <marker id="m-arrInk" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M0 1.5L8 5L0 8.5z" fill="#12324A"/>
+              </marker>
+              <marker id="m-arrFocus" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M0 1.5L8 5L0 8.5z" fill="#2A8FBD"/>
+              </marker>
+              <marker id="m-arrMint" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M0 1.5L8 5L0 8.5z" fill="#0E7A57"/>
+              </marker>
+              <marker id="m-arrCoral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M0 1.5L8 5L0 8.5z" fill="#C2412B"/>
+              </marker>
+            </defs>
+
+            <text x="6" y="18" font-size="14.5" font-weight="700" fill="#5B7A8C">STACK</text>
+            <text x="120" y="18" font-size="14.5" font-weight="700" fill="#5B7A8C">HEAP (OBJECTS)</text>
+
+            <!-- Stack Tag s1 -->
+            <g id="m-svgTag1" opacity="0">
+              <rect x="6" y="34" width="66" height="40" rx="10" fill="#F3E6CF" stroke="#12324A" stroke-width="2"/>
+              <text x="36" y="60" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="16" font-weight="700" fill="#12324A">s1</text>
+              <circle cx="72" cy="54" r="4.5" fill="#12324A"/>
+            </g>
+
+            <!-- Stack Tag s2 -->
+            <g id="m-svgTag2" opacity="0">
+              <rect x="6" y="114" width="66" height="40" rx="10" fill="#F3E6CF" stroke="#12324A" stroke-width="2"/>
+              <text x="36" y="140" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="16" font-weight="700" fill="#12324A">s2</text>
+              <circle cx="72" cy="134" r="4.5" fill="#12324A"/>
+            </g>
+
+            <!-- Heap Box 1 -->
+            <g id="m-svgBox1" opacity="0">
+              <rect id="m-svgBox1Outer" x="120" y="25" width="192" height="72" rx="10" fill="#F7FBFA" stroke="#12324A" stroke-width="2"/>
+              <rect x="120" y="25" width="192" height="22" rx="8" fill="#E6F4F1" stroke="#12324A" stroke-width="1.5"/>
+              <text x="216" y="41" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="14.5" font-weight="700" fill="#12324A">Student</text>
+              <rect id="m-svgBox1IdBg" x="124" y="49" width="184" height="21" rx="4" fill="transparent"/>
+              <text x="132" y="65" font-family="ui-monospace, Consolas, monospace" font-size="14.5" fill="#12324A">id = 7</text>
+              <text x="132" y="88" font-family="ui-monospace, Consolas, monospace" font-size="14.5" fill="#12324A">name = "Maija"</text>
+              <circle cx="120" cy="54" r="4" fill="#D9C6A3" stroke="#12324A" stroke-width="1.5"/>
+              <circle cx="312" cy="64" r="4" fill="#D9C6A3" stroke="#12324A" stroke-width="1.5"/>
+            </g>
+
+            <!-- Heap Box 2 -->
+            <g id="m-svgBox2" opacity="0">
+              <rect id="m-svgBox2Outer" x="120" y="105" width="192" height="72" rx="10" fill="#F7FBFA" stroke="#12324A" stroke-width="2"/>
+              <rect x="120" y="105" width="192" height="22" rx="8" fill="#E6F4F1" stroke="#12324A" stroke-width="1.5"/>
+              <text x="216" y="121" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="14.5" font-weight="700" fill="#12324A">Student</text>
+              <rect id="m-svgBox2IdBg" x="124" y="129" width="184" height="21" rx="4" fill="transparent"/>
+              <text x="132" y="145" font-family="ui-monospace, Consolas, monospace" font-size="14.5" fill="#12324A">id = 7</text>
+              <text x="132" y="168" font-family="ui-monospace, Consolas, monospace" font-size="14.5" fill="#12324A">name = "Maija"</text>
+              <circle cx="120" cy="134" r="4" fill="#D9C6A3" stroke="#12324A" stroke-width="1.5"/>
+              <circle cx="272" cy="177" r="4" fill="#D9C6A3" stroke="#12324A" stroke-width="1.5"/>
+            </g>
+
+            <!-- Stack arrows -->
+            <path id="m-svgArrS1" d="M 76 54 L 114 54" fill="none" stroke="#12324A" stroke-width="2.6" marker-end="url(#m-arrInk)" opacity="0"/>
+            <path id="m-svgArrS2" d="M 76 134 L 114 134" fill="none" stroke="#12324A" stroke-width="2.6" marker-end="url(#m-arrInk)" opacity="0"/>
+
+            <!-- Set cloud across bottom (count placed cleanly left of arrows!) -->
+            <g id="m-svgSetCloud">
+              <rect x="6" y="230" width="342" height="88" rx="30" ry="30" fill="#E6F4F1" stroke="#BFDCD6" stroke-width="2.2"/>
+              <text x="24" y="254" font-size="14.5"><tspan font-weight="600" fill="#5B7A8C">the set </tspan><tspan font-family="ui-monospace, Consolas, monospace" font-size="15.5" font-weight="700" fill="#12324A">S</tspan></text>
+              <text id="m-svgSetCount" x="108" y="254" text-anchor="start" font-size="14.5" font-weight="700" fill="#12324A">0 inside</text>
+            </g>
+
+            <!-- Set reference dots & upward arrows -->
+            <circle id="m-svgSetDot1" cx="328" cy="288" r="6" fill="#0E7A57" opacity="0"/>
+            <path id="m-svgArrSet1" d="M 330 282 C 345 210, 345 90, 318 66" fill="none" stroke="#0E7A57" stroke-width="2.8" marker-end="url(#m-arrMint)" opacity="0"/>
+
+            <circle id="m-svgSetDot2" cx="272" cy="288" r="6" fill="#2A8FBD" opacity="0"/>
+            <path id="m-svgArrSet2" d="M 272 282 C 272 246, 272 214, 272 184" fill="none" stroke="#2A8FBD" stroke-width="2.8" marker-end="url(#m-arrFocus)" opacity="0"/>
+
+            <!-- equals? bubble in clear left corridor -->
+            <g id="m-svgEqBubble" opacity="0">
+              <rect x="6" y="186" width="246" height="34" rx="17" fill="#F7FBFA" stroke="#2A8FBD" stroke-width="2"/>
+              <text id="m-svgEqText" x="129" y="208" text-anchor="middle" font-size="14.5" font-weight="700" fill="#12324A">equals?</text>
+            </g>
+          </svg>
+        </div>
+
+        <div class="code-lines" id="t3CodeLines"></div>
+      </div>
+    </div>
+
+    <p class="footnote">Real HashSets and TreeSets add one more rule for this; see the HashSet vs TreeSet page.</p>
+
+    <div class="reset-row">
+      <button class="reset-btn" id="resetTab3">Reset tab 3</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  function svgCheck(size = 14) {
+    return `<svg class="ico" viewBox="0 0 16 16" width="${size}" height="${size}" aria-hidden="true"><path d="M3 8.5L6.5 12L13 4.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  }
+
+  function svgCross(size = 14) {
+    return `<svg class="ico" viewBox="0 0 16 16" width="${size}" height="${size}" aria-hidden="true"><path d="M4 4L12 12M12 4L4 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>`;
+  }
+
+  function svgPlay(size = 11) {
+    return `<svg class="ico" viewBox="0 0 14 14" width="${size}" height="${size}" aria-hidden="true"><path d="M3 2L12 7L3 12z" fill="currentColor"/></svg>`;
+  }
+
+  function svgDownArrow() {
+    return `<svg class="ico" viewBox="0 0 14 14" width="12" height="12" aria-hidden="true"><path d="M7 1V11M3 8L7 12L11 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  }
+
+  document.querySelectorAll(".tab-check").forEach((el) => {
+    el.innerHTML = svgCheck(12);
+  });
+
+  // Live sticky bar measurement & viewport scroll helpers
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  function getBarBottom() {
+    return document.querySelector(".result-bar").getBoundingClientRect().bottom;
+  }
+
+  function syncBarHeightVar() {
+    const h = document.querySelector(".result-bar").getBoundingClientRect().height;
+    document.documentElement.style.setProperty("--bar-h", `${Math.ceil(h) + 8}px`);
+  }
+
+  async function waitScrollSettle() {
+    let lastY = window.scrollY;
+    for (let i = 0; i < 16; i++) {
+      await wait(35);
+      if (Math.abs(window.scrollY - lastY) < 1 && i >= 3) break;
+      lastY = window.scrollY;
+    }
+  }
+
+  async function scrollBelowBar(el, block = "start") {
+    syncBarHeightVar();
+    const barB = getBarBottom();
+    const r = el.getBoundingClientRect();
+    let delta = 0;
+    if (block === "nearest") {
+      if (r.top < barB + 6) {
+        delta = r.top - (barB + 6);
+      } else if (r.bottom > window.innerHeight - 6) {
+        delta = Math.min(r.bottom - (window.innerHeight - 6), r.top - (barB + 6));
+      }
+    } else {
+      delta = r.top - (barB + 6);
+    }
+    if (Math.abs(delta) > 2) {
+      window.scrollBy({ top: delta, behavior: "smooth" });
+      await waitScrollSettle();
+    }
+  }
+
+  async function ensureElsInView(els) {
+    syncBarHeightVar();
+    const barB = getBarBottom();
+    const rects = els.map((el) => el.getBoundingClientRect());
+    const topMin = Math.min(...rects.map((r) => r.top));
+    const botMax = Math.max(...rects.map((r) => r.bottom));
+    if (topMin >= barB + 2 && botMax <= window.innerHeight - 2) return;
+
+    const avail = window.innerHeight - barB - 8;
+    let delta;
+    if (botMax - topMin <= avail) {
+      delta = topMin < barB + 4 ? topMin - (barB + 4) : botMax - (window.innerHeight - 4);
+    } else {
+      delta = topMin - (barB + 4);
+    }
+    if (Math.abs(delta) > 2) {
+      window.scrollBy({ top: delta, behavior: "smooth" });
+      await waitScrollSettle();
+    }
+  }
+
+  window.addEventListener("resize", syncBarHeightVar);
+  window.addEventListener("orientationchange", () => setTimeout(syncBarHeightVar, 80));
+
+  // Global animation lock and helper
+  let isAnimating = false;
+
+  function setBusy(busy) {
+    isAnimating = busy;
+    document.querySelectorAll("button").forEach((btn) => {
+      if (busy) {
+        btn.dataset.wasDisabled = btn.disabled ? "1" : "0";
+        btn.disabled = true;
+      } else {
+        if (btn.dataset.wasDisabled === "0") {
+          btn.disabled = false;
+        }
+        delete btn.dataset.wasDisabled;
+      }
+    });
+    if (!busy) {
+      updateTab2StepLock();
+    }
+  }
+
+  async function withLock(fn) {
+    if (isAnimating) return;
+    setBusy(true);
+    try {
+      await fn();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Result Chip Bar
+  let callHistory = [];
+
+  function clearHistory() {
+    callHistory = [];
+    renderResultBar(false);
+  }
+
+  function pushResult(expr, ok) {
+    callHistory.unshift({ expr, ok });
+    if (callHistory.length > 4) callHistory.length = 4;
+    renderResultBar(true);
+  }
+
+  function renderResultBar(animatePop) {
+    const latestEl = $("latestChip");
+    const histEl = $("historyChips");
+    if (callHistory.length === 0) {
+      latestEl.innerHTML = `<span class="pill is-empty">results appear here</span>`;
+      histEl.innerHTML = "";
+      syncBarHeightVar();
+      return;
+    }
+    const [head, ...rest] = callHistory;
+    latestEl.innerHTML = makePillHtml(head, animatePop ? "pill-pop" : "");
+    histEl.innerHTML = rest
+      .map((item, idx) => makePillHtml(item, `pill-old op-${idx + 1}`))
+      .join("");
+    syncBarHeightVar();
+  }
+
+  function makePillHtml(item, extraClass) {
+    const cls = item.ok ? "is-true" : "is-false";
+    const word = item.ok ? "true" : "false";
+    const glyph = item.ok ? svgCheck(13) : svgCross(13);
+    return `<span class="pill ${cls} ${extraClass}"><span class="pill-txt">${escapeHtml(item.expr)} \u2192 ${word}</span>${glyph}</span>`;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function markTabDone(num) {
+    $(`tabBtn${num}`).classList.add("is-done");
+  }
+
+  // Tab switching
+  let activeTab = 1;
+  [1, 2, 3].forEach((num) => {
+    $(`tabBtn${num}`).addEventListener("click", () => {
+      if (isAnimating || activeTab === num) return;
+      activeTab = num;
+      [1, 2, 3].forEach((n) => {
+        $(`tabBtn${n}`).setAttribute("aria-selected", n === num ? "true" : "false");
+        $(`panel${n}`).classList.toggle("is-active", n === num);
+      });
+      clearHistory();
+    });
+  });
+
+  // Shared flying helpers taking pre-measured DOMRects (safe on resize)
+  async function flyChip(label, fromRect, toPoint, duration = 420) {
+    const clone = document.createElement("span");
+    clone.className = "name-chip fly-clone";
+    clone.textContent = label;
+    clone.style.left = `${fromRect.left}px`;
+    clone.style.top = `${fromRect.top}px`;
+    clone.style.width = `${fromRect.width}px`;
+    clone.style.height = `${fromRect.height}px`;
+    document.body.appendChild(clone);
+
+    const dx = toPoint.x - (fromRect.left + fromRect.width / 2);
+    const dy = toPoint.y - (fromRect.top + fromRect.height / 2);
+
+    const anim = clone.animate(
+      [
+        { transform: "translate(0px, 0px) scale(1)" },
+        { transform: `translate(${dx}px, ${dy}px) scale(1)` },
+      ],
+      { duration, easing: "cubic-bezier(.22, 1, .36, 1)", fill: "forwards" }
+    );
+    anim.oncancel = () => clone.remove();
+    const safety = setTimeout(() => clone.remove(), duration + 200);
+    try {
+      await anim.finished;
+    } finally {
+      clearTimeout(safety);
+      clone.remove();
+    }
+  }
+
+  async function bounceChip(label, fromRect, cloudEl, duration = 480) {
+    const cr = cloudEl.getBoundingClientRect();
+    const startX = fromRect.left + fromRect.width / 2;
+    const startY = fromRect.top + fromRect.height / 2;
+    const targetX = cr.left + cr.width * 0.5;
+    const targetY =
+      startY > cr.bottom
+        ? Math.min(cr.bottom + 4, startY - 24)
+        : cr.top + cr.height * 0.5;
+    const dx = targetX - startX;
+    const dy = targetY - startY;
+
+    const clone = document.createElement("span");
+    clone.className = "name-chip fly-clone";
+    clone.textContent = label;
+    clone.style.left = `${fromRect.left}px`;
+    clone.style.top = `${fromRect.top}px`;
+    clone.style.width = `${fromRect.width}px`;
+    clone.style.height = `${fromRect.height}px`;
+    document.body.appendChild(clone);
+
+    const anim = clone.animate(
+      [
+        { transform: "translate(0px, 0px)" },
+        { transform: `translate(${dx * 0.92}px, ${dy * 0.92}px)`, offset: 0.42 },
+        { transform: `translate(${-dx * 0.08}px, ${-dy * 0.08}px)`, offset: 0.78 },
+        { transform: "translate(0px, 0px)", offset: 1 },
+      ],
+      { duration, easing: "ease-out", fill: "forwards" }
+    );
+    anim.oncancel = () => clone.remove();
+    const safety = setTimeout(() => clone.remove(), duration + 200);
+    try {
+      await anim.finished;
+    } finally {
+      clearTimeout(safety);
+      clone.remove();
+    }
+  }
+
+  function triggerWiggle(el) {
+    el.classList.remove("is-wiggle");
+    void el.offsetWidth;
+    el.classList.add("is-wiggle");
+  }
+
+  function stagePercentPoint(stageEl, pctX, pctY) {
+    const r = stageEl.getBoundingClientRect();
+    return {
+      x: r.left + (r.width * pctX) / 100,
+      y: r.top + (r.height * pctY) / 100,
+    };
+  }
+
+  // =========================================================================
+  // TAB 1: THE BOUNCER
+  // =========================================================================
+  const TRAY_ITEMS = ["Maija", "Leo", "Aino", "Maija", "Ville"];
+  const T1_SLOTS = [
+    { x: 26, y: 34, rot: -5, delay: "0s" },
+    { x: 72, y: 32, rot: 4, delay: "-1.4s" },
+    { x: 30, y: 74, rot: 5, delay: "-2.7s" },
+    { x: 74, y: 72, rot: -4, delay: "-0.8s" },
+  ];
+
+  let t1TrayIn = [true, true, true, true, true];
+  let t1Set = [];
+  let t1Selected = "Maija";
+  let t1DupTried = false;
+  let t1RemoveFalse = false;
+  let t1GetTapped = false;
+  let get2Timer = null;
+
+  function setT1Selected(name) {
+    t1Selected = name;
+    document.querySelectorAll("#panel1 .pick-btn").forEach((b) => {
+      b.setAttribute("aria-pressed", b.dataset.name === name ? "true" : "false");
+    });
+    $("btnContains").textContent = `contains("${name}")`;
+    $("btnRemove").textContent = `remove("${name}")`;
+  }
+
+  function updateT1Goals(justUnlockedAsk = false) {
+    $("t1AskCard").classList.toggle("is-visible", t1DupTried);
+    if (justUnlockedAsk && !t1RemoveFalse) {
+      setT1Selected("Ville");
+    }
+
+    let msg;
+    if (!t1DupTried) {
+      msg = "Tap a name in the tray to add it. Try adding Maija twice.";
+    } else if (!t1RemoveFalse) {
+      msg = "Now ask the set: pick Ville, then tap remove.";
+    } else if (!t1GetTapped) {
+      msg = "Try get(2).";
+    } else {
+      msg = "That's a set: inside or not, nothing more.";
+      markTabDone(1);
+    }
+    $("t1Nudge").textContent = msg;
+  }
+
+  function renderT1() {
+    $("t1Count").textContent = `${t1Set.length} inside`;
+
+    const stage = $("t1CloudStage");
+    stage.innerHTML = "";
+    t1Set.forEach((item) => {
+      const slot = T1_SLOTS[item.slotIdx];
+      const wrap = document.createElement("div");
+      wrap.className = "cloud-chip";
+      wrap.dataset.name = item.name;
+      wrap.style.left = `${slot.x}%`;
+      wrap.style.top = `${slot.y}%`;
+      wrap.style.setProperty("--rot", `${slot.rot}deg`);
+
+      const inner = document.createElement("span");
+      inner.className = "cloud-chip-inner";
+      inner.style.setProperty("--delay", slot.delay);
+      inner.textContent = item.name;
+      wrap.appendChild(inner);
+      stage.appendChild(wrap);
+    });
+
+    const tray = $("t1Tray");
+    tray.innerHTML = "";
+    TRAY_ITEMS.forEach((name, idx) => {
+      const slot = document.createElement("div");
+      slot.className = "tray-slot" + (t1TrayIn[idx] ? "" : " is-empty");
+      slot.dataset.trayIdx = String(idx);
+      if (t1TrayIn[idx]) {
+        const btn = document.createElement("button");
+        btn.className = "name-chip";
+        btn.textContent = name;
+        btn.addEventListener("click", () => handleT1Add(idx));
+        slot.appendChild(btn);
+      }
+      tray.appendChild(slot);
+    });
+
+    setT1Selected(t1Selected);
+  }
+
+  function nextFreeT1Slot() {
+    const used = new Set(t1Set.map((i) => i.slotIdx));
+    for (let i = 0; i < T1_SLOTS.length; i++) {
+      if (!used.has(i)) return i;
+    }
+    return 0;
+  }
+
+  async function handleT1Add(trayIdx) {
+    if (!t1TrayIn[trayIdx]) return;
+    const name = TRAY_ITEMS[trayIdx];
+    await withLock(async () => {
+      const slotEl = $("t1Tray").children[trayIdx];
+      const chipEl = slotEl ? slotEl.querySelector("button") : null;
+      if (!chipEl) return;
+
+      await ensureElsInView([$("t1Cloud"), chipEl]);
+
+      const fromRect = chipEl.getBoundingClientRect();
+      const existing = t1Set.find((item) => item.name === name);
+
+      if (!existing) {
+        const sIdx = nextFreeT1Slot();
+        const slot = T1_SLOTS[sIdx];
+        const dest = stagePercentPoint($("t1CloudStage"), slot.x, slot.y);
+        chipEl.style.visibility = "hidden";
+        await flyChip(name, fromRect, dest, 440);
+        t1TrayIn[trayIdx] = false;
+        t1Set.push({ name, slotIdx: sIdx, trayIdx });
+        renderT1();
+        pushResult(`S.add("${name}")`, true);
+      } else {
+        const cloudMatch = $("t1CloudStage").querySelector(`.cloud-chip[data-name="${name}"]`);
+        if (cloudMatch) cloudMatch.classList.add("is-pulse");
+        triggerWiggle($("t1Count"));
+        chipEl.style.visibility = "hidden";
+        await bounceChip(name, fromRect, $("t1Cloud"), 480);
+        chipEl.style.visibility = "";
+        if (cloudMatch) cloudMatch.classList.remove("is-pulse");
+        pushResult(`S.add("${name}")`, false);
+        const wasDup = t1DupTried;
+        t1DupTried = true;
+        updateT1Goals(!wasDup);
+      }
+    });
+  }
+
+  document.querySelectorAll("#panel1 .pick-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (isAnimating) return;
+      setT1Selected(btn.dataset.name);
+    });
+  });
+
+  $("btnContains").addEventListener("click", () => {
+    const name = t1Selected;
+    withLock(async () => {
+      await ensureElsInView([$("t1Cloud")]);
+      const found = t1Set.some((i) => i.name === name);
+      pushResult(`S.contains("${name}")`, found);
+      if (found) {
+        const el = $("t1CloudStage").querySelector(`.cloud-chip[data-name="${name}"]`);
+        if (el) {
+          el.classList.add("is-highlight");
+          await wait(450);
+          el.classList.remove("is-highlight");
+        }
+      } else {
+        await wait(320);
+      }
+    });
+  });
+
+  $("btnRemove").addEventListener("click", () => {
+    const name = t1Selected;
+    withLock(async () => {
+      const idx = t1Set.findIndex((i) => i.name === name);
+      if (idx >= 0) {
+        const removed = t1Set[idx];
+        const returnTrayIdx = !t1TrayIn[removed.trayIdx]
+          ? removed.trayIdx
+          : TRAY_ITEMS.findIndex((n, ti) => n === name && !t1TrayIn[ti]);
+        const targetSlot = $("t1Tray").children[returnTrayIdx];
+        const cloudChip = $("t1CloudStage").querySelector(`.cloud-chip[data-name="${name}"]`);
+
+        await ensureElsInView([cloudChip || $("t1Cloud"), targetSlot]);
+
+        const innerChip = cloudChip ? cloudChip.querySelector(".cloud-chip-inner") : null;
+        const fromRect = (innerChip || cloudChip).getBoundingClientRect();
+        const tr = targetSlot.getBoundingClientRect();
+        const dest = { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 };
+
+        if (cloudChip) cloudChip.style.visibility = "hidden";
+        await flyChip(name, fromRect, dest, 420);
+        t1Set.splice(idx, 1);
+        if (returnTrayIdx >= 0) t1TrayIn[returnTrayIdx] = true;
+        renderT1();
+        pushResult(`S.remove("${name}")`, true);
+      } else {
+        await ensureElsInView([$("t1Cloud")]);
+        $("t1Cloud").classList.remove("is-shake");
+        void $("t1Cloud").offsetWidth;
+        $("t1Cloud").classList.add("is-shake");
+        pushResult(`S.remove("${name}")`, false);
+        t1RemoveFalse = true;
+        updateT1Goals(false);
+        await wait(380);
+        $("t1Cloud").classList.remove("is-shake");
+      }
+    });
+  });
+
+  $("btnIsEmpty").addEventListener("click", () => {
+    withLock(async () => {
+      pushResult("S.isEmpty()", t1Set.length === 0);
+      await wait(320);
+    });
+  });
+
+  $("btnGet2").addEventListener("click", () => {
+    if (isAnimating) return;
+    const note = $("get2Note");
+    note.classList.add("is-visible");
+    if (get2Timer) clearTimeout(get2Timer);
+    get2Timer = setTimeout(() => {
+      note.classList.remove("is-visible");
+      get2Timer = null;
+    }, 3000);
+    t1GetTapped = true;
+    updateT1Goals(false);
+  });
+
+  $("resetTab1").addEventListener("click", () => {
+    if (isAnimating) return;
+    t1TrayIn = [true, true, true, true, true];
+    t1Set = [];
+    t1DupTried = false;
+    t1RemoveFalse = false;
+    t1GetTapped = false;
+    setT1Selected("Maija");
+    $("get2Note").classList.remove("is-visible");
+    if (get2Timer) {
+      clearTimeout(get2Timer);
+      get2Timer = null;
+    }
+    clearHistory();
+    renderT1();
+    updateT1Goals(false);
+  });
+
+  // =========================================================================
+  // TAB 2: LIST VS SET
+  // =========================================================================
+  const T2_SEQ = ["Maija", "Leo", "Maija", "Aino", "Leo"];
+  const T2_SLOTS = [
+    { x: 28, y: 34, rot: -5, delay: "0s" },
+    { x: 72, y: 34, rot: 4, delay: "-1.5s" },
+    { x: 50, y: 74, rot: -3, delay: "-2.9s" },
+  ];
+
+  let t2PredL = null;
+  let t2PredS = null;
+  let t2Step = 0;
+  let t2List = [];
+  let t2Set = [];
+
+  function updateTab2StepLock() {
+    const locked = t2PredL === null || t2PredS === null || t2Step >= 5;
+    $("t2StepBtn").disabled = locked;
+    $("t2LockHint").style.display = t2PredL === null || t2PredS === null ? "" : "none";
+    const stepDisplay = Math.min(t2Step + 1, 5);
+    $("t2StepBtn").textContent = t2Step >= 5 ? "Done (5/5)" : `Step (${stepDisplay}/5)`;
+
+    const predLocked = t2Step > 0;
+    ["predLDec", "predLInc", "predSDec", "predSInc"].forEach((id) => {
+      $(id).disabled = predLocked;
+    });
+  }
+
+  function renderT2() {
+    $("predLVal").textContent = t2PredL === null ? "?" : String(t2PredL);
+    $("predSVal").textContent = t2PredS === null ? "?" : String(t2PredS);
+
+    const strip = $("t2Strip");
+    strip.innerHTML = "";
+    T2_SEQ.forEach((name, idx) => {
+      const item = document.createElement("div");
+      item.className = "seq-item";
+      if (idx < t2Step) item.classList.add("is-done");
+      if (idx === t2Step && t2Step < 5) item.classList.add("is-next");
+      item.innerHTML = `<span class="seq-arrow" aria-hidden="true">${svgDownArrow()}</span><span class="seq-chip">${name}</span>`;
+      strip.appendChild(item);
+    });
+
+    const listWrap = $("t2ListBoxes");
+    listWrap.innerHTML = "";
+    for (let i = 0; i < 5; i++) {
+      const row = document.createElement("div");
+      row.className = "list-row";
+      const val = t2List[i] || "";
+      row.innerHTML = `<span class="list-idx">${i}</span><div class="list-cell${val ? " is-filled" : ""}">${val}</div>`;
+      listWrap.appendChild(row);
+    }
+
+    $("t2Count").textContent = `${t2Set.length} inside`;
+    const cStage = $("t2CloudStage");
+    cStage.innerHTML = "";
+    t2Set.forEach((item) => {
+      const slot = T2_SLOTS[item.slotIdx];
+      const wrap = document.createElement("div");
+      wrap.className = "cloud-chip";
+      wrap.dataset.name = item.name;
+      wrap.style.left = `${slot.x}%`;
+      wrap.style.top = `${slot.y}%`;
+      wrap.style.setProperty("--rot", `${slot.rot}deg`);
+
+      const inner = document.createElement("span");
+      inner.className = "cloud-chip-inner";
+      inner.style.setProperty("--delay", slot.delay);
+      inner.textContent = item.name;
+      wrap.appendChild(inner);
+      cStage.appendChild(wrap);
+    });
+
+    updateTab2StepLock();
+  }
+
+  function stepValue(cur, delta) {
+    if (cur === null) return delta > 0 ? 1 : 0;
+    return Math.max(0, Math.min(5, cur + delta));
+  }
+
+  $("predLDec").addEventListener("click", () => {
+    if (isAnimating || t2Step > 0) return;
+    t2PredL = stepValue(t2PredL, -1);
+    renderT2();
+  });
+  $("predLInc").addEventListener("click", () => {
+    if (isAnimating || t2Step > 0) return;
+    t2PredL = stepValue(t2PredL, 1);
+    renderT2();
+  });
+  $("predSDec").addEventListener("click", () => {
+    if (isAnimating || t2Step > 0) return;
+    t2PredS = stepValue(t2PredS, -1);
+    renderT2();
+  });
+  $("predSInc").addEventListener("click", () => {
+    if (isAnimating || t2Step > 0) return;
+    t2PredS = stepValue(t2PredS, 1);
+    renderT2();
+  });
+
+  $("t2StepBtn").addEventListener("click", () => {
+    if (t2PredL === null || t2PredS === null || t2Step >= 5) return;
+    withLock(async () => {
+      const name = T2_SEQ[t2Step];
+      const stripItem = $("t2Strip").children[t2Step].querySelector(".seq-chip");
+      const listCell = $("t2ListBoxes").children[t2List.length].querySelector(".list-cell");
+
+      await ensureElsInView([stripItem, $("t2ListCol"), $("t2SetCol")]);
+
+      // Measure source rect and destinations ONCE before any renderT2()
+      const fromRect = stripItem.getBoundingClientRect();
+      const lr = listCell.getBoundingClientRect();
+      const listDest = { x: lr.left + lr.width / 2, y: lr.top + lr.height / 2 };
+
+      const existing = t2Set.find((item) => item.name === name);
+      const sIdx = existing ? -1 : t2Set.length;
+      const setDest = existing
+        ? null
+        : stagePercentPoint($("t2CloudStage"), T2_SLOTS[sIdx].x, T2_SLOTS[sIdx].y);
+
+      // 1. Fly copy into List
+      await flyChip(name, fromRect, listDest, 380);
+      t2List.push(name);
+      renderT2();
+      pushResult(`L.add("${name}")`, true);
+
+      await wait(340);
+
+      // 2. Fly copy to Set reusing fromRect (scroll set into view only if somehow clipped)
+      await ensureElsInView([$("t2SetCol")]);
+      if (!existing) {
+        await flyChip(name, fromRect, setDest, 420);
+        t2Set.push({ name, slotIdx: sIdx });
+        t2Step++;
+        renderT2();
+        pushResult(`S.add("${name}")`, true);
+      } else {
+        const cloudMatch = $("t2CloudStage").querySelector(`.cloud-chip[data-name="${name}"]`);
+        if (cloudMatch) cloudMatch.classList.add("is-pulse");
+        triggerWiggle($("t2Count"));
+        await bounceChip(name, fromRect, $("t2Cloud"), 460);
+        if (cloudMatch) cloudMatch.classList.remove("is-pulse");
+        t2Step++;
+        renderT2();
+        pushResult(`S.add("${name}")`, false);
+      }
+
+      if (t2Step === 5) {
+        const okL = t2PredL === 5;
+        const okS = t2PredS === 3;
+        const gL = okL
+          ? `<span style="color:var(--mint-strong);font-weight:700">${svgCheck(14)}</span>`
+          : `<span style="color:var(--coral-strong);font-weight:700">${svgCross(14)}</span>`;
+        const gS = okS
+          ? `<span style="color:var(--mint-strong);font-weight:700">${svgCheck(14)}</span>`
+          : `<span style="color:var(--coral-strong);font-weight:700">${svgCross(14)}</span>`;
+        $("t2VLine2").innerHTML = `You said ${t2PredL} ${gL} and ${t2PredS} ${gS}`;
+        $("t2Verdict").classList.add("is-visible");
+        markTabDone(2);
+        await scrollBelowBar($("t2Verdict"), "nearest");
+      }
+    });
+  });
+
+  $("resetTab2").addEventListener("click", () => {
+    if (isAnimating) return;
+    t2PredL = null;
+    t2PredS = null;
+    t2Step = 0;
+    t2List = [];
+    t2Set = [];
+    $("t2Verdict").classList.remove("is-visible");
+    clearHistory();
+    renderT2();
+  });
+
+  // =========================================================================
+  // TAB 3: WHO'S THE SAME?
+  // =========================================================================
+  const SCENARIOS = {
+    A: [
+      'Student s1 = new Student(7, "Maija");',
+      'Student s2 = new Student(7, "Maija");',
+      "S.add(s1);",
+      "S.add(s2);",
+    ],
+    B: [
+      'Student s1 = new Student(7, "Maija");',
+      "S.add(s1);",
+      "S.add(s1);",
+    ],
+  };
+
+  const REASONS = {
+    "A-obj": "Two different objects, and equals compares objects \u2192 both get in.",
+    "A-id": "Same id \u2192 equal \u2192 the second add returns false.",
+    "B-obj": "The same object twice is always a duplicate.",
+    "B-id": "Same object, same id \u2192 duplicate either way.",
+  };
+
+  const EXPECTED = {
+    "A-obj": 2,
+    "A-id": 1,
+    "B-obj": 1,
+    "B-id": 1,
+  };
+
+  const SVG_PREFIXES = ["d-", "m-"];
+
+  function setBoth(suffix, attr, value) {
+    SVG_PREFIXES.forEach((p) => {
+      const el = $(p + suffix);
+      if (el) el.setAttribute(attr, value);
+    });
+  }
+
+  function removeBothAttr(suffix, attr) {
+    SVG_PREFIXES.forEach((p) => {
+      const el = $(p + suffix);
+      if (el) el.removeAttribute(attr);
+    });
+  }
+
+  function setBothText(suffix, text) {
+    SVG_PREFIXES.forEach((p) => {
+      const el = $(p + suffix);
+      if (el) el.textContent = text;
+    });
+  }
+
+  let t3Rule = "obj";
+  let t3Row = null;
+  let t3Preds = {};
+  let t3Done = {};
+  let t3LineIdx = 0;
+
+  function currentKey() {
+    return t3Row ? `${t3Row}-${t3Rule}` : null;
+  }
+
+  function resetSvgStage() {
+    [
+      "svgTag1", "svgTag2", "svgBox1", "svgBox2",
+      "svgArrS1", "svgArrS2", "svgSetDot1", "svgArrSet1",
+      "svgSetDot2", "svgArrSet2", "svgEqBubble"
+    ].forEach((s) => setBoth(s, "opacity", "0"));
+
+    setBoth("svgBox1Outer", "stroke", "#12324A");
+    setBoth("svgBox1Outer", "stroke-width", "2");
+    setBoth("svgBox2Outer", "stroke", "#12324A");
+    setBoth("svgBox2Outer", "stroke-width", "2");
+    setBoth("svgBox1IdBg", "fill", "transparent");
+    setBoth("svgBox2IdBg", "fill", "transparent");
+    removeBothAttr("svgArrSet2", "stroke-dasharray");
+    setBoth("svgArrSet2", "stroke", "#2A8FBD");
+    setBoth("svgSetDot2", "fill", "#2A8FBD");
+
+    $("d-svgArrSet2").setAttribute("marker-end", "url(#d-arrFocus)");
+    $("m-svgArrSet2").setAttribute("marker-end", "url(#m-arrFocus)");
+    $("d-svgArrSet2").setAttribute("d", "M 352 165 C 324 165, 304 165, 285 165");
+    $("d-svgSetDot2").setAttribute("cx", "358");
+    $("d-svgSetDot2").setAttribute("cy", "165");
+    $("m-svgArrSet2").setAttribute("d", "M 272 282 C 272 246, 272 214, 272 184");
+    $("m-svgSetDot2").setAttribute("cx", "272");
+    $("m-svgSetDot2").setAttribute("cy", "288");
+
+    setBothText("svgSetCount", "0 inside");
+    SVG_PREFIXES.forEach((p) => $(p + "svgSetCount").classList.remove("is-wiggle"));
+  }
+
+  function renderT3Grid() {
+    const desc = $("t3RuleDesc");
+    if (t3Row) {
+      desc.textContent =
+        t3Rule === "obj"
+          ? "Rule: equals compares references"
+          : "Rule: equals compares id";
+      desc.classList.add("is-visible");
+    } else {
+      desc.textContent = "";
+      desc.classList.remove("is-visible");
+    }
+
+    ["A-obj", "A-id", "B-obj", "B-id"].forEach((key) => {
+      const cell = $(`cell-${key}`);
+      const selected = currentKey() === key;
+      cell.classList.toggle("is-selected", selected);
+      cell.classList.remove("is-correct", "is-wrong");
+      const res = t3Done[key];
+      if (res) {
+        cell.classList.add(res.ok ? "is-correct" : "is-wrong");
+        cell.innerHTML = `<span>${res.answer}</span>${res.ok ? svgCheck(15) : svgCross(15)}`;
+      } else {
+        cell.textContent = "?";
+      }
+    });
+
+    const allFour = Object.keys(EXPECTED).every((k) => Boolean(t3Done[k]));
+    $("t3Summary").classList.toggle("is-visible", allFour);
+    if (allFour) markTabDone(3);
+  }
+
+  function renderT3Workflow() {
+    const key = currentKey();
+    if (!key) {
+      $("t3PredictRow").classList.remove("is-visible");
+      $("t3Runner").classList.remove("is-visible");
+      return;
+    }
+
+    const hasPred = t3Preds[key] !== undefined;
+    $("t3PredictRow").classList.toggle("is-visible", !hasPred);
+    $("t3Runner").classList.toggle("is-visible", hasPred);
+
+    if (!hasPred) return;
+
+    const lines = SCENARIOS[t3Row];
+    const container = $("t3CodeLines");
+    container.innerHTML = "";
+    lines.forEach((txt, idx) => {
+      const btn = document.createElement("button");
+      btn.className = "code-line-btn";
+      if (idx < t3LineIdx) btn.classList.add("is-ran");
+      if (idx === t3LineIdx) btn.classList.add("is-next");
+      btn.disabled = idx !== t3LineIdx;
+
+      const codeSpan = document.createElement("span");
+      codeSpan.textContent = txt;
+      btn.appendChild(codeSpan);
+
+      if (idx === t3LineIdx) {
+        const cue = document.createElement("span");
+        cue.className = "run-cue";
+        cue.innerHTML = `<span>tap to run this line</span>${svgPlay(10)}`;
+        btn.appendChild(cue);
+      }
+
+      btn.addEventListener("click", () => runT3Line(idx));
+      container.appendChild(btn);
+    });
+
+    const reasonEl = $("t3ReasonLine");
+    if (t3LineIdx >= lines.length && t3Done[key]) {
+      reasonEl.textContent = REASONS[key];
+      reasonEl.classList.add("is-visible");
+    } else {
+      reasonEl.textContent = "";
+      reasonEl.classList.remove("is-visible");
+    }
+  }
+
+  async function ensureDiagramAndNextLineVisible() {
+    const nextBtn = $("t3CodeLines").querySelector(".code-line-btn.is-next");
+    if (nextBtn) {
+      await ensureElsInView([$("t3MemWrap"), nextBtn]);
+    } else {
+      await ensureElsInView([$("t3MemWrap")]);
+    }
+  }
+
+  function selectT3Cell(row, col) {
+    if (isAnimating) return;
+    t3Row = row;
+    t3Rule = col;
+    t3LineIdx = 0;
+    resetSvgStage();
+    renderT3Grid();
+    renderT3Workflow();
+    const key = currentKey();
+    if (t3Preds[key] === undefined) {
+      scrollBelowBar($("t3PredictRow"), "nearest");
+    } else {
+      ensureDiagramAndNextLineVisible();
+    }
+  }
+
+  document.querySelectorAll("#panel3 .grid-cell").forEach((cell) => {
+    cell.addEventListener("click", () => {
+      selectT3Cell(cell.dataset.row, cell.dataset.col);
+    });
+  });
+
+  async function chooseT3Pred(val) {
+    if (isAnimating) return;
+    const key = currentKey();
+    if (!key) return;
+    t3Preds[key] = val;
+    t3LineIdx = 0;
+    resetSvgStage();
+    renderT3Workflow();
+    await ensureDiagramAndNextLineVisible();
+  }
+
+  $("t3Pred1").addEventListener("click", () => chooseT3Pred(1));
+  $("t3Pred2").addEventListener("click", () => chooseT3Pred(2));
+
+  async function runT3Line(idx) {
+    const key = currentKey();
+    if (!key || idx !== t3LineIdx) return;
+
+    await withLock(async () => {
+      // Ensure diagram is visible below sticky bar before running animation
+      await ensureElsInView([$("t3MemWrap")]);
+
+      if (t3Row === "A") {
+        if (idx === 0) {
+          setBoth("svgTag1", "opacity", "1");
+          setBoth("svgBox1", "opacity", "1");
+          setBoth("svgArrS1", "opacity", "1");
+          await wait(340);
+        } else if (idx === 1) {
+          setBoth("svgTag2", "opacity", "1");
+          setBoth("svgBox2", "opacity", "1");
+          setBoth("svgArrS2", "opacity", "1");
+          await wait(340);
+        } else if (idx === 2) {
+          setBoth("svgSetDot1", "opacity", "1");
+          setBoth("svgArrSet1", "opacity", "1");
+          setBothText("svgSetCount", "1 inside");
+          pushResult("S.add(s1)", true);
+          await wait(380);
+        } else if (idx === 3) {
+          setBoth("svgSetDot2", "opacity", "1");
+          setBoth("svgArrSet2", "stroke-dasharray", "5 4");
+          setBoth("svgArrSet2", "opacity", "1");
+          setBoth("svgEqBubble", "opacity", "1");
+
+          if (t3Rule === "obj") {
+            setBoth("svgBox1Outer", "stroke", "#2A8FBD");
+            setBoth("svgBox1Outer", "stroke-width", "3");
+            setBoth("svgBox2Outer", "stroke", "#2A8FBD");
+            setBoth("svgBox2Outer", "stroke-width", "3");
+            setBothText("svgEqText", "different boxes \u2192 not equal");
+            await wait(520);
+
+            removeBothAttr("svgArrSet2", "stroke-dasharray");
+            setBoth("svgArrSet2", "stroke", "#0E7A57");
+            $("d-svgArrSet2").setAttribute("marker-end", "url(#d-arrMint)");
+            $("m-svgArrSet2").setAttribute("marker-end", "url(#m-arrMint)");
+            setBoth("svgSetDot2", "fill", "#0E7A57");
+            setBothText("svgSetCount", "2 inside");
+            pushResult("S.add(s2)", true);
+            await wait(340);
+          } else {
+            setBoth("svgBox1IdBg", "fill", "#CFF3E4");
+            setBoth("svgBox2IdBg", "fill", "#CFF3E4");
+            setBothText("svgEqText", "id 7 = id 7 \u2192 equal");
+            await wait(520);
+
+            setBoth("svgArrSet2", "stroke", "#C2412B");
+            $("d-svgArrSet2").setAttribute("marker-end", "url(#d-arrCoral)");
+            $("m-svgArrSet2").setAttribute("marker-end", "url(#m-arrCoral)");
+            setBoth("svgSetDot2", "fill", "#C2412B");
+            pushResult("S.add(s2)", false);
+            SVG_PREFIXES.forEach((p) => $(p + "svgSetCount").classList.add("is-wiggle"));
+            await wait(380);
+            setBoth("svgArrSet2", "opacity", "0");
+            setBoth("svgSetDot2", "opacity", "0");
+          }
+          setBoth("svgEqBubble", "opacity", "0");
+        }
+      } else {
+        // Scenario B
+        if (idx === 0) {
+          setBoth("svgTag1", "opacity", "1");
+          setBoth("svgBox1", "opacity", "1");
+          setBoth("svgArrS1", "opacity", "1");
+          await wait(340);
+        } else if (idx === 1) {
+          setBoth("svgSetDot1", "opacity", "1");
+          setBoth("svgArrSet1", "opacity", "1");
+          setBothText("svgSetCount", "1 inside");
+          pushResult("S.add(s1)", true);
+          await wait(380);
+        } else if (idx === 2) {
+          $("d-svgSetDot2").setAttribute("cy", "140");
+          $("d-svgArrSet2").setAttribute("d", "M 352 140 C 324 140, 304 82, 285 76");
+          $("m-svgSetDot2").setAttribute("cx", "288");
+          $("m-svgSetDot2").setAttribute("cy", "288");
+          $("m-svgArrSet2").setAttribute("d", "M 294 282 C 326 226, 336 105, 318 78");
+
+          setBoth("svgSetDot2", "opacity", "1");
+          setBoth("svgArrSet2", "stroke-dasharray", "5 4");
+          setBoth("svgArrSet2", "opacity", "1");
+          setBoth("svgEqBubble", "opacity", "1");
+
+          if (t3Rule === "obj") {
+            setBoth("svgBox1Outer", "stroke", "#2A8FBD");
+            setBoth("svgBox1Outer", "stroke-width", "3");
+            setBothText("svgEqText", "same box \u2192 equal");
+          } else {
+            setBoth("svgBox1IdBg", "fill", "#CFF3E4");
+            setBothText("svgEqText", "id 7 = id 7 \u2192 equal");
+          }
+          await wait(520);
+
+          setBoth("svgArrSet2", "stroke", "#C2412B");
+          $("d-svgArrSet2").setAttribute("marker-end", "url(#d-arrCoral)");
+          $("m-svgArrSet2").setAttribute("marker-end", "url(#m-arrCoral)");
+          setBoth("svgSetDot2", "fill", "#C2412B");
+          pushResult("S.add(s1)", false);
+          SVG_PREFIXES.forEach((p) => $(p + "svgSetCount").classList.add("is-wiggle"));
+          await wait(380);
+          setBoth("svgArrSet2", "opacity", "0");
+          setBoth("svgSetDot2", "opacity", "0");
+          setBoth("svgEqBubble", "opacity", "0");
+        }
+      }
+
+      t3LineIdx++;
+      const finishedCase = t3LineIdx >= SCENARIOS[t3Row].length;
+      if (finishedCase) {
+        const answer = EXPECTED[key];
+        const pred = t3Preds[key];
+        t3Done[key] = { answer, pred, ok: pred === answer };
+      }
+      renderT3Grid();
+      renderT3Workflow();
+
+      if (finishedCase) {
+        await scrollBelowBar($("t3Grid"), "start");
+      } else {
+        await ensureDiagramAndNextLineVisible();
+      }
+    });
+  }
+
+  $("resetTab3").addEventListener("click", () => {
+    if (isAnimating) return;
+    t3Rule = "obj";
+    t3Row = null;
+    t3Preds = {};
+    t3Done = {};
+    t3LineIdx = 0;
+    resetSvgStage();
+    clearHistory();
+    renderT3Grid();
+    renderT3Workflow();
+  });
+
+  // Initial render
+  renderT1();
+  updateT1Goals(false);
+  renderT2();
+  renderT3Grid();
+  renderT3Workflow();
+  syncBarHeightVar();
+})();
+</script>
+</body>
+</html>
