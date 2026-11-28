@@ -1,0 +1,2449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Same elements, three sets</title>
+<style>
+  :root {
+    --bg: #F5F1EA;
+    --surface: #FFFFFF;
+    --ink: #23303F;
+    --muted: #5E6B7A;
+    --line: #D9D2C5;
+    --hash: #5B6FA8;
+    --hash-soft: #EEF1F8;
+    --linked: #17837C;
+    --linked-soft: #E8F5F4;
+    --tree: #B0306A;
+    --tree-soft: #F9EBF2;
+    --ok: #3C7D3A;
+    --ok-soft: #EAF4EA;
+    --alert: #E3A23B;
+    --alert-soft: #FDF3E1;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --shadow: 0 2px 6px rgba(35, 48, 63, 0.06);
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+
+  html {
+    color-scheme: light;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  body {
+    margin: 0;
+    padding: 12px 10px 32px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.45;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (min-width: 600px) {
+    body {
+      padding: 18px 20px 40px;
+    }
+  }
+
+  .app {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .mono, code {
+    font-family: var(--mono);
+  }
+
+  code {
+    font-size: 0.92em;
+    background: var(--bg);
+    padding: 1px 5px;
+    border-radius: 5px;
+    border: 1px solid var(--line);
+  }
+
+  /* Buttons & interactive controls */
+  button {
+    font-family: inherit;
+    color: var(--ink);
+    background: var(--surface);
+    border: 2px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 14px;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background-color 140ms ease, border-color 140ms ease, transform 100ms ease, opacity 140ms ease;
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  [tabindex="0"]:focus-visible,
+  .step-instruction:focus-visible {
+    outline: 3px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  .step-instruction:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  button.is-locked {
+    opacity: 1;
+    cursor: default;
+  }
+
+  button.is-locked:active {
+    transform: none;
+  }
+
+  button:not(:disabled):not(.is-locked):active {
+    transform: scale(0.98);
+  }
+
+  @media (hover: hover) {
+    button:not(:disabled):not(.is-locked):hover {
+      border-color: var(--ink);
+    }
+  }
+
+  .btn-primary {
+    background: var(--ink);
+    color: var(--surface);
+    border-color: var(--ink);
+  }
+
+  .btn-primary:not(:disabled):not(.is-locked):hover {
+    background: #1A2430;
+  }
+
+  .btn-reset {
+    min-height: 44px;
+    min-width: 64px;
+    padding: 6px 12px;
+    font-size: 13.5px;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+  }
+
+  .btn-reset:not(:disabled):not(.is-locked):hover {
+    color: var(--ink);
+    border-color: var(--ink);
+  }
+
+  /* Header */
+  .page-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(22px, 4vw, 28px);
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+  }
+
+  .subtitle {
+    margin: 0;
+    font-size: 15.5px;
+    color: var(--muted);
+  }
+
+  /* Persistent Code & Queue Card */
+  .card {
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    padding: 12px 12px;
+    box-shadow: var(--shadow);
+    min-width: 0;
+  }
+
+  @media (min-width: 640px) {
+    .card {
+      padding: 12px 14px;
+    }
+  }
+
+  .setup-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .setup-pre {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.55;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 8px;
+    white-space: pre;
+    overflow-x: auto;
+    max-width: 100%;
+    min-width: 0;
+    color: var(--ink);
+  }
+
+  @media (min-width: 400px) {
+    .setup-pre {
+      font-size: 12.5px;
+      padding: 10px 12px;
+    }
+  }
+
+  @media (min-width: 640px) {
+    .setup-pre {
+      font-size: 13.5px;
+    }
+  }
+
+  .queue-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .queue-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-right: 2px;
+  }
+
+  .guest-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 2px solid var(--line);
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  /* Step Bar */
+  .step-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    padding: 6px 8px;
+    box-shadow: var(--shadow);
+  }
+
+  .step-tab {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 6px 11px;
+    border-radius: 999px;
+    border: 1.5px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13.5px;
+    font-weight: 700;
+    flex: 0 1 auto;
+  }
+
+  .step-tab[aria-current="step"] {
+    background: var(--ink);
+    color: var(--surface);
+    border-color: var(--ink);
+  }
+
+  .step-tab.is-done:not([aria-current="step"]) {
+    background: var(--bg);
+    border-color: var(--line);
+    color: var(--ink);
+  }
+
+  .step-tab .done-mark {
+    color: var(--ok);
+    font-weight: 800;
+  }
+
+  .step-tab[aria-current="step"] .done-mark {
+    color: var(--surface);
+  }
+
+  .step-sep {
+    color: var(--line);
+    font-weight: 700;
+    user-select: none;
+  }
+
+  @media (max-width: 540px) {
+    .step-sep {
+      display: none;
+    }
+    .step-tab {
+      font-size: 12.5px;
+      padding: 6px 9px;
+    }
+  }
+
+  /* Step Panel */
+  .step-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .step-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .step-instruction {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 750;
+    color: var(--ink);
+    padding-top: 8px;
+  }
+
+  .step-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1.5px solid var(--line);
+  }
+
+  .step-footer .next-wrap {
+    margin-left: auto;
+  }
+
+  /* Set Identity Badges */
+  .set-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 800;
+    font-size: 15px;
+    color: var(--ink);
+  }
+
+  .set-tag {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1.5px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .set-tag.hash { border-color: var(--hash); background: var(--hash-soft); }
+  .set-tag.linked { border-color: var(--linked); background: var(--linked-soft); }
+  .set-tag.tree { border-color: var(--tree); background: var(--tree-soft); }
+
+  /* Feedback / Alert / Console strips */
+  .explain-box {
+    background: var(--bg);
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 14.5px;
+    color: var(--ink);
+  }
+
+  .explain-box p {
+    margin: 0 0 4px;
+  }
+
+  .explain-box p:last-child {
+    margin-bottom: 0;
+  }
+
+  .badge-ok {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--ok-soft);
+    border: 1.5px solid var(--ok);
+    color: var(--ok);
+    font-size: 12.5px;
+    font-weight: 800;
+  }
+
+  .badge-alert {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--alert);
+    border: 1.5px solid var(--ink);
+    color: var(--ink);
+    font-size: 12.5px;
+    font-weight: 800;
+  }
+
+  .console-strip {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    background: var(--alert-soft);
+    color: var(--ink);
+    border: 1.5px solid var(--line);
+    border-left: 5px solid var(--alert);
+    border-radius: 8px;
+    padding: 8px 10px;
+    overflow-wrap: anywhere;
+  }
+
+  /* ================= STEP 1: ORDER ================= */
+  .order-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .set-order-card {
+    background: var(--surface);
+    border: 2px solid var(--line);
+    border-radius: 14px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color 150ms ease, background-color 150ms ease;
+  }
+
+  .set-order-card.is-active.linked {
+    border-color: var(--linked);
+    background: var(--linked-soft);
+  }
+
+  .set-order-card.is-active.tree {
+    border-color: var(--tree);
+    background: var(--tree-soft);
+  }
+
+  .set-order-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .row-activate-btn {
+    padding: 4px 10px;
+    min-height: 44px;
+    border-radius: 10px;
+    border: 1.5px solid transparent;
+    background: transparent;
+    justify-content: flex-start;
+  }
+
+  .set-order-card.is-active .row-activate-btn {
+    background: var(--surface);
+    border-color: var(--line);
+  }
+
+  .slots-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .slot-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .slot-btn,
+  .hash-slot-card {
+    width: 100%;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 4px 2px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: var(--bg);
+    border: 2px dashed var(--line);
+    color: var(--muted);
+  }
+
+  .slot-btn.is-filled {
+    background: var(--surface);
+    color: var(--ink);
+    border-style: solid;
+  }
+
+  .slot-btn.is-filled.linked { border-color: var(--linked); }
+  .slot-btn.is-filled.tree { border-color: var(--tree); }
+
+  .hash-slot-card {
+    border-style: solid;
+    border-color: var(--line);
+    background: var(--bg);
+    color: var(--muted);
+    transition: transform 280ms ease, background-color 220ms ease, border-color 220ms ease;
+  }
+
+  .hash-slot-card.is-revealed {
+    background: var(--surface);
+    border-color: var(--hash);
+    color: var(--ink);
+  }
+
+  .hash-slot-card.is-flipping {
+    transform: rotateX(90deg);
+  }
+
+  .slot-verdict {
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.25;
+  }
+
+  .slot-verdict.ok {
+    color: var(--ok);
+  }
+
+  .slot-verdict.alert {
+    background: var(--alert);
+    color: var(--ink);
+    padding: 2px 6px;
+    border-radius: 6px;
+  }
+
+  .slot-caption {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .tray-panel {
+    background: var(--bg);
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .tray-hint {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .chip-tray {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .name-chip-btn {
+    min-width: 58px;
+    min-height: 44px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 2px solid var(--ink);
+    background: var(--surface);
+    color: var(--ink);
+    font-weight: 750;
+  }
+
+  .action-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .hash-variants-box {
+    background: var(--hash-soft);
+    border: 1.5px solid var(--hash);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .hash-code-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ================= STEP 2: QUESTIONS ================= */
+  .grid-legend {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  .q-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .q-header-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 8px;
+    background: var(--bg);
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    align-items: center;
+  }
+
+  .q-header-spacer {
+    display: none;
+  }
+
+  .q-col-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 3px;
+    font-size: 12.5px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+
+  .q-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    padding: 7px 6px;
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    align-items: stretch;
+  }
+
+  .q-label {
+    grid-column: 1 / -1;
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--ink);
+    padding-bottom: 4px;
+  }
+
+  @media (min-width: 640px) {
+    .q-header-row,
+    .q-row {
+      grid-template-columns: minmax(210px, 1.45fr) repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      padding: 8px 10px;
+    }
+    .q-header-spacer {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .q-label {
+      grid-column: auto;
+      display: flex;
+      align-items: center;
+      padding-bottom: 0;
+    }
+    .q-col-head {
+      font-size: 13.5px;
+    }
+  }
+
+  .q-cell-btn {
+    width: 100%;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 6px 4px;
+    border-radius: 10px;
+    border: 2px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 13px;
+    text-align: center;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  .q-cell-btn[aria-pressed="true"]:not(.checked-ok):not(.checked-alert) {
+    background: var(--surface);
+    border-color: var(--ink);
+  }
+
+  .q-cell-btn.checked-ok {
+    background: var(--ok-soft);
+    border-color: var(--ok);
+  }
+
+  .q-cell-btn.checked-alert {
+    background: var(--alert-soft);
+    border-color: var(--alert);
+  }
+
+  .cell-mark {
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .cell-truth-yes {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1.2;
+  }
+
+  .cell-truth-no {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: var(--muted);
+    line-height: 1.2;
+  }
+
+  .cell-method {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--ink);
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  .cell-method-call {
+    display: inline-block;
+  }
+
+  .cell-method-res {
+    display: block;
+    white-space: normal;
+  }
+
+  @media (min-width: 640px) {
+    .cell-method {
+      font-size: 13px;
+    }
+    .cell-method-res {
+      display: inline-block;
+      white-space: nowrap;
+    }
+  }
+
+  .cell-mismatch-pill {
+    display: inline-block;
+    background: var(--alert);
+    color: var(--ink);
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  .cell-dash {
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  /* ================= STEP 3: NULL ================= */
+  .three-cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  @media (min-width: 640px) {
+    .three-cards {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .null-card {
+    background: var(--surface);
+    border: 2px solid var(--line);
+    border-radius: 14px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .null-card.hash { border-top: 5px solid var(--hash); }
+  .null-card.linked { border-top: 5px solid var(--linked); }
+  .null-card.tree { border-top: 5px solid var(--tree); }
+
+  .toggle-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .toggle-btn {
+    min-height: 44px;
+    font-size: 14px;
+    background: var(--bg);
+    border-color: var(--line);
+  }
+
+  .toggle-btn[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--surface);
+    border-color: var(--ink);
+  }
+
+  .null-result {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13.5px;
+  }
+
+  /* ================= STEP 4: SPEED ================= */
+  .name-picker-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .race-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  @media (min-width: 640px) {
+    .race-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .race-panel {
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .race-panel-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .step-counter {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+  }
+
+  .hash-pool {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 60px;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 12px;
+  }
+
+  .pool-pill {
+    padding: 6px 13px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 2px solid var(--line);
+    font-weight: 750;
+    transition: transform 150ms ease, border-color 150ms ease, background-color 150ms ease;
+  }
+
+  .pool-pill.is-hit {
+    border-color: var(--hash);
+    background: var(--hash-soft);
+    transform: scale(1.08);
+    box-shadow: 0 0 0 3px rgba(91, 111, 168, 0.25);
+  }
+
+  .tree-svg-wrap {
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 6px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .tree-svg {
+    width: 100%;
+    max-width: 310px;
+    height: auto;
+    display: block;
+  }
+
+  .scale-card {
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .scale-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .scale-title {
+    margin: 0;
+    font-size: 15.5px;
+    font-weight: 800;
+  }
+
+  .slider-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .stop-buttons {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    align-items: stretch;
+  }
+
+  .stop-btn {
+    min-height: 44px;
+    height: 100%;
+    padding: 6px 3px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.2;
+    background: var(--bg);
+    white-space: normal;
+    text-align: center;
+  }
+
+  @media (min-width: 640px) {
+    .stop-btn {
+      font-size: 13px;
+      padding: 6px 8px;
+    }
+  }
+
+  .stop-btn[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--surface);
+    border-color: var(--ink);
+  }
+
+  .bar-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .bar-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .bar-label-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13.5px;
+    font-weight: 700;
+  }
+
+  .bar-track {
+    width: 100%;
+    height: 14px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 260ms ease;
+  }
+
+  .bar-fill.hash { background: var(--hash); }
+  .bar-fill.tree { background: var(--tree); }
+
+  .cost-card {
+    background: var(--bg);
+    border: 2px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 14px;
+  }
+
+  .cost-card p {
+    margin: 0;
+  }
+
+  .student-demo {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* ================= STEP 5: CHOOSE ================= */
+  .job-tray {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .job-card-btn {
+    width: 100%;
+    min-height: 46px;
+    justify-content: flex-start;
+    text-align: left;
+    padding: 10px 12px;
+    font-weight: 650;
+    background: var(--surface);
+    border: 2px solid var(--line);
+  }
+
+  .job-card-btn.is-selected {
+    border-color: var(--ink);
+    background: #EFE9DF;
+    box-shadow: 0 0 0 2px var(--ink);
+  }
+
+  .bins-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  @media (min-width: 640px) {
+    .bins-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .bin-card {
+    background: var(--surface);
+    border: 2px solid var(--line);
+    border-radius: 14px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .bin-card.hash { border-top: 5px solid var(--hash); }
+  .bin-card.linked { border-top: 5px solid var(--linked); }
+  .bin-card.tree { border-top: 5px solid var(--tree); }
+
+  .bin-pick-btn {
+    width: 100%;
+    min-height: 48px;
+    justify-content: space-between;
+    background: var(--bg);
+  }
+
+  .bin-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .placed-job {
+    background: var(--ok-soft);
+    border: 1.5px solid var(--ok);
+    border-radius: 10px;
+    padding: 7px 9px;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .placed-job-title {
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .placed-job-reason {
+    color: var(--ok);
+    font-weight: 700;
+    font-size: 12.5px;
+  }
+
+  .closing-banner {
+    background: var(--surface);
+    color: var(--ink);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+
+  .closing-stripe {
+    height: 6px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .closing-stripe .s-berry { background: var(--tree); }
+  .closing-stripe .s-teal { background: var(--linked); }
+  .closing-stripe .s-slate { background: var(--hash); }
+
+  .closing-body {
+    padding: 14px 16px;
+    text-align: center;
+  }
+
+  .closing-body strong {
+    display: block;
+    font-size: 17px;
+    margin-bottom: 4px;
+  }
+
+  .closing-body span {
+    font-size: 14.5px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  /* Step 5 bins: when the three bins sit side by side, put the tag under the set name */
+  @media (min-width: 640px) {
+    .bin-pick-btn {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 10px;
+    }
+    .bin-pick-btn .set-tag {
+      white-space: nowrap;
+    }
+  }
+
+  /* Single-column bins on phones: let the tag drop to a second line if needed */
+  @media (max-width: 639px) {
+    .bin-pick-btn {
+      flex-wrap: wrap;
+      row-gap: 4px;
+    }
+  }
+
+  /* Smallest phones (e.g. 320 px wide) */
+  @media (max-width: 359px) {
+    .setup-pre {
+      font-size: 11px;
+      padding: 10px 6px;
+      white-space: pre-wrap;
+    }
+    .q-col-head {
+      font-size: 11px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="page-header">
+    <h1>Same elements, three sets</h1>
+    <p class="subtitle">Five guests, three bouncers. Who keeps what order?</p>
+  </header>
+
+  <section class="card setup-card" aria-label="Shared Java code and arrival order">
+    <pre class="setup-pre">Set&lt;String&gt; hash = new HashSet&lt;&gt;();
+Set&lt;String&gt; linked = new LinkedHashSet&lt;&gt;();
+Set&lt;String&gt; tree = new TreeSet&lt;&gt;();
+// each set gets, in this order:
+// add("Mia"); add("Leo"); add("Ava");
+// add("Zoe"); add("Ben");</pre>
+    <div class="queue-row">
+      <span class="queue-label">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M2 8h11M9.5 4.5 13.5 8l-4 3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        arrival order
+      </span>
+      <span class="guest-pill">Mia</span>
+      <span class="guest-pill">Leo</span>
+      <span class="guest-pill">Ava</span>
+      <span class="guest-pill">Zoe</span>
+      <span class="guest-pill">Ben</span>
+    </div>
+  </section>
+
+  <nav class="step-nav" id="step-nav" aria-label="Lesson steps"></nav>
+
+  <main id="step-host" class="card"></main>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const GUESTS = ['Mia', 'Leo', 'Ava', 'Zoe', 'Ben'];
+
+  const SETS = {
+    hash:   { id: 'hash',   name: 'HashSet',       color: '#5B6FA8', tag: 'no promised order' },
+    linked: { id: 'linked', name: 'LinkedHashSet', color: '#17837C', tag: 'insertion order' },
+    tree:   { id: 'tree',   name: 'TreeSet',       color: '#B0306A', tag: 'sorted order' }
+  };
+
+  const HASH_VARIANTS = [
+    {
+      code: 'new HashSet<>()',
+      order: ['Zoe', 'Mia', 'Leo', 'Ben', 'Ava']
+    },
+    {
+      code: 'new HashSet<>(64)',
+      order: ['Mia', 'Ben', 'Ava', 'Zoe', 'Leo']
+    },
+    {
+      code: 'new HashSet<>(2)',
+      order: ['Zoe', 'Ben', 'Mia', 'Ava', 'Leo']
+    },
+    {
+      code: 'new HashSet<>(), then 9 more guests added and removed again',
+      order: ['Mia', 'Ben', 'Ava', 'Zoe', 'Leo']
+    }
+  ];
+
+  const QUESTIONS = [
+    {
+      id: 'q1',
+      text: 'Is Zoe on the list?',
+      answers: {
+        hash:   { yes: true, method: 'contains("Zoe")', result: 'true' },
+        linked: { yes: true, method: 'contains("Zoe")', result: 'true' },
+        tree:   { yes: true, method: 'contains("Zoe")', result: 'true' }
+      }
+    },
+    {
+      id: 'q2',
+      text: 'Who is alphabetically first?',
+      answers: {
+        hash:   { yes: false },
+        linked: { yes: false },
+        tree:   { yes: true, method: 'first()', result: 'Ava' }
+      }
+    },
+    {
+      id: 'q3',
+      text: 'Who is alphabetically last?',
+      answers: {
+        hash:   { yes: false },
+        linked: { yes: false },
+        tree:   { yes: true, method: 'last()', result: 'Zoe' }
+      }
+    },
+    {
+      id: 'q4',
+      text: 'Who arrived first?',
+      answers: {
+        hash:   { yes: false },
+        linked: { yes: true, method: 'getFirst()', result: 'Mia' },
+        tree:   { yes: false }
+      }
+    },
+    {
+      id: 'q5',
+      text: 'Who arrived last?',
+      answers: {
+        hash:   { yes: false },
+        linked: { yes: true, method: 'getLast()', result: 'Ben' },
+        tree:   { yes: false }
+      }
+    },
+    {
+      id: 'q6',
+      text: 'Who comes right after Leo alphabetically?',
+      answers: {
+        hash:   { yes: false },
+        linked: { yes: false },
+        tree:   { yes: true, method: 'higher("Leo")', result: 'Mia' }
+      }
+    },
+    {
+      id: 'q7',
+      text: 'Which names come from B up to (not including) M?',
+      answers: {
+        hash:   { yes: false },
+        linked: { yes: false },
+        tree:   { yes: true, method: 'subSet("B", "M")', result: '[Ben, Leo]' }
+      }
+    }
+  ];
+
+  const TREE_PATHS = {
+    Leo: { nodes: ['Leo'], edges: [] },
+    Ava: { nodes: ['Leo', 'Ava'], edges: ['Leo-Ava'] },
+    Mia: { nodes: ['Leo', 'Mia'], edges: ['Leo-Mia'] },
+    Ben: { nodes: ['Leo', 'Ava', 'Ben'], edges: ['Leo-Ava', 'Ava-Ben'] },
+    Zoe: { nodes: ['Leo', 'Mia', 'Zoe'], edges: ['Leo-Mia', 'Mia-Zoe'] }
+  };
+
+  const SCALE_STOPS = [
+    { nLabel: '5',             hash: 1, tree: 3 },
+    { nLabel: '1 000',         hash: 1, tree: 10 },
+    { nLabel: '1 000 000',     hash: 1, tree: 20 },
+    { nLabel: '1 000 000 000', hash: 1, tree: 30 }
+  ];
+
+  const SCENARIOS = [
+    {
+      id: 'c1',
+      text: 'Print the guest list in alphabetical order',
+      accepts: ['tree'],
+      reason: 'Always kept sorted.',
+      isCodeReason: false,
+      hint: 'Hint: does this job care about alphabetical order?'
+    },
+    {
+      id: 'c2',
+      text: 'Show guests in the order they arrived',
+      accepts: ['linked'],
+      reason: 'Remembers insertion order.',
+      isCodeReason: false,
+      hint: 'Hint: which set remembers arrival order?'
+    },
+    {
+      id: 'c3',
+      text: 'The door only checks "is this person on the list?", as fast as possible',
+      accepts: ['hash'],
+      reason: 'O(1) on average, and order doesn\'t matter.',
+      isCodeReason: false,
+      hint: 'Hint: order does not matter here, only speed.'
+    },
+    {
+      id: 'c4',
+      text: 'Find the first guest after "Leo" alphabetically',
+      accepts: ['tree'],
+      reason: 'higher("Leo")',
+      isCodeReason: true,
+      hint: 'Hint: this asks an alphabetical neighbour question.'
+    },
+    {
+      id: 'c5',
+      text: 'Keep a list of visitors and later show who came first',
+      accepts: ['linked'],
+      reason: 'getFirst()',
+      isCodeReason: true,
+      hint: 'Hint: this needs arrival order.'
+    },
+    {
+      id: 'c6',
+      text: 'A guest might have no name (null)',
+      accepts: ['hash', 'linked'],
+      reason: 'TreeSet can\'t hold null.',
+      isCodeReason: false,
+      hint: 'Hint: remember which set threw an error on add(null)?'
+    }
+  ];
+
+  const STEP_META = [
+    { num: 1, label: 'Order' },
+    { num: 2, label: 'Questions' },
+    { num: 3, label: 'null' },
+    { num: 4, label: 'Speed' },
+    { num: 5, label: 'Choose' }
+  ];
+
+  function freshStep1() {
+    return {
+      activeRow: 'linked',
+      linkedSlots: [null, null, null, null, null],
+      treeSlots: [null, null, null, null, null],
+      revealed: false,
+      hasFlippedInitial: false,
+      variantIdx: 0,
+      completed: false
+    };
+  }
+
+  function freshStep2() {
+    const ticks = {};
+    for (const q of QUESTIONS) {
+      ticks[q.id] = { hash: false, linked: false, tree: false };
+    }
+    return {
+      ticks,
+      hasTickedOnce: false,
+      checked: false,
+      completed: false
+    };
+  }
+
+  function freshStep3() {
+    return {
+      picks: { hash: null, linked: null, tree: null },
+      revealed: false,
+      completed: false
+    };
+  }
+
+  function freshStep4() {
+    return {
+      selectedName: null,
+      activeNodes: [],
+      activeEdges: [],
+      treeCount: 0,
+      animating: false,
+      scaleIndex: 0,
+      studentTried: false,
+      completed: false
+    };
+  }
+
+  function freshStep5() {
+    return {
+      selectedJobId: null,
+      placed: {}, // jobId -> binId
+      feedback: null, // { ok: bool, msg: string }
+      completed: false
+    };
+  }
+
+  const state = {
+    currentStep: 1,
+    maxUnlockedStep: 1,
+    steps: {
+      1: freshStep1(),
+      2: freshStep2(),
+      3: freshStep3(),
+      4: freshStep4(),
+      5: freshStep5()
+    }
+  };
+
+  let activeTimers = [];
+  function clearTimers() {
+    for (const id of activeTimers) clearTimeout(id);
+    activeTimers = [];
+  }
+
+  function addTimer(fn, ms) {
+    const id = setTimeout(fn, ms);
+    activeTimers.push(id);
+    return id;
+  }
+
+  function prefersReducedMotion() {
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  function setIconSvg(setId, size = 18) {
+    if (setId === 'hash') {
+      return `<svg width="${size}" height="${size}" viewBox="0 0 20 20" aria-hidden="true">
+        <circle cx="4.5" cy="5.5" r="2" fill="#5B6FA8"/>
+        <circle cx="13.5" cy="4.5" r="2" fill="#5B6FA8"/>
+        <circle cx="9.5" cy="10.5" r="2" fill="#5B6FA8"/>
+        <circle cx="4.5" cy="15.5" r="2" fill="#5B6FA8"/>
+        <circle cx="15.5" cy="14.5" r="2" fill="#5B6FA8"/>
+      </svg>`;
+    }
+    if (setId === 'linked') {
+      return `<svg width="${size}" height="${size}" viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M3 10h13M11.5 5.5 16.5 10l-5 4.5" fill="none" stroke="#17837C" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    }
+    return `<svg width="${size}" height="${size}" viewBox="0 0 20 20" aria-hidden="true">
+      <line x1="10" y1="5" x2="5" y2="14" stroke="#B0306A" stroke-width="2"/>
+      <line x1="10" y1="5" x2="15" y2="14" stroke="#B0306A" stroke-width="2"/>
+      <circle cx="10" cy="4.5" r="2.5" fill="#B0306A"/>
+      <circle cx="5" cy="14.5" r="2.5" fill="#B0306A"/>
+      <circle cx="15" cy="14.5" r="2.5" fill="#B0306A"/>
+    </svg>`;
+  }
+
+  function formatMethodCallHtml(methodStr) {
+    const idx = methodStr.indexOf('(');
+    if (idx === -1 || methodStr.endsWith('()')) return escapeHtml(methodStr);
+    return escapeHtml(methodStr.slice(0, idx + 1)) + '<wbr>' + escapeHtml(methodStr.slice(idx + 1));
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  const navEl = document.getElementById('step-nav');
+  const hostEl = document.getElementById('step-host');
+
+  function renderNav() {
+    navEl.innerHTML = STEP_META.map((m, idx) => {
+      const s = state.steps[m.num];
+      const isCurrent = state.currentStep === m.num;
+      const canClick = s.completed || m.num <= state.maxUnlockedStep;
+      const doneMark = s.completed ? '<span class="done-mark" aria-hidden="true">\u2713</span>' : '';
+      const sep = idx < STEP_META.length - 1 ? '<span class="step-sep" aria-hidden="true">\u00b7</span>' : '';
+      return `<button type="button" class="step-tab${s.completed ? ' is-done' : ''}" data-step="${m.num}"${isCurrent ? ' aria-current="step"' : ''}${canClick ? '' : ' disabled'}>${m.num} ${escapeHtml(m.label)} ${doneMark}</button>${sep}`;
+    }).join('');
+  }
+
+  function getFocusKey(el) {
+    if (!el || (!hostEl.contains(el) && !navEl.contains(el))) return null;
+    if (el.id) return 'id:' + el.id;
+    const d = el.dataset;
+    if (d.step) return 'step:' + d.step;
+    if (d.trayName) return 'tray:' + d.trayName;
+    if (d.row && d.slot !== undefined) return 'slot:' + d.row + ':' + d.slot;
+    if (d.activate) return 'activate:' + d.activate;
+    if (d.qid && d.set) return 'qcell:' + d.qid + ':' + d.set;
+    if (d.nullSet && d.val) return 'null:' + d.nullSet + ':' + d.val;
+    if (d.lookup) return 'lookup:' + d.lookup;
+    if (d.stop !== undefined) return 'stop:' + d.stop;
+    if (d.jobId) return 'job:' + d.jobId;
+    if (d.binId) return 'bin:' + d.binId;
+    return null;
+  }
+
+  function findByFocusKey(key) {
+    if (!key) return null;
+    const parts = key.split(':');
+    const kind = parts[0];
+    if (kind === 'id') return document.getElementById(parts.slice(1).join(':'));
+    if (kind === 'step') return navEl.querySelector(`[data-step="${parts[1]}"]`);
+    if (kind === 'tray') return hostEl.querySelector(`[data-tray-name="${CSS.escape(parts[1])}"]`);
+    if (kind === 'slot') return hostEl.querySelector(`[data-row="${parts[1]}"][data-slot="${parts[2]}"]`);
+    if (kind === 'activate') return hostEl.querySelector(`[data-activate="${parts[1]}"]`);
+    if (kind === 'qcell') return hostEl.querySelector(`[data-qid="${parts[1]}"][data-set="${parts[2]}"]`);
+    if (kind === 'null') return hostEl.querySelector(`[data-null-set="${parts[1]}"][data-val="${parts[2]}"]`);
+    if (kind === 'lookup') return hostEl.querySelector(`[data-lookup="${CSS.escape(parts[1])}"]`);
+    if (kind === 'stop') return hostEl.querySelector(`[data-stop="${parts[1]}"]`);
+    if (kind === 'job') return hostEl.querySelector(`[data-job-id="${parts[1]}"]`);
+    if (kind === 'bin') return hostEl.querySelector(`[data-bin-id="${parts[1]}"]`);
+    return null;
+  }
+
+  function goToStep(stepNum) {
+    clearTimers();
+    state.currentStep = stepNum;
+    renderAll({ focusInstruction: true });
+  }
+
+  function goNext() {
+    const cur = state.currentStep;
+    if (!state.steps[cur].completed || cur >= 5) return;
+    if (state.maxUnlockedStep < cur + 1) {
+      state.maxUnlockedStep = cur + 1;
+    }
+    goToStep(cur + 1);
+  }
+
+  function resetCurrentStep() {
+    clearTimers();
+    const cur = state.currentStep;
+    if (cur === 1) state.steps[1] = freshStep1();
+    if (cur === 2) state.steps[2] = freshStep2();
+    if (cur === 3) state.steps[3] = freshStep3();
+    if (cur === 4) state.steps[4] = freshStep4();
+    if (cur === 5) state.steps[5] = freshStep5();
+    renderAll();
+  }
+
+  function stepShell(instructionHtml, bodyHtml) {
+    const cur = state.currentStep;
+    const isCompleted = state.steps[cur].completed;
+    const showBack = cur > 1;
+    const showNext = cur < 5;
+    return `
+      <div class="step-panel">
+        <div class="step-head">
+          <p class="step-instruction" tabindex="-1">${instructionHtml}</p>
+          <button type="button" class="btn-reset" id="reset-step-btn" aria-label="Reset this step">Reset</button>
+        </div>
+        ${bodyHtml}
+        <div class="step-footer">
+          ${showBack ? '<button type="button" id="back-step-btn">Back</button>' : '<span></span>'}
+          ${showNext ? `<div class="next-wrap"><button type="button" class="btn-primary" id="next-step-btn"${isCompleted ? '' : ' disabled'}>Next</button></div>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  /* ==================== STEP 1 RENDER ==================== */
+  function renderStep1() {
+    const s = state.steps[1];
+    const linkedCorrect = ['Mia', 'Leo', 'Ava', 'Zoe', 'Ben'];
+    const treeCorrect = ['Ava', 'Ben', 'Leo', 'Mia', 'Zoe'];
+    const currentVariant = HASH_VARIANTS[s.variantIdx];
+
+    const hashSlotsHtml = currentVariant.order.map((name, i) => {
+      const showName = s.hasFlippedInitial;
+      return `<div class="slot-wrap">
+        <div class="hash-slot-card${showName ? ' is-revealed' : ''}" data-hash-slot="${i}" data-guest="${escapeHtml(name)}">${showName ? escapeHtml(name) : '?'}</div>
+      </div>`;
+    }).join('');
+
+    function buildFillableRow(setId, slotsArr, correctArr) {
+      const info = SETS[setId];
+      const isActive = !s.revealed && s.activeRow === setId;
+      const slotsHtml = slotsArr.map((val, idx) => {
+        const filled = val !== null;
+        let verdictHtml = '';
+        if (s.revealed) {
+          const right = val === correctArr[idx];
+          if (right) {
+            verdictHtml = `<span class="slot-verdict ok">\u2713</span>`;
+          } else {
+            verdictHtml = `<span class="slot-verdict alert">\u2717 ${escapeHtml(correctArr[idx])}</span>`;
+          }
+        }
+        const slotLabel = filled
+          ? `${info.name} slot ${idx + 1}: ${val}${s.revealed ? '' : ', tap to remove'}`
+          : `${info.name} slot ${idx + 1}: empty`;
+        return `<div class="slot-wrap">
+          <button type="button"
+            class="slot-btn ${setId}${filled ? ' is-filled' : ''}${s.revealed ? ' is-locked' : ''}"
+            data-row="${setId}"
+            data-slot="${idx}"
+            aria-label="${escapeHtml(slotLabel)}"
+            ${s.revealed ? 'aria-disabled="true"' : ''}>${filled ? escapeHtml(val) : `${idx + 1}`}</button>
+          ${verdictHtml}
+        </div>`;
+      }).join('');
+
+      return `
+        <div class="set-order-card ${setId}${isActive ? ' is-active' : ''}" data-row-card="${setId}">
+          <div class="set-order-top">
+            <button type="button" class="row-activate-btn${s.revealed ? ' is-locked' : ''}" data-activate="${setId}" ${s.revealed ? 'aria-disabled="true"' : ''} aria-pressed="${isActive ? 'true' : 'false'}">
+              <span class="set-badge">${setIconSvg(setId)} ${info.name}</span>
+            </button>
+            <span class="set-tag ${setId}">${info.tag}</span>
+          </div>
+          <div class="slots-grid">${slotsHtml}</div>
+        </div>
+      `;
+    }
+
+    const activeSlots = s.activeRow === 'linked' ? s.linkedSlots : s.treeSlots;
+    const bothFull = s.linkedSlots.every(Boolean) && s.treeSlots.every(Boolean);
+
+    const trayHtml = s.revealed ? '' : `
+      <div class="tray-panel">
+        <p class="tray-hint">Adding to: <strong>${SETS[s.activeRow].name}</strong> (tap a placed name to remove it)</p>
+        <div class="chip-tray">
+          ${GUESTS.map((g) => {
+            const used = activeSlots.includes(g);
+            return `<button type="button" class="name-chip-btn" data-tray-name="${escapeHtml(g)}"${used ? ' disabled' : ''}>${escapeHtml(g)}</button>`;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    const hashBottomHtml = s.revealed ? `
+      <div class="hash-variants-box">
+        <div class="hash-code-row">
+          <button type="button" id="new-hash-btn">Same guests, new HashSet</button>
+          <code id="hash-code-display">${escapeHtml(currentVariant.code)}</code>
+        </div>
+        <p class="slot-caption">Same five guests, same arrival order, different printout. Never rely on a HashSet's order.</p>
+      </div>
+    ` : `
+      <p class="slot-caption">Java makes no promise here. We'll show what it actually printed.</p>
+    `;
+
+    const revealSection = s.revealed ? `
+      <div class="explain-box" aria-live="polite">
+        <p>LinkedHashSet remembers arrival order. TreeSet sorts.</p>
+        <p>HashSet's order matches neither, and Java doesn't promise it will stay the same.</p>
+      </div>
+    ` : `
+      <div class="action-bar">
+        <button type="button" class="btn-primary" id="s1-reveal-btn"${bothFull ? '' : ' disabled'}>Reveal</button>
+      </div>
+      <div aria-live="polite" class="slot-caption">${bothFull ? 'Ready to reveal.' : 'Fill all five slots in LinkedHashSet and TreeSet first.'}</div>
+    `;
+
+    const body = `
+      <div class="order-rows">
+        <div class="set-order-card hash">
+          <div class="set-order-top">
+            <span class="set-badge">${setIconSvg('hash')} HashSet</span>
+            <span class="set-tag hash">${SETS.hash.tag}</span>
+          </div>
+          <div class="slots-grid" id="hash-slots-grid">${hashSlotsHtml}</div>
+          ${hashBottomHtml}
+        </div>
+        ${buildFillableRow('linked', s.linkedSlots, linkedCorrect)}
+        ${buildFillableRow('tree', s.treeSlots, treeCorrect)}
+      </div>
+      ${trayHtml}
+      ${revealSection}
+    `;
+
+    hostEl.innerHTML = stepShell('Predict how each set prints. Tap the names in order.', body);
+    bindStep1Events();
+  }
+
+  function bindStep1Events() {
+    const s = state.steps[1];
+
+    hostEl.querySelectorAll('[data-activate]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (s.revealed) return;
+        s.activeRow = btn.dataset.activate;
+        renderAll();
+      });
+    });
+
+    hostEl.querySelectorAll('.slot-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (s.revealed) return;
+        const row = btn.dataset.row;
+        const idx = Number(btn.dataset.slot);
+        const arr = row === 'linked' ? s.linkedSlots : s.treeSlots;
+        s.activeRow = row;
+        if (arr[idx] !== null) {
+          arr[idx] = null;
+        }
+        renderAll();
+      });
+    });
+
+    hostEl.querySelectorAll('[data-tray-name]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (s.revealed) return;
+        const name = btn.dataset.trayName;
+        const arr = s.activeRow === 'linked' ? s.linkedSlots : s.treeSlots;
+        if (arr.includes(name)) return;
+        const emptyIdx = arr.indexOf(null);
+        if (emptyIdx !== -1) {
+          arr[emptyIdx] = name;
+        }
+        // Auto-advance activeRow if current row is now full and the other still has space
+        if (arr.every(Boolean)) {
+          const other = s.activeRow === 'linked' ? 'tree' : 'linked';
+          const otherArr = other === 'linked' ? s.linkedSlots : s.treeSlots;
+          if (!otherArr.every(Boolean)) {
+            s.activeRow = other;
+          }
+        }
+        const bothNowFull = s.linkedSlots.every(Boolean) && s.treeSlots.every(Boolean);
+        renderAll({
+          focusSelector: bothNowFull ? '#s1-reveal-btn' : '[data-tray-name]:not(:disabled)'
+        });
+      });
+    });
+
+    const revealBtn = document.getElementById('s1-reveal-btn');
+    if (revealBtn) {
+      revealBtn.addEventListener('click', () => {
+        s.revealed = true;
+        s.completed = true;
+        const reduced = prefersReducedMotion();
+        if (reduced) {
+          s.hasFlippedInitial = true;
+          renderAll();
+          return;
+        }
+        renderAll();
+        const cards = hostEl.querySelectorAll('[data-hash-slot]');
+        cards.forEach((card, i) => {
+          addTimer(() => {
+            card.classList.add('is-flipping');
+            addTimer(() => {
+              card.textContent = card.dataset.guest;
+              card.classList.remove('is-flipping');
+              card.classList.add('is-revealed');
+              if (i === cards.length - 1) {
+                s.hasFlippedInitial = true;
+              }
+            }, 140);
+          }, i * 150);
+        });
+      });
+    }
+
+    const newHashBtn = document.getElementById('new-hash-btn');
+    if (newHashBtn) {
+      newHashBtn.addEventListener('click', () => {
+        const prevEls = Array.from(hostEl.querySelectorAll('[data-hash-slot]'));
+        const prevRects = {};
+        prevEls.forEach((el) => {
+          prevRects[el.dataset.guest] = el.getBoundingClientRect();
+        });
+
+        s.variantIdx = (s.variantIdx + 1) % HASH_VARIANTS.length;
+        s.hasFlippedInitial = true;
+
+        const nextVariant = HASH_VARIANTS[s.variantIdx];
+        const grid = document.getElementById('hash-slots-grid');
+        const codeEl = document.getElementById('hash-code-display');
+        if (codeEl) codeEl.textContent = nextVariant.code;
+        if (!grid) return;
+
+        grid.innerHTML = nextVariant.order.map((name, i) => `
+          <div class="slot-wrap">
+            <div class="hash-slot-card is-revealed" data-hash-slot="${i}" data-guest="${escapeHtml(name)}">${escapeHtml(name)}</div>
+          </div>
+        `).join('');
+
+        if (prefersReducedMotion()) return;
+
+        const newEls = Array.from(grid.querySelectorAll('[data-hash-slot]'));
+        newEls.forEach((el) => {
+          const oldRect = prevRects[el.dataset.guest];
+          if (!oldRect) return;
+          const newRect = el.getBoundingClientRect();
+          const dx = oldRect.left - newRect.left;
+          const dy = oldRect.top - newRect.top;
+          el.style.transition = 'none';
+          el.style.transform = `translate(${dx}px, ${dy}px)`;
+          el.getBoundingClientRect(); // force layout
+          el.style.transition = 'transform 400ms cubic-bezier(0.22, 1, 0.36, 1)';
+          el.style.transform = 'translate(0, 0)';
+        });
+      });
+    }
+  }
+
+  /* ==================== STEP 2 RENDER ==================== */
+  function renderStep2() {
+    const s = state.steps[2];
+    const setIds = ['hash', 'linked', 'tree'];
+
+    const headerRow = `
+      <div class="q-header-row" aria-hidden="true">
+        <div class="q-header-spacer">Question</div>
+        ${setIds.map((id) => `
+          <div class="q-col-head">
+            ${setIconSvg(id, 18)}
+            <span>${SETS[id].name}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    const rowsHtml = QUESTIONS.map((q) => {
+      const cellsHtml = setIds.map((id) => {
+        const picked = s.ticks[q.id][id];
+        const truth = q.answers[id];
+        let cls = 'q-cell-btn';
+        let contentHtml = '';
+        if (!s.checked) {
+          contentHtml = picked ? '<span class="cell-mark">\u2713</span>' : '<span class="cell-dash" aria-hidden="true">\u00a0</span>';
+        } else {
+          const matched = picked === truth.yes;
+          cls += matched ? ' checked-ok is-locked' : ' checked-alert is-locked';
+          const truthHtml = truth.yes
+            ? `<span class="cell-truth-yes">Yes</span><span class="cell-method"><span class="cell-method-call">${formatMethodCallHtml(truth.method)}</span> <span class="cell-method-res">\u2192 ${escapeHtml(truth.result)}</span></span>`
+            : `<span class="cell-truth-no">No</span>`;
+          const mismatchHtml = matched
+            ? ''
+            : `<span class="cell-mismatch-pill">${picked ? '\u2717 you ticked this' : '\u2717 you missed this'}</span>`;
+          contentHtml = truthHtml + mismatchHtml;
+        }
+        return `<button type="button"
+          class="${cls}"
+          data-qid="${q.id}"
+          data-set="${id}"
+          aria-pressed="${picked ? 'true' : 'false'}"
+          aria-label="${escapeHtml(q.text)} \u2014 ${SETS[id].name}"
+          ${s.checked ? 'aria-disabled="true"' : ''}>${contentHtml}</button>`;
+      }).join('');
+
+      return `
+        <div class="q-row">
+          <div class="q-label">${escapeHtml(q.text)}</div>
+          ${cellsHtml}
+        </div>
+      `;
+    }).join('');
+
+    const bottomHtml = s.checked ? `
+      <div class="explain-box" aria-live="polite">
+        <p>A \u2717 doesn't mean impossible. You could walk the whole set and work it out, but the set itself can't tell you.</p>
+        <p><strong>TreeSet answers order questions. LinkedHashSet answers arrival questions. All three answer 'is it there?'</strong></p>
+      </div>
+    ` : `
+      <div class="action-bar">
+        <button type="button" class="btn-primary" id="s2-check-btn"${s.hasTickedOnce ? '' : ' disabled'}>Check</button>
+      </div>
+      <div aria-live="polite" class="slot-caption">${s.hasTickedOnce ? 'Ready to check.' : 'Tap at least one box above to unlock Check.'}</div>
+    `;
+
+    const body = `
+      <p class="grid-legend">Tap = you think this set has a method that answers it directly.</p>
+      <div class="q-grid">
+        ${headerRow}
+        ${rowsHtml}
+      </div>
+      ${bottomHtml}
+    `;
+
+    hostEl.innerHTML = stepShell(
+      'Which set has a built-in way to answer each question? Tap the boxes you think are yes.',
+      body
+    );
+
+    hostEl.querySelectorAll('.q-cell-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (s.checked) return;
+        const qid = btn.dataset.qid;
+        const setId = btn.dataset.set;
+        s.ticks[qid][setId] = !s.ticks[qid][setId];
+        s.hasTickedOnce = true;
+        renderAll();
+      });
+    });
+
+    const checkBtn = document.getElementById('s2-check-btn');
+    if (checkBtn) {
+      checkBtn.addEventListener('click', () => {
+        s.checked = true;
+        s.completed = true;
+        renderAll();
+      });
+    }
+  }
+
+  /* ==================== STEP 3 RENDER ==================== */
+  function renderStep3() {
+    const s = state.steps[3];
+    const setIds = ['hash', 'linked', 'tree'];
+    const expected = { hash: 'works', linked: 'works', tree: 'fails' };
+    const allPicked = setIds.every((id) => s.picks[id] !== null);
+
+    const cardsHtml = setIds.map((id) => {
+      const info = SETS[id];
+      const pick = s.picks[id];
+      let resultHtml = '';
+      if (s.revealed) {
+        const matched = pick === expected[id];
+        const badge = matched
+          ? '<span class="badge-ok">\u2713 Match</span>'
+          : '<span class="badge-alert">\u2717 Actually ' + (expected[id] === 'works' ? 'works' : 'fails') + '</span>';
+        const detail = id === 'tree'
+          ? `<div class="console-strip">throws java.lang.NullPointerException</div>`
+          : `<div><code>add(null)</code> \u2192 <code>true</code> (works)</div>`;
+        resultHtml = `<div class="null-result">${badge}${detail}</div>`;
+      }
+      return `
+        <div class="null-card ${id}">
+          <div class="set-badge">${setIconSvg(id)} ${info.name}</div>
+          <div class="toggle-pair">
+            <button type="button" class="toggle-btn${s.revealed ? ' is-locked' : ''}" data-null-set="${id}" data-val="works" aria-pressed="${pick === 'works' ? 'true' : 'false'}"${s.revealed ? ' aria-disabled="true"' : ''}>Works</button>
+            <button type="button" class="toggle-btn${s.revealed ? ' is-locked' : ''}" data-null-set="${id}" data-val="fails" aria-pressed="${pick === 'fails' ? 'true' : 'false'}"${s.revealed ? ' aria-disabled="true"' : ''}>Fails</button>
+          </div>
+          ${resultHtml}
+        </div>
+      `;
+    }).join('');
+
+    const bottomHtml = s.revealed ? `
+      <div class="explain-box" aria-live="polite">
+        <p>TreeSet must compare each new name with the others to put it in sorted order. You can't compare <code>null</code> with anything.</p>
+      </div>
+    ` : `
+      <div class="action-bar">
+        <button type="button" class="btn-primary" id="s3-reveal-btn"${allPicked ? '' : ' disabled'}>Reveal</button>
+      </div>
+      <div aria-live="polite" class="slot-caption">${allPicked ? 'Ready to reveal.' : 'Pick Works or Fails for all three sets.'}</div>
+    `;
+
+    const body = `
+      <div class="three-cards">${cardsHtml}</div>
+      ${bottomHtml}
+    `;
+
+    hostEl.innerHTML = stepShell(
+      'A guest with no name: <code>add(null)</code>. Will each set let them in?',
+      body
+    );
+
+    hostEl.querySelectorAll('[data-null-set]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (s.revealed) return;
+        s.picks[btn.dataset.nullSet] = btn.dataset.val;
+        renderAll();
+      });
+    });
+
+    const revBtn = document.getElementById('s3-reveal-btn');
+    if (revBtn) {
+      revBtn.addEventListener('click', () => {
+        s.revealed = true;
+        s.completed = true;
+        renderAll();
+      });
+    }
+  }
+
+  /* ==================== STEP 4 RENDER ==================== */
+  function buildTreeSvgHtml(s) {
+    const treeCoords = {
+      Leo: { x: 160, y: 34 },
+      Ava: { x: 85,  y: 100 },
+      Mia: { x: 235, y: 100 },
+      Ben: { x: 125, y: 166 },
+      Zoe: { x: 275, y: 166 }
+    };
+    const treeEdges = [
+      ['Leo', 'Ava', 'Leo-Ava'],
+      ['Leo', 'Mia', 'Leo-Mia'],
+      ['Ava', 'Ben', 'Ava-Ben'],
+      ['Mia', 'Zoe', 'Mia-Zoe']
+    ];
+
+    const edgesSvg = treeEdges.map(([a, b, eid]) => {
+      const p1 = treeCoords[a];
+      const p2 = treeCoords[b];
+      const lit = s.activeEdges.includes(eid);
+      return `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${lit ? '#B0306A' : '#D9D2C5'}" stroke-width="${lit ? 4 : 2.5}" stroke-linecap="round"/>`;
+    }).join('');
+
+    const nodesSvg = Object.entries(treeCoords).map(([name, pt]) => {
+      const lit = s.activeNodes.includes(name);
+      const isFinal = s.selectedName === name && lit && !s.animating;
+      return `<g>
+        <circle cx="${pt.x}" cy="${pt.y}" r="22" fill="${lit ? '#B0306A' : '#FFFFFF'}" stroke="${lit ? '#23303F' : '#B0306A'}" stroke-width="${isFinal ? 3.5 : 2.2}"/>
+        <text x="${pt.x}" y="${pt.y + 5}" text-anchor="middle" font-size="13" font-weight="700" font-family="system-ui, sans-serif" fill="${lit ? '#FFFFFF' : '#23303F'}">${name}</text>
+      </g>`;
+    }).join('');
+
+    return `<svg class="tree-svg" viewBox="0 0 320 202" role="img" aria-label="TreeSet lookup tree with Leo at root, Ava and Mia below, Ben under Ava, Zoe under Mia">
+      ${edgesSvg}
+      ${nodesSvg}
+    </svg>`;
+  }
+
+  function step4LiveText(s) {
+    if (!s.selectedName) return 'Tap any name above to watch both lookups.';
+    const unit = s.treeCount === 1 ? 'comparison' : 'comparisons';
+    if (s.animating) {
+      return `Checking "${s.selectedName}" in TreeSet (${s.treeCount} ${unit} so far)...`;
+    }
+    return `Looking up "${s.selectedName}": HashSet/LinkedHashSet took about 1 step; TreeSet checked ${TREE_PATHS[s.selectedName].nodes.join(' \u2192 ')} (${s.treeCount} ${unit}).`;
+  }
+
+  function renderStep4() {
+    const s = state.steps[4];
+    const stop = SCALE_STOPS[s.scaleIndex];
+    const maxScale = 30;
+    const hashPct = Math.max(4, Math.round((stop.hash / maxScale) * 100));
+    const treePct = Math.round((stop.tree / maxScale) * 100);
+
+    const hashCounterText = s.selectedName ? 'about 1 step (on average)' : 'tap a name above';
+    const treeCounterText = s.selectedName
+      ? `${s.treeCount} comparison${s.treeCount === 1 ? '' : 's'}`
+      : 'tap a name above';
+
+    const studentHtml = s.studentTried ? `
+      <div class="student-demo" aria-live="polite">
+        <pre class="setup-pre">TreeSet&lt;Student&gt; s = new TreeSet&lt;&gt;();
+// Student has no compareTo
+s.add(new Student("Mia"));</pre>
+        <div class="console-strip">java.lang.ClassCastException</div>
+        <p class="slot-caption">TreeSet doesn't know how to sort Students.</p>
+      </div>
+    ` : '';
+
+    const body = `
+      <div class="name-picker-row">
+        ${GUESTS.map((g) => `
+          <button type="button" class="name-chip-btn" data-lookup="${escapeHtml(g)}" aria-pressed="${s.selectedName === g ? 'true' : 'false'}">${escapeHtml(g)}</button>
+        `).join('')}
+      </div>
+
+      <div class="race-grid">
+        <div class="race-panel">
+          <div class="race-panel-head">
+            <span class="set-badge">${setIconSvg('hash')} ${setIconSvg('linked')} HashSet and LinkedHashSet</span>
+            <span class="step-counter" id="hash-step-counter">${escapeHtml(hashCounterText)}</span>
+          </div>
+          <div class="hash-pool">
+            ${['Zoe', 'Mia', 'Leo', 'Ben', 'Ava'].map((g) => `
+              <span class="pool-pill${s.selectedName === g ? ' is-hit' : ''}">${escapeHtml(g)}</span>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="race-panel">
+          <div class="race-panel-head">
+            <span class="set-badge">${setIconSvg('tree')} TreeSet</span>
+            <span class="step-counter" id="tree-step-counter">${escapeHtml(treeCounterText)}</span>
+          </div>
+          <div class="tree-svg-wrap" id="tree-svg-wrap">
+            ${buildTreeSvgHtml(s)}
+          </div>
+        </div>
+      </div>
+
+      <div aria-live="polite" class="slot-caption" id="s4-live-msg">${escapeHtml(step4LiveText(s))}</div>
+
+      <div class="scale-card">
+        <div class="scale-head">
+          <h2 class="scale-title">Scale it up</h2>
+          <span class="mono" style="font-weight:700;">n = ${escapeHtml(stop.nLabel)}</span>
+        </div>
+        <div class="stop-buttons">
+          ${SCALE_STOPS.map((st, idx) => `
+            <button type="button" class="stop-btn" data-stop="${idx}" aria-pressed="${s.scaleIndex === idx ? 'true' : 'false'}">${escapeHtml(st.nLabel)}</button>
+          `).join('')}
+        </div>
+        <div class="bar-rows">
+          <div class="bar-row">
+            <div class="bar-label-row">
+              <span>HashSet (average)</span>
+              <span class="mono">${stop.hash}</span>
+            </div>
+            <div class="bar-track"><div class="bar-fill hash" style="width:${hashPct}%"></div></div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label-row">
+              <span>TreeSet (about log\u2082 n)</span>
+              <span class="mono">${stop.tree}</span>
+            </div>
+            <div class="bar-track"><div class="bar-fill tree" style="width:${treePct}%"></div></div>
+          </div>
+        </div>
+
+        <div class="cost-card">
+          <p><strong>HashSet, LinkedHashSet:</strong> <code>add</code>, <code>remove</code>, <code>contains</code> are <strong>O(1)</strong> on average.</p>
+          <p><strong>TreeSet:</strong> <code>add</code>, <code>remove</code>, <code>contains</code> are <strong>O(log n)</strong>.</p>
+          <p><strong>TreeSet needs order:</strong> the elements must be <code>Comparable</code> (like <code>String</code>) or you give the TreeSet a <code>Comparator</code>.</p>
+        </div>
+
+        <div class="action-bar">
+          <button type="button" id="try-student-btn">Add a Student that can't be compared</button>
+        </div>
+        ${studentHtml}
+      </div>
+    `;
+
+    hostEl.innerHTML = stepShell(
+      'Tap a name to look it up with <code>contains</code>. Count the steps.',
+      body
+    );
+
+    hostEl.querySelectorAll('[data-lookup]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        clearTimers();
+        const name = btn.dataset.lookup;
+        const path = TREE_PATHS[name];
+        s.selectedName = name;
+        s.completed = true;
+        if (prefersReducedMotion()) {
+          s.activeNodes = [...path.nodes];
+          s.activeEdges = [...path.edges];
+          s.treeCount = path.nodes.length;
+          s.animating = false;
+          renderAll();
+          return;
+        }
+        s.activeNodes = [path.nodes[0]];
+        s.activeEdges = [];
+        s.treeCount = 1;
+        s.animating = path.nodes.length > 1;
+        renderAll();
+
+        path.nodes.forEach((node, idx) => {
+          if (idx === 0) return;
+          addTimer(() => {
+            if (state.currentStep !== 4) return;
+            s.activeNodes = path.nodes.slice(0, idx + 1);
+            s.activeEdges = path.edges.slice(0, idx);
+            s.treeCount = idx + 1;
+            if (idx === path.nodes.length - 1) {
+              s.animating = false;
+            }
+            const svgWrap = document.getElementById('tree-svg-wrap');
+            const counterEl = document.getElementById('tree-step-counter');
+            const liveEl = document.getElementById('s4-live-msg');
+            if (svgWrap) svgWrap.innerHTML = buildTreeSvgHtml(s);
+            if (counterEl) counterEl.textContent = `${s.treeCount} comparison${s.treeCount === 1 ? '' : 's'}`;
+            if (liveEl) liveEl.textContent = step4LiveText(s);
+          }, idx * 400);
+        });
+      });
+    });
+
+    hostEl.querySelectorAll('[data-stop]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        s.scaleIndex = Number(btn.dataset.stop);
+        renderAll();
+      });
+    });
+
+    const tryBtn = document.getElementById('try-student-btn');
+    if (tryBtn) {
+      tryBtn.addEventListener('click', () => {
+        s.studentTried = true;
+        renderAll();
+      });
+    }
+  }
+
+  /* ==================== STEP 5 RENDER ==================== */
+  function renderStep5() {
+    const s = state.steps[5];
+    const unplaced = SCENARIOS.filter((sc) => !s.placed[sc.id]);
+    const allPlaced = unplaced.length === 0;
+
+    const trayHtml = allPlaced ? '' : `
+      <div class="job-tray">
+        ${unplaced.map((sc) => {
+          const isSel = s.selectedJobId === sc.id;
+          return `<button type="button" class="job-card-btn${isSel ? ' is-selected' : ''}" data-job-id="${sc.id}" aria-pressed="${isSel ? 'true' : 'false'}">${escapeHtml(sc.text)}</button>`;
+        }).join('')}
+      </div>
+    `;
+
+    const feedbackHtml = s.feedback ? `
+      <div aria-live="polite">
+        ${s.feedback.ok
+          ? `<span class="badge-ok">\u2713 ${escapeHtml(s.feedback.msg)}</span>`
+          : `<span class="badge-alert">\u2717 ${escapeHtml(s.feedback.msg)}</span>`}
+      </div>
+    ` : `<div aria-live="polite" class="slot-caption">${s.selectedJobId ? 'Now tap one of the three set bins below.' : 'Select a job card above.'}</div>`;
+
+    const binsHtml = ['hash', 'linked', 'tree'].map((binId) => {
+      const info = SETS[binId];
+      const items = SCENARIOS.filter((sc) => s.placed[sc.id] === binId);
+      const itemsHtml = items.map((sc) => `
+        <div class="placed-job">
+          <span class="placed-job-title">${escapeHtml(sc.text)}</span>
+          <span class="placed-job-reason">\u2713 ${sc.isCodeReason ? `<code>${escapeHtml(sc.reason)}</code>` : escapeHtml(sc.reason)}</span>
+        </div>
+      `).join('');
+
+      return `
+        <div class="bin-card ${binId}">
+          <button type="button" class="bin-pick-btn${allPlaced ? ' is-locked' : ''}" data-bin-id="${binId}"${allPlaced ? ' aria-disabled="true"' : ''}>
+            <span class="set-badge">${setIconSvg(binId)} ${info.name}</span>
+            <span class="set-tag ${binId}">${info.tag}</span>
+          </button>
+          <div class="bin-items">${itemsHtml}</div>
+        </div>
+      `;
+    }).join('');
+
+    const closingHtml = allPlaced ? `
+      <div class="closing-banner">
+        <div class="closing-stripe" aria-hidden="true">
+          <div class="s-berry"></div>
+          <div class="s-teal"></div>
+          <div class="s-slate"></div>
+        </div>
+        <div class="closing-body">
+          <strong>Pick the set by what you need.</strong>
+          <span>Sorted \u2192 TreeSet \u00b7 Arrival order \u2192 LinkedHashSet \u00b7 Just fast \u2192 HashSet</span>
+        </div>
+      </div>
+    ` : '';
+
+    const body = `
+      ${trayHtml}
+      ${feedbackHtml}
+      <div class="bins-grid">${binsHtml}</div>
+      ${closingHtml}
+    `;
+
+    hostEl.innerHTML = stepShell(
+      'Tap a job, then tap the set you\'d pick for it.',
+      body
+    );
+
+    hostEl.querySelectorAll('[data-job-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        s.selectedJobId = s.selectedJobId === btn.dataset.jobId ? null : btn.dataset.jobId;
+        s.feedback = null;
+        renderAll();
+      });
+    });
+
+    hostEl.querySelectorAll('[data-bin-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (SCENARIOS.every((sc) => s.placed[sc.id])) return;
+        if (!s.selectedJobId) {
+          s.feedback = { ok: false, msg: 'Tap a job card first, then tap a set.' };
+          renderAll();
+          return;
+        }
+        const job = SCENARIOS.find((sc) => sc.id === s.selectedJobId);
+        const binId = btn.dataset.binId;
+        if (!job) return;
+        if (job.accepts.includes(binId)) {
+          s.placed[job.id] = binId;
+          s.selectedJobId = null;
+          s.feedback = { ok: true, msg: `${SETS[binId].name}: ${job.reason}` };
+          if (SCENARIOS.every((sc) => s.placed[sc.id])) {
+            s.completed = true;
+          }
+        } else {
+          s.selectedJobId = null;
+          s.feedback = { ok: false, msg: job.hint };
+        }
+        renderAll();
+      });
+    });
+  }
+
+  function renderAll({ preserveFocus = true, focusInstruction = false, focusSelector = null } = {}) {
+    const activeEl = document.activeElement;
+    const wasInside = preserveFocus && activeEl && (hostEl.contains(activeEl) || navEl.contains(activeEl));
+    const activeKey = wasInside ? getFocusKey(activeEl) : null;
+
+    renderNav();
+    const cur = state.currentStep;
+    if (cur === 1) renderStep1();
+    if (cur === 2) renderStep2();
+    if (cur === 3) renderStep3();
+    if (cur === 4) renderStep4();
+    if (cur === 5) renderStep5();
+
+    if (!wasInside) return;
+
+    const instrEl = hostEl.querySelector('.step-instruction');
+    if (focusInstruction) {
+      if (instrEl) instrEl.focus({ preventScroll: true });
+      return;
+    }
+
+    if (focusSelector) {
+      const customTarget = hostEl.querySelector(focusSelector);
+      if (customTarget && !customTarget.disabled) {
+        customTarget.focus({ preventScroll: true });
+        return;
+      }
+    }
+
+    const target = findByFocusKey(activeKey);
+    if (
+      target &&
+      !target.disabled &&
+      !target.classList.contains('is-locked') &&
+      target.getAttribute('aria-disabled') !== 'true'
+    ) {
+      target.focus({ preventScroll: true });
+    } else if (instrEl) {
+      instrEl.focus({ preventScroll: true });
+    }
+  }
+
+  hostEl.addEventListener('click', (e) => {
+    const target = e.target.closest('#reset-step-btn, #back-step-btn, #next-step-btn');
+    if (!target || target.disabled) return;
+    if (target.id === 'reset-step-btn') resetCurrentStep();
+    if (target.id === 'back-step-btn') goToStep(state.currentStep - 1);
+    if (target.id === 'next-step-btn') goNext();
+  });
+
+  navEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.step-tab');
+    if (!btn || btn.disabled) return;
+    const stepNum = Number(btn.dataset.step);
+    if (stepNum >= 1 && stepNum <= 5) {
+      goToStep(stepNum);
+    }
+  });
+
+  renderAll({ preserveFocus: false });
+})();
+</script>
+</body>
+</html>
